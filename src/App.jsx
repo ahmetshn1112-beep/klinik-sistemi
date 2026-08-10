@@ -9755,18 +9755,18 @@ const useFirebase = () => {
               })()}
             {avatarModalInfo.isOpen && (
   <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn">
-    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col">
+    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col animate-pop">
       
       {/* Modern Header */}
       <div className="px-6 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center relative overflow-hidden">
         <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
         <div className="flex items-center gap-2.5 relative z-10">
           <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm shadow-inner">
-            <i className="fa-solid fa-camera-retro"></i>
+            <i className="fa-solid fa-circle-user"></i>
           </div>
           <div>
-            <h3 className="font-black text-sm tracking-wide">Fotoğrafı Ayarla</h3>
-            <p className="text-[10px] text-indigo-100 font-semibold">Profesyonel Görünüm</p>
+            <h3 className="font-black text-sm tracking-wide">Profil Fotoğrafını Düzenle</h3>
+            <p className="text-[10px] text-indigo-100 font-semibold">Sürükleyin ve Hizalayın</p>
           </div>
         </div>
         <button
@@ -9777,10 +9777,62 @@ const useFirebase = () => {
         </button>
       </div>
 
-      <div className="p-6 space-y-5">
-        {/* Canlı Önizleme Alanı */}
+      <div className="p-6 space-y-6">
+        {/* İnteraktif Sürükle-Bırak / Kaydırma Alanı */}
         <div className="flex flex-col items-center justify-center">
-          <div className="w-36 h-36 rounded-full border-4 border-indigo-50 dark:border-slate-800 shadow-xl overflow-hidden relative bg-slate-100 dark:bg-slate-800 flex items-center justify-center ring-4 ring-indigo-500/10">
+          <div 
+            className="w-44 h-44 rounded-full border-4 border-indigo-500/30 shadow-2xl overflow-hidden relative bg-slate-900 flex items-center justify-center ring-8 ring-indigo-500/10 cursor-grab active:cursor-grabbing select-none group"
+            onMouseDown={(e) => {
+              const startX = e.clientX;
+              const startY = e.clientY;
+              const origX = avatarModalInfo.x;
+              const origY = avatarModalInfo.y;
+              
+              const onMouseMove = (moveEvent) => {
+                const deltaX = (moveEvent.clientX - startX) * 0.5;
+                const deltaY = (moveEvent.clientY - startY) * 0.5;
+                setAvatarModalInfo(prev => ({
+                  ...prev,
+                  x: Math.max(0, Math.min(100, origX - deltaX)),
+                  y: Math.max(0, Math.min(100, origY - deltaY))
+                }));
+              };
+              
+              const onMouseUp = () => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+              };
+              
+              window.addEventListener('mousemove', onMouseMove);
+              window.addEventListener('mouseup', onMouseUp);
+            }}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              const startX = touch.clientX;
+              const startY = touch.clientY;
+              const origX = avatarModalInfo.x;
+              const origY = avatarModalInfo.y;
+              
+              const onTouchMove = (moveEvent) => {
+                const t = moveEvent.touches[0];
+                const deltaX = (t.clientX - startX) * 0.5;
+                const deltaY = (t.clientY - startY) * 0.5;
+                setAvatarModalInfo(prev => ({
+                  ...prev,
+                  x: Math.max(0, Math.min(100, origX - deltaX)),
+                  y: Math.max(0, Math.min(100, origY - deltaY))
+                }));
+              };
+              
+              const onTouchEnd = () => {
+                window.removeEventListener('touchmove', onTouchMove);
+                window.removeEventListener('touchend', onTouchEnd);
+              };
+              
+              window.addEventListener('touchmove', onTouchMove);
+              window.addEventListener('touchend', onTouchEnd);
+            }}
+          >
             {avatarModalInfo.tempAvatar ? (
               <img
                 src={avatarModalInfo.tempAvatar}
@@ -9791,97 +9843,64 @@ const useFirebase = () => {
                 className="w-full h-full object-cover pointer-events-none transition-transform duration-75"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-slate-400 gap-1">
-                <i className="fa-solid fa-image text-3xl"></i>
+              <div className="flex flex-col items-center justify-center text-slate-400 gap-1.5">
+                <i className="fa-solid fa-camera text-3xl"></i>
                 <span className="text-[10px] font-bold">Görsel Yok</span>
               </div>
             )}
+            
+            {/* Sürükleme İpucu Overlay */}
+            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <span className="text-white text-[10px] font-black bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-md shadow-lg flex items-center gap-1.5">
+                <i className="fa-solid fa-hand-pointer"></i> Kaydırmak için sürükleyin
+              </span>
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: 1, x: 50, y: 50 })}
+            className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline mt-3.5 flex items-center gap-1.5"
+          >
+            <i className="fa-solid fa-rotate-left"></i> Konumu ve Zoomu Sıfırla
+          </button>
         </div>
 
-        {/* Modern Kontrol Paneli (Slider Yerine Butonlar) */}
-        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
-          
-          {/* Zoom Kontrolleri */}
-          <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-black text-slate-600 dark:text-slate-300 flex items-center gap-1.5 ml-1">
-              <i className="fa-solid fa-magnifying-glass text-indigo-500"></i> Yakınlaştır
+        {/* Akıllı Slider Kontrol Paneli */}
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+          <div className="flex justify-between items-center text-[11px] font-black text-slate-600 dark:text-slate-300">
+            <span className="flex items-center gap-1.5">
+              <i className="fa-solid fa-magnifying-glass text-indigo-500"></i> Yakınlaştırma Seviyesi
             </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.max(1, parseFloat((avatarModalInfo.zoom - 0.1).toFixed(1))) })}
-                className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center transition shadow-sm"
-              >
-                <i className="fa-solid fa-minus text-xs"></i>
-              </button>
-              <span className="w-12 text-center text-xs font-mono font-black text-indigo-600 dark:text-indigo-400">
-                {avatarModalInfo.zoom}x
-              </span>
-              <button
-                type="button"
-                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.min(3, parseFloat((avatarModalInfo.zoom + 0.1).toFixed(1))) })}
-                className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center transition shadow-sm"
-              >
-                <i className="fa-solid fa-plus text-xs"></i>
-              </button>
-            </div>
-          </div>
-
-          {/* Konum Kontrolleri (Yön Tuşları ve Merkezleme) */}
-          <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-black text-slate-600 dark:text-slate-300 flex items-center gap-1.5 ml-1">
-              <i className="fa-solid fa-arrows-up-down-left-right text-indigo-500"></i> Konumlandır
+            <span className="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md font-mono">
+              {avatarModalInfo.zoom.toFixed(1)}x
             </span>
-            <div className="flex items-center gap-1">
-              {/* Sol */}
-              <button
-                type="button"
-                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, x: Math.max(0, avatarModalInfo.x - 5) })}
-                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
-                title="Sola Kaydır"
-              >
-                <i className="fa-solid fa-arrow-left text-[10px]"></i>
-              </button>
-              {/* Yukarı */}
-              <button
-                type="button"
-                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, y: Math.max(0, avatarModalInfo.y - 5) })}
-                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
-                title="Yukarı Kaydır"
-              >
-                <i className="fa-solid fa-arrow-up text-[10px]"></i>
-              </button>
-              {/* Aşağı */}
-              <button
-                type="button"
-                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, y: Math.min(100, avatarModalInfo.y + 5) })}
-                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
-                title="Aşağı Kaydır"
-              >
-                <i className="fa-solid fa-arrow-down text-[10px]"></i>
-              </button>
-              {/* Sağ */}
-              <button
-                type="button"
-                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, x: Math.min(100, avatarModalInfo.x + 5) })}
-                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
-                title="Sağa Kaydır"
-              >
-                <i className="fa-solid fa-arrow-right text-[10px]"></i>
-              </button>
-              {/* Sıfırla */}
-              <button
-                type="button"
-                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: 1, x: 50, y: 50 })}
-                className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center transition ml-1"
-                title="Konumu Sıfırla"
-              >
-                <i className="fa-solid fa-rotate-left text-xs"></i>
-              </button>
-            </div>
           </div>
-
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.max(1, parseFloat((avatarModalInfo.zoom - 0.2).toFixed(1))) })}
+              className="w-8 h-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-indigo-50 transition shadow-sm"
+            >
+              <i className="fa-solid fa-minus text-xs"></i>
+            </button>
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="0.05"
+              value={avatarModalInfo.zoom}
+              onChange={(e) => setAvatarModalInfo({ ...avatarModalInfo, zoom: parseFloat(e.target.value) })}
+              className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+            />
+            <button
+              type="button"
+              onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.min(3, parseFloat((avatarModalInfo.zoom + 0.2).toFixed(1))) })}
+              className="w-8 h-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-indigo-50 transition shadow-sm"
+            >
+              <i className="fa-solid fa-plus text-xs"></i>
+            </button>
+          </div>
         </div>
 
         {/* Alt Aksiyon Butonları */}
