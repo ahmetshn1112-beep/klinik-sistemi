@@ -1,0 +1,320 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mobil çekip yenileme (pull-to-refresh) davranışını kapatmak için global CSS kuralı */
+html,
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* 1. Glassmorphism Tooltip */
+.glass-tooltip {
+  position: absolute;
+  z-index: 60;
+  width: max-content;
+  max-width: 250px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  color: #333;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px) scale(0.95) translateX(-50%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  bottom: calc(100% + 10px);
+  left: 50%;
+}
+
+.dark .glass-tooltip {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  color: #f1f5f9;
+}
+
+.glass-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border-width: 6px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.6) transparent transparent transparent;
+}
+
+.dark .glass-tooltip::after {
+  border-color: rgba(15, 23, 42, 0.7) transparent transparent transparent;
+}
+
+.apt-card-wrapper:hover .glass-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1) translateX(-50%);
+}
+
+/* 2. Heatmap Glow Animations */
+@keyframes softPulseRed {
+  0% { filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.4)); }
+  50% { filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.9)); }
+  100% { filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.4)); }
+}
+@keyframes softPulseYellow {
+  0% { filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.4)); }
+  50% { filter: drop-shadow(0 0 10px rgba(234, 179, 8, 0.9)); }
+  100% { filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.4)); }
+}
+@keyframes softPulseBlue {
+  0% { filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.4)); }
+  50% { filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.9)); }
+  100% { filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.4)); }
+}
+.heatmap-danger { animation: softPulseRed 2.5s infinite ease-in-out; }
+.heatmap-warning { animation: softPulseYellow 3s infinite ease-in-out; }
+.heatmap-info { animation: softPulseBlue 3s infinite ease-in-out; }
+
+/* 4. Magnetic Drag Over Update */
+.drag-over {
+  transform: scale(1.03);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) inset !important;
+  z-index: 30;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.is-dragging {
+  opacity: 0.8 !important;
+  transform: scale(0.9) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3) !important;
+  cursor: grabbing !important;
+}
+
+/* 5. Ambient Glow */
+@keyframes ambientDrift {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  33% { transform: translate(40px, -40px) scale(1.1); opacity: 0.6; }
+  66% { transform: translate(-30px, 30px) scale(0.9); opacity: 0.5; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+}
+.ambient-glow-1,
+.ambient-glow-2 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+  animation: ambientDrift 20s infinite ease-in-out;
+}
+.ambient-glow-1 {
+  width: 450px;
+  height: 450px;
+  background: rgba(99, 102, 241, 0.3);
+  top: -100px;
+  left: -100px;
+}
+.ambient-glow-2 {
+  width: 550px;
+  height: 550px;
+  background: rgba(168, 85, 247, 0.2);
+  bottom: -200px;
+  right: -100px;
+  animation-delay: -10s;
+}
+.dark .ambient-glow-1 { background: rgba(99, 102, 241, 0.15); }
+.dark .ambient-glow-2 { background: rgba(168, 85, 247, 0.1); }
+
+/* --- SPOTLIGHT VE 3D KART CSS --- */
+.spotlight-overlay {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease-out;
+}
+.spotlight-box {
+  transform-origin: top center;
+  animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes slideDown {
+  from { transform: scale(0.95) translateY(-20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 3D Flip Kartlar */
+.flip-card { perspective: 1000px; }
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip-card:hover .flip-card-inner { transform: rotateY(180deg); }
+.flip-card-front,
+.flip-card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-card-back { transform: rotateY(180deg); }
+
+/* 6. 3D Klinik Haritası (Hover Effect) */
+.clinic-room-card {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+}
+.clinic-room-card:hover {
+  transform: translateY(-8px) rotateX(10deg) rotateY(-5deg);
+  box-shadow: 15px 25px 35px -10px rgba(0, 0, 0, 0.15);
+}
+.dark .clinic-room-card:hover {
+  box-shadow: 15px 25px 35px -10px rgba(0, 0, 0, 0.5);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+body {
+  background-color: #f8fafc;
+  -webkit-tap-highlight-color: transparent;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  transition: background-color 0.3s ease;
+}
+.dark body { background-color: #0f172a; color: #f1f5f9; }
+
+.calendar-grid { display: grid; grid-template-columns: 60px repeat(var(--doctor-count, 1), minmax(0, 1fr)); width: 100%; }
+.weekly-grid { display: grid; grid-template-columns: 60px repeat(7, minmax(0, 1fr)); width: 100%; }
+
+.time-col { border-right: 1px solid #e2e8f0; position: sticky; left: 0; background: white; z-index: 10; }
+.dark .time-col { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+
+.doc-col, .day-col { border-right: 1px solid #e2e8f0; }
+.dark .doc-col, .dark .day-col { border-color: #334155; }
+
+.grid-row-h { height: 52px; min-height: 52px; max-height: 52px; box-sizing: border-box; }
+
+.slot-cell { border-bottom: 1px dashed #e2e8f0; position: relative; transition: all 0.2s; }
+.dark .slot-cell { border-bottom: 1px dashed #334155; }
+.slot-cell:hover { background: #f1f5f9; cursor: pointer; }
+.dark .slot-cell:hover { background: #334155; }
+.slot-cell.has-apt { border-bottom: 1px solid #e2e8f0; }
+.dark .slot-cell.has-apt { border-bottom: 1px solid #334155; }
+
+.drag-over {
+  background-color: #d1fae5 !important;
+  border: 2px dashed #10b981 !important;
+  transform: scale(1.03);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) inset !important;
+  z-index: 30;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dark .drag-over {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.4) inset;
+}
+
+.drag-over.has-apt {
+  background-color: #ffe4e6 !important;
+  border: 2px dashed #e11d48 !important;
+  cursor: not-allowed;
+}
+.dark .drag-over.has-apt {
+  background-color: rgba(225, 29, 72, 0.2) !important;
+  border-color: #be123c !important;
+}
+
+.apt-card[draggable="true"] { cursor: grab; }
+.apt-card[draggable="true"]:active { cursor: grabbing; }
+
+.is-dragging { opacity: 0.5; transform: scale(0.95); }
+
+.sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+.apt-card {
+  position: absolute; top: 2px; left: 2px; right: 2px; bottom: 2px;
+  border-radius: 6px; padding: 4px 6px; font-size: 11px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); border-left: 4px solid;
+  display: flex; flex-direction: column; justify-content: center;
+  line-height: 1.2; transition: transform 0.1s;
+}
+.apt-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 5;
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop { animation: modalPop 0.2s ease-out forwards; }
+
+.header-transition { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.header-hidden { transform: translateY(-100%); }
+.header-trigger-zone { position: absolute; top: 0; left: 0; right: 0; height: 20px; z-index: 50; }
+
+.refreshing { opacity: 0.5; pointer-events: none; transition: opacity 0.3s ease; }
+
+@keyframes flashBlue {
+  0%, 100% { background-color: inherit; transform: scale(1); box-shadow: none; z-index: 1; }
+  20%, 80% { background-color: #dbeafe; transform: scale(1.02); box-shadow: 0 0 15px #3b82f6; z-index: 50; border-radius: 8px; }
+}
+@keyframes flashBlueDark {
+  0%, 100% { background-color: inherit; transform: scale(1); box-shadow: none; z-index: 1; }
+  20%, 80% { background-color: #1e3a8a; transform: scale(1.02); box-shadow: 0 0 15px #3b82f6; z-index: 50; border-radius: 8px; }
+}
+.flash-highlight { animation: flashBlue 2.5s ease-in-out; position: relative; }
+.dark .flash-highlight { animation: flashBlueDark 2.5s ease-in-out; }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background: transparent; color: transparent; cursor: pointer;
+  height: auto; width: auto; position: absolute; right: 0; top: 0; bottom: 0; left: 0;
+}
+
+.dark select option { background-color: #1e293b; color: #f1f5f9; }
+.dark input[type="date"], .dark input[type="number"], .dark input[type="text"],
+.dark input[type="tel"], .dark input[type="password"], .dark textarea {
+  background-color: #0f172a; color: #f1f5f9; border-color: #334155;
+}
+.dark input:focus, .dark select:focus, .dark textarea:focus { border-color: #6366f1; }
+
+@media print {
+  @page { margin: 5mm; size: A4 portrait; }
+  body { background-color: white !important; color: black !important; }
+  body * { visibility: hidden; }
+  #print-area, #print-area * { visibility: visible; }
+  #print-area { position: absolute; left: 0; top: 0; width: 100%; background: white !important; padding: 10px; margin: 0; color: black !important; }
+  #print-plan-area, #print-plan-area * { visibility: visible; }
+  #print-plan-area { position: absolute; left: 0; top: 0; width: 100%; background: white !important; padding: 10px; margin: 0; color: black !important; z-index: 9999; }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .print-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+  .print-table th, .print-table td { border: 1px solid #cbd5e1 !important; padding: 6px 8px !important; text-align: left !important; font-size: 11px !important; color: black !important; }
+  .print-table th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+  .print-tooth-chart { padding: 10px !important; margin-bottom: 10px !important; border: none !important; background: white !important; }
+  .print-tooth-chart svg { height: 45px !important; }
+  .print-only-section { display: block !important; margin-top: 20px; page-break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+}
+
+/* Custom Scrollbar Utility */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
