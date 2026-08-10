@@ -950,21 +950,21 @@ const useFirebase = () => {
 
         const [currentUser, setCurrentUser] = useState(null);
 
-        // Profesyonel Oturum Kontrolü
-        useEffect(() => {
-          const checkSession = () => {
-            const savedUser = sessionStorage.getItem("klinikAktifKullanici");
-            const sessionToken = sessionStorage.getItem("klinikOturumTokeni"); // Basit token kontrolü
+        // Profesyonel Kalıcı Oturum Kontrolü
+useEffect(() => {
+  const checkSession = () => {
+    const savedUser = localStorage.getItem("klinikAktifKullanici");
+    const sessionToken = localStorage.getItem("klinikOturumTokeni");
 
-            if (savedUser && sessionToken === "verified") {
-              setCurrentUser(savedUser);
-            } else {
-              setCurrentUser(null);
-              sessionStorage.removeItem("klinikAktifKullanici");
-            }
-          };
-          checkSession();
-        }, []);
+    if (savedUser && sessionToken) {
+      setCurrentUser(savedUser);
+    } else {
+      setCurrentUser(null);
+      localStorage.removeItem("klinikAktifKullanici");
+    }
+  };
+  checkSession();
+}, []);
 
         const [savedUsernames, setSavedUsernames] = useState(() =>
           JSON.parse(localStorage.getItem("klinikSavedUsers") || "[]")
@@ -2714,12 +2714,8 @@ const useFirebase = () => {
           // Başarılı Giriş
           localStorage.setItem("loginAttempts", "0");
           setCurrentUser(authForm.username);
-          sessionStorage.setItem("klinikAktifKullanici", authForm.username);
-
-          // Dinamik Token (Aktif Bırakıldı)
-          const secureToken =
-            Math.random().toString(36).substring(2) + Date.now().toString(36);
-          sessionStorage.setItem("klinikOturumTokeni", secureToken);
+          localStorage.setItem("klinikAktifKullanici", authForm.username);
+localStorage.setItem("klinikOturumTokeni", "active");
 
           if (!savedUsernames.includes(authForm.username)) {
             const newSaved = [...savedUsernames, authForm.username];
@@ -2779,14 +2775,8 @@ const useFirebase = () => {
 
             showNotification("Hesap test modunda (şifresiz) oluşturuldu.");
             setCurrentUser(registerForm.username);
-            sessionStorage.setItem(
-              "klinikAktifKullanici",
-              registerForm.username
-            );
-
-            const secureToken =
-              Math.random().toString(36).substring(2) + Date.now().toString(36);
-            sessionStorage.setItem("klinikOturumTokeni", secureToken);
+            localStorage.setItem("klinikAktifKullanici", registerForm.username);
+localStorage.setItem("klinikOturumTokeni", "active");
 
             if (btn) btn.disabled = false;
           } catch (error) {
@@ -7457,8 +7447,9 @@ const useFirebase = () => {
                         <div className="p-2 border-t border-slate-100 dark:border-slate-700/50">
                           <button
                             onClick={() => {
-                              sessionStorage.removeItem("klinikAktifKullanici");
-                              window.location.reload();
+                              localStorage.removeItem("klinikAktifKullanici");
+localStorage.removeItem("klinikOturumTokeni");
+window.location.reload();
                             }}
                             className="w-full text-left px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-700 transition-colors rounded-xl flex items-center gap-3 group"
                           >
