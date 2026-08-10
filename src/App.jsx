@@ -4093,19 +4093,16 @@ const useFirebase = () => {
                                   }}
                                 >
                                   <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="font-black text-slate-800 dark:text-slate-200 text-sm flex items-center gap-2 truncate relative">
-                                      {apt.patientName}
-                                      {anamnesis && (
-                                        <i className="fa-solid fa-triangle-exclamation text-rose-500"></i>
-                                      )}
-                                      {apt.notes && (
-                                        <i className="fa-solid fa-note-sticky text-amber-500 ml-0.5"></i>
-                                      )}
-                                    </div>
-                                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 border-l border-slate-200 dark:border-slate-600 pl-3 hidden sm:block truncate">
-                                      {renderTreatmentText(apt)} •{" "}
-                                      {apt.duration} Dk
-                                    </div>
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-1 gap-1 overflow-hidden">
+  <div className="flex flex-wrap items-center gap-1.5 truncate">
+    <span className="font-black text-slate-800 dark:text-white text-xs sm:text-sm truncate">
+      {apt.patientName} {anamnesis && (<i className="fa-solid fa-triangle-exclamation text-rose-500"></i>)}
+    </span>
+    <span className="text-[10px] sm:text-xs font-bold opacity-80 truncate">
+      • {renderTreatmentText(apt)} {apt.duration ? `(${apt.duration} Dk)` : ""}
+    </span>
+  </div>
+</div>
                                   </div>
                                   <div className="flex items-center gap-3 shrink-0 ml-2">
                                     {getStatusBadge(apt.status, (e) =>
@@ -4319,17 +4316,16 @@ const useFirebase = () => {
                                       borderLeftColor: tColor.border,
                                     }}
                                   >
-                                    <span className="font-bold truncate text-[11px] w-full">
-                                      {apt.patientName}{" "}
-                                      {anamnesis && (
-                                        <i className="fa-solid fa-triangle-exclamation text-rose-500"></i>
-                                      )}
-                                    </span>
-                                    {apt.treatment && (
-                                      <span className="text-[9px] opacity-80 truncate w-full mt-0.5">
-                                        {renderTreatmentText(apt)}
-                                      </span>
-                                    )}
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-1 gap-0.5 overflow-hidden">
+  <div className="flex flex-wrap items-center gap-1 truncate">
+    <span className="font-black text-slate-800 dark:text-white text-xs truncate">
+      {apt.patientName} {anamnesis && (<i className="fa-solid fa-triangle-exclamation text-rose-500"></i>)}
+    </span>
+    <span className="text-[10px] font-bold opacity-80 truncate">
+      • {renderTreatmentText(apt)} {apt.duration ? `(${apt.duration} Dk)` : ""}
+    </span>
+  </div>
+</div>
                                   </div>
                                 </div>
                               )}
