@@ -9754,166 +9754,188 @@ const useFirebase = () => {
                 );
               })()}
             {avatarModalInfo.isOpen && (
-              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
-                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop">
-                  <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
-                    <h3 className="font-black text-sm uppercase tracking-wider">
-                      <i className="fa-solid fa-crop-simple mr-2"></i>
-                      Fotoğrafı Ayarla
-                    </h3>
-                    <button
-                      onClick={() =>
-                        setAvatarModalInfo({
-                          ...avatarModalInfo,
-                          isOpen: false,
-                        })
-                      }
-                      className="text-slate-400 hover:text-white"
-                    >
-                      <i className="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                  </div>
-                  <div className="p-6 space-y-6">
-                    <div className="flex justify-center">
-                      <div className="w-48 h-48 rounded-full border-4 border-indigo-100 dark:border-indigo-900/50 overflow-hidden relative shadow-inner bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
-                        {avatarModalInfo.tempAvatar ? (
-                          <img
-                            src={avatarModalInfo.tempAvatar}
-                            style={{
-                              transform: `scale(${avatarModalInfo.zoom})`,
-                              objectPosition: `${avatarModalInfo.x}% ${avatarModalInfo.y}%`,
-                            }}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <i className="fa-solid fa-image text-slate-300 text-5xl"></i>
-                        )}
-                      </div>
-                    </div>
+  <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn">
+    <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col">
+      
+      {/* Modern Header */}
+      <div className="px-6 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center relative overflow-hidden">
+        <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+        <div className="flex items-center gap-2.5 relative z-10">
+          <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm shadow-inner">
+            <i className="fa-solid fa-camera-retro"></i>
+          </div>
+          <div>
+            <h3 className="font-black text-sm tracking-wide">Fotoğrafı Ayarla</h3>
+            <p className="text-[10px] text-indigo-100 font-semibold">Profesyonel Görünüm</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setAvatarModalInfo({ ...avatarModalInfo, isOpen: false })}
+          className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition backdrop-blur-md relative z-10"
+        >
+          <i className="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
 
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase flex justify-between">
-                          <span>Yakınlaştırma (Zoom)</span>
-                          <span>{avatarModalInfo.zoom}x</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="1"
-                          max="3"
-                          step="0.1"
-                          value={avatarModalInfo.zoom}
-                          onChange={(e) =>
-                            setAvatarModalInfo({
-                              ...avatarModalInfo,
-                              zoom: parseFloat(e.target.value),
-                            })
-                          }
-                          className="w-full accent-indigo-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase flex justify-between">
-                          <span>Yatay Konum (Sol - Sağ)</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={avatarModalInfo.x}
-                          onChange={(e) =>
-                            setAvatarModalInfo({
-                              ...avatarModalInfo,
-                              x: parseInt(e.target.value),
-                            })
-                          }
-                          className="w-full accent-indigo-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase flex justify-between">
-                          <span>Dikey Konum (Yukarı - Aşağı)</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={avatarModalInfo.y}
-                          onChange={(e) =>
-                            setAvatarModalInfo({
-                              ...avatarModalInfo,
-                              y: parseInt(e.target.value),
-                            })
-                          }
-                          className="w-full accent-indigo-600"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <label className="flex-1 px-4 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-sm hover:bg-indigo-100 transition text-center cursor-pointer border border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800">
-                        <i className="fa-solid fa-upload mr-1"></i> Yeni Yükle
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () =>
-                                setAvatarModalInfo({
-                                  ...avatarModalInfo,
-                                  tempAvatar: reader.result,
-                                  zoom: 1,
-                                  x: 50,
-                                  y: 50,
-                                });
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAvatarModalInfo({
-                            ...avatarModalInfo,
-                            tempAvatar: null,
-                            zoom: 1,
-                            x: 50,
-                            y: 50,
-                          })
-                        }
-                        className="px-4 py-3 bg-rose-50 text-rose-600 rounded-xl font-bold text-sm hover:bg-rose-100 transition border border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
-                      >
-                        <i className="fa-solid fa-trash"></i> Sil
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDoctorEditForm({
-                          ...doctorEditForm,
-                          avatar: avatarModalInfo.tempAvatar,
-                          zoom: avatarModalInfo.zoom,
-                          x: avatarModalInfo.x,
-                          y: avatarModalInfo.y,
-                        });
-                        setAvatarModalInfo({
-                          ...avatarModalInfo,
-                          isOpen: false,
-                        });
-                      }}
-                      className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl hover:bg-indigo-700 transition"
-                    >
-                      Onayla ve Kapat
-                    </button>
-                  </div>
-                </div>
+      <div className="p-6 space-y-5">
+        {/* Canlı Önizleme Alanı */}
+        <div className="flex flex-col items-center justify-center">
+          <div className="w-36 h-36 rounded-full border-4 border-indigo-50 dark:border-slate-800 shadow-xl overflow-hidden relative bg-slate-100 dark:bg-slate-800 flex items-center justify-center ring-4 ring-indigo-500/10">
+            {avatarModalInfo.tempAvatar ? (
+              <img
+                src={avatarModalInfo.tempAvatar}
+                style={{
+                  transform: `scale(${avatarModalInfo.zoom})`,
+                  objectPosition: `${avatarModalInfo.x}% ${avatarModalInfo.y}%`,
+                }}
+                className="w-full h-full object-cover pointer-events-none transition-transform duration-75"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-400 gap-1">
+                <i className="fa-solid fa-image text-3xl"></i>
+                <span className="text-[10px] font-bold">Görsel Yok</span>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Modern Kontrol Paneli (Slider Yerine Butonlar) */}
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+          
+          {/* Zoom Kontrolleri */}
+          <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+            <span className="text-xs font-black text-slate-600 dark:text-slate-300 flex items-center gap-1.5 ml-1">
+              <i className="fa-solid fa-magnifying-glass text-indigo-500"></i> Yakınlaştır
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.max(1, parseFloat((avatarModalInfo.zoom - 0.1).toFixed(1))) })}
+                className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center transition shadow-sm"
+              >
+                <i className="fa-solid fa-minus text-xs"></i>
+              </button>
+              <span className="w-12 text-center text-xs font-mono font-black text-indigo-600 dark:text-indigo-400">
+                {avatarModalInfo.zoom}x
+              </span>
+              <button
+                type="button"
+                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.min(3, parseFloat((avatarModalInfo.zoom + 0.1).toFixed(1))) })}
+                className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 text-slate-700 dark:text-slate-200 font-black flex items-center justify-center transition shadow-sm"
+              >
+                <i className="fa-solid fa-plus text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          {/* Konum Kontrolleri (Yön Tuşları ve Merkezleme) */}
+          <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+            <span className="text-xs font-black text-slate-600 dark:text-slate-300 flex items-center gap-1.5 ml-1">
+              <i className="fa-solid fa-arrows-up-down-left-right text-indigo-500"></i> Konumlandır
+            </span>
+            <div className="flex items-center gap-1">
+              {/* Sol */}
+              <button
+                type="button"
+                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, x: Math.max(0, avatarModalInfo.x - 5) })}
+                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
+                title="Sola Kaydır"
+              >
+                <i className="fa-solid fa-arrow-left text-[10px]"></i>
+              </button>
+              {/* Yukarı */}
+              <button
+                type="button"
+                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, y: Math.max(0, avatarModalInfo.y - 5) })}
+                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
+                title="Yukarı Kaydır"
+              >
+                <i className="fa-solid fa-arrow-up text-[10px]"></i>
+              </button>
+              {/* Aşağı */}
+              <button
+                type="button"
+                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, y: Math.min(100, avatarModalInfo.y + 5) })}
+                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
+                title="Aşağı Kaydır"
+              >
+                <i className="fa-solid fa-arrow-down text-[10px]"></i>
+              </button>
+              {/* Sağ */}
+              <button
+                type="button"
+                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, x: Math.min(100, avatarModalInfo.x + 5) })}
+                className="w-7 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 text-slate-700 dark:text-slate-200 flex items-center justify-center transition"
+                title="Sağa Kaydır"
+              >
+                <i className="fa-solid fa-arrow-right text-[10px]"></i>
+              </button>
+              {/* Sıfırla */}
+              <button
+                type="button"
+                onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: 1, x: 50, y: 50 })}
+                className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center transition ml-1"
+                title="Konumu Sıfırla"
+              >
+                <i className="fa-solid fa-rotate-left text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Alt Aksiyon Butonları */}
+        <div className="space-y-2.5">
+          <div className="flex gap-2">
+            <label className="flex-1 py-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition rounded-xl font-black text-xs text-center cursor-pointer border border-indigo-100 dark:border-indigo-800/50 shadow-sm flex items-center justify-center gap-2">
+              <i className="fa-solid fa-cloud-arrow-up"></i> Fotoğraf Değiştir
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setAvatarModalInfo({ ...avatarModalInfo, tempAvatar: reader.result, zoom: 1, x: 50, y: 50 });
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setAvatarModalInfo({ ...avatarModalInfo, tempAvatar: null, zoom: 1, x: 50, y: 50 })}
+              className="px-4 py-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition rounded-xl font-bold text-xs border border-rose-100 dark:border-rose-800/50 shadow-sm flex items-center justify-center gap-1.5"
+              title="Fotoğrafı Kaldır"
+            >
+              <i className="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDoctorEditForm({
+                ...doctorEditForm,
+                avatar: avatarModalInfo.tempAvatar,
+                zoom: avatarModalInfo.zoom,
+                x: avatarModalInfo.x,
+                y: avatarModalInfo.y,
+              });
+              setAvatarModalInfo({ ...avatarModalInfo, isOpen: false });
+              showNotification("Profil fotoğrafı güncellendi.");
+            }}
+            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-black text-xs shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2"
+          >
+            <i className="fa-solid fa-check"></i> Değişiklikleri Kaydet
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
           </div>
         );
       }
