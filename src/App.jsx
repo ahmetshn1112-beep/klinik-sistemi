@@ -837,48 +837,6 @@ const useFirebase = () => {
               </div>
             </div>
 
-            {/* YENİ: Zaman Çizelgesi (Time-Machine) Slider Arayüzü */}
-            {uniqueDates.length > 0 && (
-              <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700 relative z-10 no-print flex flex-col items-center">
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <i className="fa-solid fa-clock-rotate-left text-indigo-500 text-sm"></i>
-                  Tedavi Evrimi (Time-Machine)
-                </div>
-
-                <div className="w-full max-w-lg relative px-4">
-                  <input
-                    type="range"
-                    min="0"
-                    max={uniqueDates.length - 1}
-                    value={timelineIndex}
-                    onChange={(e) => setTimelineIndex(parseInt(e.target.value))}
-                    className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600 shadow-inner"
-                  />
-                  <div className="flex justify-between mt-3 px-1">
-                    {uniqueDates.map((date, idx) => (
-                      <div
-                        key={idx}
-                        className={`text-[9px] font-bold cursor-pointer transition-colors duration-300 ${
-                          idx === timelineIndex
-                            ? "text-indigo-600 dark:text-indigo-400 scale-110 transform"
-                            : "text-slate-400"
-                        }`}
-                        onClick={() => setTimelineIndex(idx)}
-                      >
-                        <div
-                          className={`w-1.5 h-1.5 rounded-full mx-auto mb-1 ${
-                            idx <= timelineIndex
-                              ? "bg-indigo-600"
-                              : "bg-slate-300 dark:bg-slate-600"
-                          }`}
-                        ></div>
-                        {date}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         );
       };
@@ -9461,8 +9419,8 @@ useEffect(() => {
                                 </div>
                               </div>
 
-                              {/* --- 5. İŞLEM SEÇİM MENÜSÜ (Ekranda görünür, Yazdırılmaz) --- */}
-                              <div className="mt-2 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print">
+                              {/* --- 5. İŞLEM SEÇİM MENÜSÜ --- */}
+                              <div className="mt-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print">
                                 <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 gap-3 shrink-0">
                                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                                     <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">
@@ -9475,245 +9433,155 @@ useEffect(() => {
                                     onClick={handleWholeJawTreatment}
                                     className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition border border-indigo-100 dark:border-indigo-800 flex items-center gap-2 shadow-sm"
                                   >
-                                    <i className="fa-solid fa-teeth-open"></i>{" "}
-                                    Tüm Çeneye Uygula
+                                    <i className="fa-solid fa-teeth-open"></i> Tüm Çeneye Uygula
                                   </button>
-                                </div>
-                                {/* --- EKLENECEK KISIM: Planlanan İşlemler Listesi --- */}
-                                <div className="mt-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-pop">
-                                  <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
-                                    <h4 className="font-black text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                      <i className="fa-solid fa-list-check text-indigo-500"></i>{" "}
-                                      Planlanan Tedavi Detayları
-                                    </h4>
-                                    <div className="text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-1 rounded-lg shadow-sm">
-                                      Toplam:{" "}
-                                      {patientForm.plannedTreatments
-                                        ?.reduce(
-                                          (sum, tx) =>
-                                            sum + (parseFloat(tx.price) || 0),
-                                          0
-                                        )
-                                        .toLocaleString("tr-TR")}{" "}
-                                      ₺
-                                    </div>
-                                  </div>
-
-                                  <div className="overflow-x-auto w-full">
-                                    <table className="w-full text-left text-sm">
-                                      <thead className="text-[10px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700">
-                                        <tr>
-                                          <th className="px-5 py-3">Tarih</th>
-                                          <th className="px-5 py-3">
-                                            Diş / Bölge
-                                          </th>
-                                          <th className="px-5 py-3">
-                                            İşlem Türü
-                                          </th>
-                                          <th className="px-5 py-3 text-right">
-                                            Ücret
-                                          </th>
-                                          <th className="px-5 py-3 text-center">
-                                            İşlem
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {(patientForm.plannedTreatments || [])
-                                          .length > 0 ? (
-                                          patientForm.plannedTreatments.map(
-                                            (tx) => (
-                                              <tr
-                                                key={tx.id}
-                                                className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group"
-                                              >
-                                                <td className="px-5 py-3 font-bold text-slate-500 dark:text-slate-400 text-xs">
-                                                  {new Date(
-                                                    tx.date
-                                                  ).toLocaleDateString("tr-TR")}
-                                                </td>
-                                                <td className="px-5 py-3">
-                                                  <span className="font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-md text-xs border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
-                                                    {tx.tooth === "Tüm Çene"
-                                                      ? "Tüm Çene"
-                                                      : `Diş ${tx.tooth}`}
-                                                  </span>
-                                                </td>
-                                                <td className="px-5 py-3 font-bold text-slate-700 dark:text-slate-300">
-                                                  {tx.treatment}
-                                                </td>
-                                                <td className="px-5 py-3 text-right">
-                                                  {editingTxId === tx.id ? (
-                                                    <div className="flex items-center justify-end gap-2 animate-pop">
-                                                      <input
-                                                        type="number"
-                                                        value={editingTxPrice}
-                                                        onChange={(e) =>
-                                                          setEditingTxPrice(
-                                                            e.target.value
-                                                          )
-                                                        }
-                                                        className="w-24 p-1.5 border border-slate-300 rounded-lg text-right text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-slate-900 dark:border-slate-600 dark:text-white transition-all shadow-inner"
-                                                        autoFocus
-                                                      />
-                                                      <button
-                                                        onClick={() =>
-                                                          handleUpdateTxPrice(
-                                                            tx.id,
-                                                            editingTxPrice,
-                                                            true
-                                                          )
-                                                        }
-                                                        className="bg-emerald-500 text-white w-7 h-7 rounded-lg flex items-center justify-center hover:bg-emerald-600 shadow-sm transition-transform hover:scale-105"
-                                                      >
-                                                        <i className="fa-solid fa-check text-[10px]"></i>
-                                                      </button>
-                                                    </div>
-                                                  ) : (
-                                                    <div className="font-black text-slate-800 dark:text-white flex items-center justify-end gap-3">
-                                                      {renderMoney(tx.price)} ₺
-                                                      <button
-                                                        onClick={() => {
-                                                          setEditingTxId(tx.id);
-                                                          setEditingTxPrice(
-                                                            tx.price
-                                                          );
-                                                        }}
-                                                        className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors"
-                                                        title="Ücreti Düzenle"
-                                                      >
-                                                        <i className="fa-solid fa-pen text-[11px]"></i>
-                                                      </button>
-                                                    </div>
-                                                  )}
-                                                </td>
-                                                <td className="px-5 py-3 text-center">
-                                                  <button
-                                                    onClick={() => {
-                                                      showConfirm(
-                                                        "Bu işlemi plandan silmek istediğinize emin misiniz?",
-                                                        () => {
-                                                          const updatedTxs =
-                                                            patientForm.plannedTreatments.filter(
-                                                              (t) =>
-                                                                t.id !== tx.id
-                                                            );
-                                                          const updatedPatient =
-                                                            {
-                                                              ...patientForm,
-                                                              plannedTreatments:
-                                                                updatedTxs,
-                                                            };
-                                                          setPatientForm(
-                                                            updatedPatient
-                                                          );
-                                                          saveGlobalData({
-                                                            ...globalData,
-                                                            patientsDb: {
-                                                              ...globalData.patientsDb,
-                                                              [patientForm.id]:
-                                                                updatedPatient,
-                                                            },
-                                                          });
-                                                          showNotification(
-                                                            "İşlem plandan silindi.",
-                                                            "error"
-                                                          );
-                                                        }
-                                                      );
-                                                    }}
-                                                    className="w-8 h-8 rounded-xl bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center mx-auto shadow-sm"
-                                                    title="Plandan Çıkar"
-                                                  >
-                                                    <i className="fa-solid fa-trash-can text-xs"></i>
-                                                  </button>
-                                                </td>
-                                              </tr>
-                                            )
-                                          )
-                                        ) : (
-                                          <tr>
-                                            <td
-                                              colSpan="5"
-                                              className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50/50 dark:bg-slate-900/30"
-                                            >
-                                              <i className="fa-solid fa-tooth text-3xl mb-3 text-slate-300 dark:text-slate-700 block"></i>
-                                              Henüz planlanmış bir işlem
-                                              bulunmuyor. <br />
-                                              <span className="text-xs">
-                                                Yukarıdaki haritadan diş seçerek
-                                                tedavi planı oluşturabilirsiniz.
-                                              </span>
-                                            </td>
-                                          </tr>
-                                        )}
-                                      </tbody>
-                                    </table>
-                                  </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 max-h-[380px] overflow-y-auto custom-scrollbar p-1">
-                                  {Object.entries(PRICING_CATEGORIES).map(
-                                    ([catName, data]) => (
-                                      <div
-                                        key={catName}
-                                        className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow"
-                                      >
-                                        <h4
-                                          className={`text-[11px] font-black uppercase tracking-wider mb-2.5 flex items-center gap-1.5 ${data.color}`}
-                                        >
-                                          <i
-                                            className={`fa-solid ${data.icon}`}
-                                          ></i>{" "}
-                                          {catName}
-                                        </h4>
-                                        <div className="flex flex-col gap-1.5 flex-1">
-                                          {data.items.map((tx) => {
-                                            const txPrice =
-                                              userPricing[tx] !== undefined
-                                                ? parseFloat(userPricing[tx])
-                                                : DEFAULT_PRICING[tx] || 0;
-                                            const isSelected =
-                                              activePlanTreatment === tx;
+                                  {Object.entries(PRICING_CATEGORIES).map(([catName, data]) => (
+                                    <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
+                                      <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2.5 flex items-center gap-1.5 ${data.color}`}>
+                                        <i className={`fa-solid ${data.icon}`}></i> {catName}
+                                      </h4>
+                                      <div className="flex flex-col gap-1.5 flex-1">
+                                        {data.items.map((tx) => {
+                                          const txPrice = userPricing[tx] !== undefined ? parseFloat(userPricing[tx]) : DEFAULT_PRICING[tx] || 0;
+                                          const isSelected = activePlanTreatment === tx;
 
-                                            return (
-                                              <button
-                                                key={tx}
-                                                type="button"
-                                                onClick={(e) => {
-                                                  e.preventDefault();
-                                                  setActivePlanTreatment(tx);
-                                                }}
-                                                className={`text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex justify-between items-center w-full ${
-                                                  isSelected
-                                                    ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]"
-                                                    : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 dark:hover:border-indigo-600 border border-slate-200 dark:border-slate-700 hover:shadow-sm"
-                                                }`}
-                                              >
-                                                <span className="truncate pr-2">
-                                                  {tx}
-                                                </span>
-                                                <span
-                                                  className={`shrink-0 ${
-                                                    isSelected
-                                                      ? "text-indigo-200"
-                                                      : "text-emerald-600 dark:text-emerald-400"
-                                                  }`}
-                                                >
-                                                  {txPrice} ₺
-                                                </span>
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
+                                          return (
+                                            <button
+                                              key={tx}
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                setActivePlanTreatment(tx);
+                                              }}
+                                              className={`text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex justify-between items-center w-full ${
+                                                isSelected
+                                                  ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]"
+                                                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 dark:hover:border-indigo-600 border border-slate-200 dark:border-slate-700 hover:shadow-sm"
+                                              }`}
+                                            >
+                                              <span className="truncate pr-2">{tx}</span>
+                                              <span className={`shrink-0 ${isSelected ? "text-indigo-200" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                                {txPrice} ₺
+                                              </span>
+                                            </button>
+                                          );
+                                        })}
                                       </div>
-                                    )
-                                  )}
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })()}
+
+                              {/* --- 6. PLANLANAN TEDAVİ DETAYLARI TABLOSU --- */}
+                              <div className="mt-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-pop no-print">
+                                <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                                  <h4 className="font-black text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                    <i className="fa-solid fa-list-check text-indigo-500"></i> Planlanan Tedavi Detayları
+                                  </h4>
+                                  <div className="text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-1 rounded-lg shadow-sm">
+                                    Toplam: {patientForm.plannedTreatments?.reduce((sum, tx) => sum + (parseFloat(tx.price) || 0), 0).toLocaleString("tr-TR")} ₺
+                                  </div>
+                                </div>
+
+                                <div className="overflow-x-auto w-full">
+                                  <table className="w-full text-left text-sm">
+                                    <thead className="text-[10px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700">
+                                      <tr>
+                                        <th className="px-5 py-3">Tarih</th>
+                                        <th className="px-5 py-3">Diş / Bölge</th>
+                                        <th className="px-5 py-3">İşlem Türü</th>
+                                        <th className="px-5 py-3 text-right">Ücret</th>
+                                        <th className="px-5 py-3 text-center">İşlem</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(patientForm.plannedTreatments || []).length > 0 ? (
+                                        patientForm.plannedTreatments.map((tx) => (
+                                          <tr key={tx.id} className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
+                                            <td className="px-5 py-3 font-bold text-slate-500 dark:text-slate-400 text-xs">
+                                              {new Date(tx.date).toLocaleDateString("tr-TR")}
+                                            </td>
+                                            <td className="px-5 py-3">
+                                              <span className="font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-md text-xs border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
+                                                {tx.tooth === "Tüm Çene" ? "Tüm Çene" : `Diş ${tx.tooth}`}
+                                              </span>
+                                            </td>
+                                            <td className="px-5 py-3 font-bold text-slate-700 dark:text-slate-300">
+                                              {tx.treatment}
+                                            </td>
+                                            <td className="px-5 py-3 text-right">
+                                              {editingTxId === tx.id ? (
+                                                <div className="flex items-center justify-end gap-2 animate-pop">
+                                                  <input
+                                                    type="number"
+                                                    value={editingTxPrice}
+                                                    onChange={(e) => setEditingTxPrice(e.target.value)}
+                                                    className="w-24 p-1.5 border border-slate-300 rounded-lg text-right text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-slate-900 dark:border-slate-600 dark:text-white transition-all shadow-inner"
+                                                    autoFocus
+                                                  />
+                                                  <button
+                                                    onClick={() => handleUpdateTxPrice(tx.id, editingTxPrice, true, tx.docId)}
+                                                    className="bg-emerald-500 text-white w-7 h-7 rounded-lg flex items-center justify-center hover:bg-emerald-600 shadow-sm transition-transform hover:scale-105"
+                                                  >
+                                                    <i className="fa-solid fa-check text-[10px]"></i>
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <div className="font-black text-slate-800 dark:text-white flex items-center justify-end gap-3">
+                                                  {renderMoney(tx.price)} ₺
+                                                  <button
+                                                    onClick={() => {
+                                                      setEditingTxId(tx.id);
+                                                      setEditingTxPrice(tx.price);
+                                                    }}
+                                                    className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors"
+                                                    title="Ücreti Düzenle"
+                                                  >
+                                                    <i className="fa-solid fa-pen text-[11px]"></i>
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </td>
+                                            <td className="px-5 py-3 text-center">
+                                              <button
+                                                onClick={() => {
+                                                  showConfirm("Bu işlemi plandan silmek istediğinize emin misiniz?", () => {
+                                                    const updatedTxs = patientForm.plannedTreatments.filter((t) => t.id !== tx.id);
+                                                    const updatedPatient = { ...patientForm, plannedTreatments: updatedTxs };
+                                                    setPatientForm(updatedPatient);
+                                                    saveGlobalData({
+                                                      ...globalData,
+                                                      patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient },
+                                                    });
+                                                    showNotification("İşlem plandan silindi.", "error");
+                                                  });
+                                                }}
+                                                className="w-8 h-8 rounded-xl bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center mx-auto shadow-sm"
+                                                title="Plandan Çıkar"
+                                              >
+                                                <i className="fa-solid fa-trash-can text-xs"></i>
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <td colSpan="5" className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50/50 dark:bg-slate-900/30">
+                                            <i className="fa-solid fa-tooth text-3xl mb-3 text-slate-300 dark:text-slate-700 block"></i>
+                                            Henüz planlanmış bir işlem bulunmuyor. <br />
+                                            <span className="text-xs">
+                                              Yukarıdaki haritadan diş seçerek veya işlem menüsünden tedavi oluşturabilirsiniz.
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
 
                       {/* DOSYAYI GÜNCELLE VE KAPAT BUTONLARI BURADA KORUNUYOR */}
                       <div className="px-6 py-4 bg-white border-t flex justify-between items-center rounded-b-[2rem] shrink-0 no-print z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] dark:bg-[#0f172a] dark:border-slate-700">
