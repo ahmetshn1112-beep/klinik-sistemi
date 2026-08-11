@@ -252,20 +252,39 @@ const useFirebase = () => {
         // --- YENİ EKLENEN: DİŞ DETAY MODALI STATE'LERİ ---
         const [detailToothModal, setDetailToothModal] = useState(null);
         const [detailTab, setDetailTab] = useState("genel");
-        const [tempToothData, setTempToothData] = useState({ status: "Sağlıklı", diagnoses: [], notes: "" });
+        const [tempToothData, setTempToothData] = useState({ status: "Sağlıklı", diagnoses: [], notes: "", canalLengths: { root1: "", root2: "", root3: "", root4: "" } });
         const [newDiagnosis, setNewDiagnosis] = useState("");
+        const [isEditingNotes, setIsEditingNotes] = useState(false); // YENİ: Not düzenleme modu
 
-        const TOOTH_STATUS_OPTIONS = ["Sağlıklı", "Şüpheli", "Çürük", "Enfeksiyon", "Dolgulu", "Kanal Tedavili", "Eksik", "İmplant", "Kron", "Diğer"];
-        const DEFAULT_DIAGNOSES = ["Çürük", "Pulpa Problemi", "Periapikal Lezyon", "Periodontal Problem", "Fraktür", "Gömülü"];
+        // Literatür bazlı genişletilmiş durum ve tanılar
+        const TOOTH_STATUS_OPTIONS = [
+          "Sağlıklı", "Başlangıç Çürüğü", "Kavitasyonlu Çürük", 
+          "Kanal Tedavili", "Dolgulu", "Kronlu", "İmplant", 
+          "Eksik", "Gömülü", "Kök Kalıntısı", "Şüpheli", "Diğer"
+        ];
+        
+        const DEFAULT_DIAGNOSES = [
+          "Reversible Pulpitis", "İrreversible Pulpitis", "Nekroz", 
+          "Akut Apikal Apse", "Kronik Apikal Apse", "Apikal Periodontitis",
+          "Sekonder Çürük", "Aşırı Madde Kaybı", "Mine Kırığı", "Kök Fraktürü", 
+          "Hassasiyet (Sıcak/Soğuk)", "Perküsyon Hassasiyeti", "Periodontal Cep"
+        ];
 
         const openDetailModal = (tNo) => {
           const tKey = tNo.toString();
-          const existingData = patientForm.toothRecords?.[tKey] || { status: "Sağlıklı", diagnoses: [], notes: "" };
+          const existingData = patientForm.toothRecords?.[tKey] || { 
+            status: "Sağlıklı", 
+            diagnoses: [], 
+            notes: "",
+            canalLengths: { root1: "", root2: "", root3: "", root4: "" }
+          };
           setTempToothData({
             status: existingData.status || "Sağlıklı",
             diagnoses: existingData.diagnoses || [],
-            notes: existingData.notes || ""
+            notes: existingData.notes || "",
+            canalLengths: existingData.canalLengths || { root1: "", root2: "", root3: "", root4: "" }
           });
+          setIsEditingNotes(false); // Modal açıldığında notlar okuma modunda başlasın
           setDetailToothModal(tKey);
           setDetailTab("genel");
         };
@@ -285,15 +304,26 @@ const useFirebase = () => {
               patientsDb: { ...globalData.patientsDb, [updatedPatient.id]: updatedPatient }
             });
             showNotification(`${tKey} Numaralı diş detayları kaydedildi.`);
+            setIsEditingNotes(false); // Kaydedince tekrar okuma moduna dön
           }
         };
 
         const toggleDiagnosis = (diag) => {
           setTempToothData(prev => {
             const has = prev.diagnoses.includes(diag);
+            let updatedNotes = prev.notes;
+            
+            // Eğer tanı ekleniyorsa, otomatik olarak nota da ekle
+            if (!has) {
+              const dateStr = new Date().toLocaleDateString('tr-TR');
+              const autoNote = `[${dateStr}] Tanı Eklendi: ${diag}`;
+              updatedNotes = prev.notes ? `${prev.notes}\n${autoNote}` : autoNote;
+            }
+
             return {
               ...prev,
-              diagnoses: has ? prev.diagnoses.filter(d => d !== diag) : [...prev.diagnoses, diag]
+              diagnoses: has ? prev.diagnoses.filter(d => d !== diag) : [...prev.diagnoses, diag],
+              notes: updatedNotes
             };
           });
         };
@@ -935,7 +965,7 @@ const useFirebase = () => {
 
                   {/* Tabs */}
                   <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-2 gap-1 overflow-x-auto custom-scrollbar shrink-0">
-                    {["genel", "gecmis", "planlanan", "randevular"].map((tab) => (
+                    {["genel", "randevular"].map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setDetailTab(tab)}
@@ -944,8 +974,6 @@ const useFirebase = () => {
                         }`}
                       >
                         {tab === "genel" ? <><i className="fa-solid fa-notes-medical mr-1"></i> Genel Durum & Tanı</> :
-                         tab === "gecmis" ? <><i className="fa-solid fa-clock-rotate-left mr-1"></i> Tedavi Geçmişi</> :
-                         tab === "planlanan" ? <><i className="fa-solid fa-list-check mr-1"></i> Planlananlar</> :
                          <><i className="fa-regular fa-calendar-check mr-1"></i> İlgili Randevular</>}
                       </button>
                     ))}
@@ -1040,64 +1068,66 @@ const useFirebase = () => {
                           </div>
                         </div>
 
+                        {/* KANAL BOYU ALANI (Şartlı Gösterim) */}
+                        {(tempToothData.status === "Kanal Tedavili" || tempToothData.diagnoses.some(d => d.includes("Pulpitis") || d.includes("Apse") || d.includes("Nekroz"))) && (
+                          <div className="p-4 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-800/50 rounded-xl mb-6">
+                            <label className="block text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase mb-3 flex items-center gap-2">
+                              <i className="fa-solid fa-ruler-vertical"></i> Kanal / Çalışma Boyu Ölçümleri (mm)
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                              {[1, 2, 3, 4].map(num => (
+                                <div key={num} className="relative">
+                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-slate-400 text-[10px] font-black">K{num}</span>
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    placeholder="Örn: 21.5"
+                                    value={tempToothData.canalLengths[`root${num}`]}
+                                    onChange={(e) => setTempToothData({
+                                      ...tempToothData,
+                                      canalLengths: { ...tempToothData.canalLengths, [`root${num}`]: e.target.value }
+                                    })}
+                                    className="w-full pl-8 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* KLİNİK NOTLAR ALANI */}
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Bu Dişe Özel Klinik Notlar</label>
-                          <textarea 
-                            rows="4" 
-                            value={tempToothData.notes}
-                            onChange={e => setTempToothData({...tempToothData, notes: e.target.value})}
-                            placeholder="Diş ile ilgili detaylı notlar, kanal boyu, kullanılan materyaller vb..."
-                            className="w-full p-3 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-amber-400 resize-none"
-                          ></textarea>
+                          <div className="flex justify-between items-center mb-2">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Bu Dişe Özel Klinik Notlar</label>
+                            {!isEditingNotes && (
+                              <button 
+                                onClick={() => setIsEditingNotes(true)} 
+                                className="text-[11px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg font-bold transition flex items-center gap-1.5"
+                              >
+                                <i className="fa-solid fa-pen"></i> Düzenle
+                              </button>
+                            )}
+                          </div>
+                          
+                          {isEditingNotes ? (
+                            <textarea 
+                              rows="5" 
+                              value={tempToothData.notes}
+                              onChange={e => setTempToothData({...tempToothData, notes: e.target.value})}
+                              placeholder="Diş ile ilgili detaylı notlar, kullanılan materyaller vb..."
+                              className="w-full p-3 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-amber-400 resize-none shadow-inner"
+                              autoFocus
+                            ></textarea>
+                          ) : (
+                            <div className="w-full p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 min-h-[100px] whitespace-pre-wrap">
+                              {tempToothData.notes ? tempToothData.notes : <span className="text-slate-400 italic">Not girilmemiş...</span>}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {detailTab === "gecmis" && (() => {
-                      const history = (patientForm.clinicalHistory || []).filter(h => h.selectedTeeth?.includes(detailToothModal) || h.selectedTeeth?.includes("Tüm Çene"));
-                      return (
-                        <div className="space-y-4">
-                          {history.length > 0 ? (
-                            <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
-                              {history.map((h, i) => (
-                                <div key={i} className="relative flex items-start group mb-6 pl-12">
-                                  <div className="absolute left-1.5 flex items-center justify-center w-8 h-8 rounded-full border-4 border-white dark:border-slate-800 bg-indigo-500 text-white z-10">
-                                    <i className="fa-solid fa-check text-[10px]"></i>
-                                  </div>
-                                  <div className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 shadow-sm relative before:absolute before:top-4 before:right-full before:w-3 before:h-0.5 before:bg-slate-200 dark:before:bg-slate-700">
-                                    <div className="flex justify-between items-center mb-1 border-b border-slate-200 dark:border-slate-700 pb-2">
-                                      <span className="font-bold text-xs text-slate-500">{h.date} • {h.time}</span>
-                                      <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-bold">{h.doctorName}</span>
-                                    </div>
-                                    <div className="font-black text-indigo-700 dark:text-indigo-400 text-sm mt-2">{h.treatment}</div>
-                                    {h.procedureNotes && <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 italic">"{h.procedureNotes}"</div>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-10 text-slate-400 text-sm font-medium">Bu diş için kayıtlı klinik geçmiş bulunmuyor.</div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {detailTab === "planlanan" && (() => {
-                      const planned = (patientForm.plannedTreatments || []).filter(t => t.tooth === detailToothModal || t.tooth === "Tüm Çene");
-                      return (
-                        <div className="space-y-3">
-                          {planned.length > 0 ? planned.map((tx, i) => (
-                            <div key={i} className="flex justify-between items-center p-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
-                              <div>
-                                <div className="font-black text-sm text-slate-800 dark:text-white">{tx.treatment}</div>
-                                <div className="text-[10px] text-slate-400 font-bold mt-0.5">{new Date(tx.date).toLocaleDateString("tr-TR")}</div>
-                              </div>
-                              <div className="font-black text-emerald-600 dark:text-emerald-400">{parseFloat(tx.price).toLocaleString("tr-TR")} ₺</div>
-                            </div>
-                          )) : <div className="text-center py-10 text-slate-400 text-sm font-medium">Bu diş için planlanmış bir tedavi bulunmuyor.</div>}
-                        </div>
-                      );
-                    })()}
 
                     {detailTab === "randevular" && (() => {
                       const apts = [];
@@ -4729,7 +4759,7 @@ useEffect(() => {
             >
               <div className="flex flex-wrap lg:flex-nowrap justify-between items-center mb-4 bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 shrink-0 gap-3">
                 <div className="font-black text-slate-800 dark:text-white text-sm sm:text-lg ml-2 whitespace-nowrap flex items-center gap-3">
-                  <div className="relative flex items-center cursor-pointer group">
+                  <div className="flex items-center">
                     <input
                       type="date"
                       value={formatDateKey(selectedDate)}
@@ -4739,13 +4769,8 @@ useEffect(() => {
                           setSelectedDate(new Date(y, m - 1, d));
                         }
                       }}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                      className="font-black text-slate-800 dark:text-white text-sm sm:text-lg bg-transparent cursor-pointer outline-none w-36 sm:w-44 focus:text-indigo-600 transition-colors"
                     />
-                    <span className="group-hover:text-indigo-600 transition flex items-center gap-2">
-                      {selectedDate.getDate()} {MONTHS[selectedDate.getMonth()]}{" "}
-                      {selectedDate.getFullYear()}
-                      <i className="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
-                    </span>
                   </div>
                   <button
                     onClick={() => setSelectedDate(new Date())}
@@ -7298,21 +7323,6 @@ useEffect(() => {
                       onClick={() => {
                         setPatientForm(contextMenu.data);
                         setPatientModalTab("plan");
-                        <button
-    onClick={() => setPatientModalTab("history")}
-    className={`flex-1 ${
-      isSplitMode
-        ? "min-w-[120px] py-2 px-2 text-xs"
-        : "min-w-[180px] py-2.5 px-4 text-sm"
-    } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
-      patientModalTab === "history"
-        ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
-        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-    }`}
-  >
-    <i className="fa-solid fa-notes-medical mr-1.5"></i>
-    Klinik Geçmiş
-  </button>
                         setIsPatientModalOpen(true);
                       }}
                       className="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition"
@@ -9877,21 +9887,6 @@ useEffect(() => {
                                                   <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
                                                     <i className="fa-solid fa-pen text-[11px]"></i>
                                                   </button>
-                                                  <button
-                            onClick={() => setPatientModalTab("history")}
-                            className={`flex-1 ${
-                              isSplitMode
-                                ? "min-w-[120px] py-2 px-2 text-xs"
-                                : "min-w-[180px] py-2.5 px-4 text-sm"
-                            } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
-                              patientModalTab === "history"
-                                ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
-                                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                            }`}
-                          >
-                            <i className="fa-solid fa-notes-medical mr-1.5"></i>
-                            Klinik Geçmiş
-                          </button>
                                                 </div>
                                               )}
                                             </td>
@@ -10104,17 +10099,17 @@ useEffect(() => {
                             </div>
                             <form onSubmit={handleSaveManualHistory} className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <div className="col-span-2 sm:col-span-1">
+                                <div className="col-span-2 sm:col-span-1 relative z-10">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tarih *</label>
-                                  <input type="date" required value={newHistoryForm.date} onChange={e => setNewHistoryForm({...newHistoryForm, date: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <input type="date" lang="tr-TR" required value={newHistoryForm.date || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, date: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                                 </div>
-                                <div className="col-span-2 sm:col-span-1">
+                                <div className="col-span-2 sm:col-span-1 relative z-10">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Saat *</label>
-                                  <input type="time" required value={newHistoryForm.time} onChange={e => setNewHistoryForm({...newHistoryForm, time: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <input type="time" lang="tr-TR" required value={newHistoryForm.time || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, time: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                                 </div>
-                                <div className="col-span-2 sm:col-span-2">
+                                <div className="col-span-2 sm:col-span-2 relative z-10">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlgili Hekim *</label>
-                                  <select required value={newHistoryForm.doctorId} onChange={e => setNewHistoryForm({...newHistoryForm, doctorId: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700">
+                                  <select required value={newHistoryForm.doctorId || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, doctorId: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700">
                                     <option value="" disabled>Seçiniz</option>
                                     {allDoctors.map(doc => (<option key={doc} value={doc}>{globalData.doctorProfiles?.[doc]?.name || doc}</option>))}
                                   </select>
@@ -10157,13 +10152,13 @@ useEffect(() => {
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
+                                <div className="relative z-10">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlaç / Reçete / Öneri</label>
-                                  <textarea rows="2" value={newHistoryForm.prescription} onChange={e => setNewHistoryForm({...newHistoryForm, prescription: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                  <textarea rows="2" value={newHistoryForm.prescription || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, prescription: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
                                 </div>
-                                <div>
+                                <div className="relative z-10">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sonraki Kontrol Tarihi</label>
-                                  <input type="date" value={newHistoryForm.nextAppointmentDate} onChange={e => setNewHistoryForm({...newHistoryForm, nextAppointmentDate: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <input type="date" lang="tr-TR" value={newHistoryForm.nextAppointmentDate || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, nextAppointmentDate: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                                 </div>
                               </div>
                               <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
