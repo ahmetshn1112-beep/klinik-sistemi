@@ -9583,6 +9583,10 @@ useEffect(() => {
                                 </div>
                               </div>
 
+                            </div>
+                          );
+                        })()}
+
                       {/* DOSYAYI GÜNCELLE VE KAPAT BUTONLARI BURADA KORUNUYOR */}
                       <div className="px-6 py-4 bg-white border-t flex justify-between items-center rounded-b-[2rem] shrink-0 no-print z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] dark:bg-[#0f172a] dark:border-slate-700">
                         <div className="text-xs text-slate-400 font-bold hidden sm:block">
