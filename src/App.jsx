@@ -9428,6 +9428,14 @@ useEffect(() => {
                                     </span>
                                     İşlem Türü Seçin
                                   </h3>
+                                  
+                                  {/* Hangi işlemin seçili olduğunu gösteren yeni akıllı rozet */}
+                                  {activePlanTreatment && (
+                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm animate-pop items-center gap-2">
+                                      <i className="fa-solid fa-check-circle"></i> Seçili İşlem: {activePlanTreatment}
+                                    </div>
+                                  )}
+
                                   <button
                                     type="button"
                                     onClick={handleWholeJawTreatment}
@@ -9437,7 +9445,7 @@ useEffect(() => {
                                   </button>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 max-h-[380px] overflow-y-auto custom-scrollbar p-1">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 max-h-[280px] overflow-y-auto custom-scrollbar p-1">
                                   {Object.entries(PRICING_CATEGORIES).map(([catName, data]) => (
                                     <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
                                       <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2.5 flex items-center gap-1.5 ${data.color}`}>
@@ -9475,20 +9483,23 @@ useEffect(() => {
                                 </div>
                               </div>
 
-                              {/* --- 6. PLANLANAN TEDAVİ DETAYLARI TABLOSU --- */}
+                              {/* --- 6. PLANLANAN TEDAVİ DETAYLARI (TABLO) --- */}
                               <div className="mt-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-pop no-print">
                                 <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
                                   <h4 className="font-black text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                    <i className="fa-solid fa-list-check text-indigo-500"></i> Planlanan Tedavi Detayları
+                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">
+                                      2
+                                    </span>
+                                    Planlanan Tedavi Detayları
                                   </h4>
                                   <div className="text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-1 rounded-lg shadow-sm">
                                     Toplam: {patientForm.plannedTreatments?.reduce((sum, tx) => sum + (parseFloat(tx.price) || 0), 0).toLocaleString("tr-TR")} ₺
                                   </div>
                                 </div>
 
-                                <div className="overflow-x-auto w-full">
+                                <div className="overflow-x-auto w-full max-h-[300px] overflow-y-auto custom-scrollbar">
                                   <table className="w-full text-left text-sm">
-                                    <thead className="text-[10px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700">
+                                    <thead className="text-[10px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700 sticky top-0 z-10">
                                       <tr>
                                         <th className="px-5 py-3">Tarih</th>
                                         <th className="px-5 py-3">Diş / Bölge</th>
@@ -9582,7 +9593,6 @@ useEffect(() => {
                                   </table>
                                 </div>
                               </div>
-
                             </div>
                           );
                         })()}
