@@ -953,14 +953,14 @@ const useFirebase = () => {
         // Profesyonel Kalıcı Oturum Kontrolü
 useEffect(() => {
   const checkSession = () => {
-    const savedUser = localStorage.getItem("klinikAktifKullanici");
-    const sessionToken = localStorage.getItem("klinikOturumTokeni");
+    const savedUser = sessionStorage.getItem("klinikAktifKullanici");
+    const sessionToken = sessionStorage.getItem("klinikOturumTokeni");
 
     if (savedUser && sessionToken) {
       setCurrentUser(savedUser);
     } else {
       setCurrentUser(null);
-      localStorage.removeItem("klinikAktifKullanici");
+      sessionStorage.removeItem("klinikAktifKullanici");
     }
   };
   checkSession();
@@ -2714,8 +2714,8 @@ useEffect(() => {
           // Başarılı Giriş
           localStorage.setItem("loginAttempts", "0");
           setCurrentUser(authForm.username);
-          localStorage.setItem("klinikAktifKullanici", authForm.username);
-localStorage.setItem("klinikOturumTokeni", "active");
+          sessionStorage.setItem("klinikAktifKullanici", authForm.username);
+          sessionStorage.setItem("klinikOturumTokeni", "active");
 
           if (!savedUsernames.includes(authForm.username)) {
             const newSaved = [...savedUsernames, authForm.username];
@@ -2775,8 +2775,8 @@ localStorage.setItem("klinikOturumTokeni", "active");
 
             showNotification("Hesap test modunda (şifresiz) oluşturuldu.");
             setCurrentUser(registerForm.username);
-            localStorage.setItem("klinikAktifKullanici", registerForm.username);
-localStorage.setItem("klinikOturumTokeni", "active");
+            sessionStorage.setItem("klinikAktifKullanici", registerForm.username);
+            sessionStorage.setItem("klinikOturumTokeni", "active");
 
             if (btn) btn.disabled = false;
           } catch (error) {
@@ -7447,9 +7447,9 @@ localStorage.setItem("klinikOturumTokeni", "active");
                         <div className="p-2 border-t border-slate-100 dark:border-slate-700/50">
                           <button
                             onClick={() => {
-                              localStorage.removeItem("klinikAktifKullanici");
-localStorage.removeItem("klinikOturumTokeni");
-window.location.reload();
+                              sessionStorage.removeItem("klinikAktifKullanici");
+                              sessionStorage.removeItem("klinikOturumTokeni");
+                              window.location.reload();
                             }}
                             className="w-full text-left px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-700 transition-colors rounded-xl flex items-center gap-3 group"
                           >
