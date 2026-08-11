@@ -9180,11 +9180,6 @@ useEffect(() => {
 
                       {patientModalTab === "plan" &&
                         (() => {
-                          // YENİ AKILLI TABLO: Güncel Fiyatlar, 3 Sütun ve Zarif Görünüm
-                          const groupedTreatments = {};
-                          let grandTotal = 0;
-
-                          // Güncel fiyat veritabanını çekiyoruz ki yeni eklenen fiyatlar anında tabloda yansısın
                           const userPricing =
                             globalData.pricingDb?.[currentUser] ||
                             (typeof globalData.pricingDb === "object" &&
@@ -9192,31 +9187,22 @@ useEffect(() => {
                               ? globalData.pricingDb
                               : DEFAULT_PRICING);
 
+                          const groupedTreatments = {};
+                          let grandTotal = 0;
+
                           if (patientForm?.plannedTreatments) {
                             patientForm.plannedTreatments.forEach((tx) => {
-                              // Eğer doktor özel olarak kaleme indirim/zam yapmadıysa güncel liste fiyatını al
                               let finalPrice = parseFloat(tx.price) || 0;
-
                               if (!groupedTreatments[tx.treatment]) {
                                 groupedTreatments[tx.treatment] = {
                                   teeth: [],
                                   totalPrice: 0,
                                 };
                               }
-
-                              // Diş numaralarını grupla
-                              if (
-                                !groupedTreatments[tx.treatment].teeth.includes(
-                                  tx.tooth
-                                )
-                              ) {
-                                groupedTreatments[tx.treatment].teeth.push(
-                                  tx.tooth
-                                );
+                              if (!groupedTreatments[tx.treatment].teeth.includes(tx.tooth)) {
+                                groupedTreatments[tx.treatment].teeth.push(tx.tooth);
                               }
-
-                              groupedTreatments[tx.treatment].totalPrice +=
-                                finalPrice;
+                              groupedTreatments[tx.treatment].totalPrice += finalPrice;
                               grandTotal += finalPrice;
                             });
                           }
@@ -9226,45 +9212,34 @@ useEffect(() => {
                               id="print-plan-area"
                               className="flex-1 overflow-y-auto p-4 lg:p-6 bg-slate-50 flex flex-col gap-6 relative dark:bg-slate-900/50 print:bg-white print:p-0"
                             >
-                              {/* --- 1. EKRAN ARAÇ ÇUBUĞU (Yazdırılmaz) --- */}
-                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-4 shrink-0">
+                              {/* --- ARAÇ ÇUBUĞU (Yazdırılmaz) --- */}
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-4 shrink-0">
                                 <div>
                                   <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2 text-lg">
                                     <i className="fa-solid fa-file-signature text-indigo-500"></i>
                                     Tedavi Planı ve Çıktı Alma
                                   </h3>
                                   <p className="text-xs text-slate-500 font-medium mt-1">
-                                    Hastaya sunulacak detaylı tedavi planını
-                                    buradan yazdırabilirsiniz.
+                                    Hastaya sunulacak detaylı tedavi planını buradan yazdırabilirsiniz.
                                   </p>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    // Mevcut sayfa başlığını hafızaya al
                                     const originalTitle = document.title;
-
-                                    // Sayfa başlığını hastanın adı ve soyadı yap (dosya adı bu olacak)
-                                    // İsterseniz yanına ekleme yapabilirsiniz, örn: patientForm.name + " - Tedavi Plani"
                                     document.title = patientForm.name;
-
-                                    // Yazdırma ekranını çağır
                                     window.print();
-
-                                    // Yazdırma penceresi işini bitirdikten sonra (veya PDF kaydedildikten sonra)
-                                    // sayfa adını orijinal haline geri çevir (bunun için kısa bir gecikme ekliyoruz)
                                     setTimeout(() => {
                                       document.title = originalTitle;
                                     }, 2000);
                                   }}
-                                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-black shadow-lg hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2 w-full sm:w-auto justify-center"
+                                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 w-full sm:w-auto justify-center"
                                 >
-                                  <i className="fa-solid fa-print"></i> Planı
-                                  Yazdır
+                                  <i className="fa-solid fa-print"></i> Planı Yazdır
                                 </button>
                               </div>
 
-                              {/* --- 2. YAZDIRMA KLİNİK ANTETİ (Daha Küçük, Profesyonel Fontlar ve Dar Boşluklar) --- */}
+                              {/* --- YAZDIRMA KLİNİK ANTETİ (Gizli, Sadece Baskıda Görünür) --- */}
                               <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
                                 <div className="flex justify-between items-end mb-2">
                                   <div>
@@ -9272,55 +9247,30 @@ useEffect(() => {
                                       <i className="fa-solid fa-tooth text-gray-300 mr-2 text-2xl"></i>
                                       KLİNİK RANDEVU
                                     </h1>
-                                    <h2 className="text-xs font-bold text-gray-600">
-                                      Tedavi Planı ve Bilgilendirme Formu
-                                    </h2>
+                                    <h2 className="text-xs font-bold text-gray-600">Tedavi Planı ve Bilgilendirme Formu</h2>
                                   </div>
                                   <div className="text-right text-[10px] font-semibold text-gray-600">
-                                    <p>
-                                      Tarih:{" "}
-                                      {new Date().toLocaleDateString("tr-TR")}
-                                    </p>
-                                    <p>
-                                      Hekim:{" "}
-                                      {globalData.doctorProfiles?.[currentUser]
-                                        ?.name || currentUser}
-                                    </p>
+                                    <p>Tarih: {new Date().toLocaleDateString("tr-TR")}</p>
+                                    <p>Hekim: {globalData.doctorProfiles?.[currentUser]?.name || currentUser}</p>
                                   </div>
                                 </div>
-
                                 <div className="bg-gray-50 border border-gray-300 p-2 rounded-lg flex justify-between items-center text-[10px]">
                                   <div>
-                                    <span className="font-black text-gray-500 uppercase text-[8px] block">
-                                      Hasta Adı
-                                    </span>
-                                    <span className="font-bold text-xs text-black">
-                                      {patientForm.name}
-                                    </span>
+                                    <span className="font-black text-gray-500 uppercase text-[8px] block">Hasta Adı</span>
+                                    <span className="font-bold text-xs text-black">{patientForm.name}</span>
                                   </div>
                                   <div>
-                                    <span className="font-black text-gray-500 uppercase text-[8px] block">
-                                      İletişim / TC
-                                    </span>
-                                    <span className="font-bold text-xs text-black">
-                                      {patientForm.phone || "-"}{" "}
-                                      {patientForm.tc
-                                        ? ` / ${patientForm.tc}`
-                                        : ""}
-                                    </span>
+                                    <span className="font-black text-gray-500 uppercase text-[8px] block">İletişim / TC</span>
+                                    <span className="font-bold text-xs text-black">{patientForm.phone || "-"} {patientForm.tc ? ` / ${patientForm.tc}` : ""}</span>
                                   </div>
                                   <div>
-                                    <span className="font-black text-gray-500 uppercase text-[8px] block">
-                                      Uyarı / Anamnez
-                                    </span>
-                                    <span className="font-bold text-xs text-red-600">
-                                      {patientForm.anamnesis || "Yok"}
-                                    </span>
+                                    <span className="font-black text-gray-500 uppercase text-[8px] block">Uyarı / Anamnez</span>
+                                    <span className="font-bold text-xs text-red-600">{patientForm.anamnesis || "Yok"}</span>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* --- 3. DİŞ ŞEMASI (Hem ekranda hem kağıtta görünür) --- */}
+                              {/* --- DİŞ ŞEMASI --- */}
                               <ProfessionalToothChart
                                 patientForm={patientForm}
                                 activePlanTreatment={activePlanTreatment}
@@ -9330,112 +9280,53 @@ useEffect(() => {
                                 currentUser={currentUser}
                               />
 
-                              {/* --- 4. YAZDIRMA İŞLEM TABLOSU (Çok İşlem Sığması İçin Küçültüldü) --- */}
+                              {/* --- YAZDIRMA İŞLEM TABLOSU (Gizli, Sadece Baskıda) --- */}
                               <div className="hidden print-only mt-4">
                                 <h3 className="text-xs font-black border-b border-black pb-1 mb-1.5 uppercase tracking-wider text-black">
                                   Planlanan Tedavi Detayları
                                 </h3>
-                                <table
-                                  className="w-full text-left border-collapse"
-                                  style={{ fontSize: "9px" }}
-                                >
+                                <table className="w-full text-left border-collapse" style={{ fontSize: "9px" }}>
                                   <thead>
                                     <tr className="bg-gray-100">
-                                      <th className="border border-gray-400 py-1 px-1.5 w-1/2 text-black font-bold">
-                                        İşlem Adı
-                                      </th>
-                                      <th className="border border-gray-400 py-1 px-1.5 w-1/4 text-center text-black font-bold">
-                                        Uygulanacak Dişler
-                                      </th>
-                                      <th className="border border-gray-400 py-1 px-1.5 w-1/4 text-right text-black font-bold">
-                                        Toplam Tutar
-                                      </th>
+                                      <th className="border border-gray-400 py-1 px-1.5 w-1/2 text-black font-bold">İşlem Adı</th>
+                                      <th className="border border-gray-400 py-1 px-1.5 w-1/4 text-center text-black font-bold">Uygulanacak Dişler</th>
+                                      <th className="border border-gray-400 py-1 px-1.5 w-1/4 text-right text-black font-bold">Toplam Tutar</th>
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {Object.keys(groupedTreatments).length >
-                                    0 ? (
-                                      Object.entries(groupedTreatments).map(
-                                        ([txName, data]) => (
-                                          <tr key={txName}>
-                                            <td className="border border-gray-400 py-1 px-1.5 font-semibold text-black">
-                                              {txName}
-                                            </td>
-                                            <td className="border border-gray-400 py-1 px-1.5 font-semibold text-center text-black">
-                                              {data.teeth.join(", ")}
-                                            </td>
-                                            <td className="border border-gray-400 py-1 px-1.5 text-right font-bold text-black">
-                                              {data.totalPrice.toLocaleString(
-                                                "tr-TR"
-                                              )}{" "}
-                                              ₺
-                                            </td>
-                                          </tr>
-                                        )
-                                      )
+                                    {Object.keys(groupedTreatments).length > 0 ? (
+                                      Object.entries(groupedTreatments).map(([txName, data]) => (
+                                        <tr key={txName}>
+                                          <td className="border border-gray-400 py-1 px-1.5 font-semibold text-black">{txName}</td>
+                                          <td className="border border-gray-400 py-1 px-1.5 font-semibold text-center text-black">{data.teeth.join(", ")}</td>
+                                          <td className="border border-gray-400 py-1 px-1.5 text-right font-bold text-black">{data.totalPrice.toLocaleString("tr-TR")} ₺</td>
+                                        </tr>
+                                      ))
                                     ) : (
-                                      <tr>
-                                        <td
-                                          colSpan="3"
-                                          className="border border-gray-400 py-2 px-1.5 text-center italic text-gray-500"
-                                        >
-                                          Planlanmış işlem bulunmamaktadır.
-                                        </td>
-                                      </tr>
+                                      <tr><td colSpan="3" className="border border-gray-400 py-2 px-1.5 text-center italic text-gray-500">Planlanmış işlem bulunmamaktadır.</td></tr>
                                     )}
                                   </tbody>
                                   <tfoot>
                                     <tr>
-                                      <td
-                                        colSpan="2"
-                                        className="border border-gray-400 py-1.5 px-1.5 text-right font-black uppercase text-[10px] text-black"
-                                      >
-                                        Genel Toplam:
-                                      </td>
-                                      <td className="border border-gray-400 py-1.5 px-1.5 text-right font-black text-xs text-black">
-                                        {grandTotal.toLocaleString("tr-TR")} ₺
-                                      </td>
+                                      <td colSpan="2" className="border border-gray-400 py-1.5 px-1.5 text-right font-black uppercase text-[10px] text-black">Genel Toplam:</td>
+                                      <td className="border border-gray-400 py-1.5 px-1.5 text-right font-black text-xs text-black">{grandTotal.toLocaleString("tr-TR")} ₺</td>
                                     </tr>
                                   </tfoot>
                                 </table>
-
-                                {/* İMZA ALANI */}
-                                <div
-                                  className="mt-6 flex justify-between text-[10px] font-bold px-8 text-black"
-                                  style={{ pageBreakInside: "avoid" }}
-                                >
-                                  <div className="text-center">
-                                    <p className="mb-6">Hasta İmzası</p>
-                                    <p>
-                                      .......................................
-                                    </p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="mb-6">Hekim Kaşe / İmza</p>
-                                    <p>
-                                      .......................................
-                                    </p>
-                                  </div>
-                                </div>
                               </div>
 
-                              {/* --- 5. İŞLEM SEÇİM MENÜSÜ --- */}
-                              <div className="mt-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print">
-                                <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 gap-3 shrink-0">
+                              {/* --- İŞLEM SEÇİM MENÜSÜ --- */}
+                              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print shrink-0">
+                                <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 gap-3">
                                   <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">
-                                      1
-                                    </span>
+                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">1</span>
                                     İşlem Türü Seçin
                                   </h3>
-                                  
-                                  {/* Hangi işlemin seçili olduğunu gösteren yeni akıllı rozet */}
                                   {activePlanTreatment && (
-                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm animate-pop items-center gap-2">
+                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm items-center gap-2">
                                       <i className="fa-solid fa-check-circle"></i> Seçili İşlem: {activePlanTreatment}
                                     </div>
                                   )}
-
                                   <button
                                     type="button"
                                     onClick={handleWholeJawTreatment}
@@ -9445,7 +9336,7 @@ useEffect(() => {
                                   </button>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 max-h-[280px] overflow-y-auto custom-scrollbar p-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-h-[250px] overflow-y-auto custom-scrollbar p-1">
                                   {Object.entries(PRICING_CATEGORIES).map(([catName, data]) => (
                                     <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
                                       <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2.5 flex items-center gap-1.5 ${data.color}`}>
@@ -9455,25 +9346,17 @@ useEffect(() => {
                                         {data.items.map((tx) => {
                                           const txPrice = userPricing[tx] !== undefined ? parseFloat(userPricing[tx]) : DEFAULT_PRICING[tx] || 0;
                                           const isSelected = activePlanTreatment === tx;
-
                                           return (
                                             <button
                                               key={tx}
                                               type="button"
-                                              onClick={(e) => {
-                                                e.preventDefault();
-                                                setActivePlanTreatment(tx);
-                                              }}
+                                              onClick={(e) => { e.preventDefault(); setActivePlanTreatment(tx); }}
                                               className={`text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex justify-between items-center w-full ${
-                                                isSelected
-                                                  ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]"
-                                                  : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 dark:hover:border-indigo-600 border border-slate-200 dark:border-slate-700 hover:shadow-sm"
+                                                isSelected ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 border border-slate-200 dark:border-slate-700"
                                               }`}
                                             >
                                               <span className="truncate pr-2">{tx}</span>
-                                              <span className={`shrink-0 ${isSelected ? "text-indigo-200" : "text-emerald-600 dark:text-emerald-400"}`}>
-                                                {txPrice} ₺
-                                              </span>
+                                              <span className={`shrink-0 ${isSelected ? "text-indigo-200" : "text-emerald-600 dark:text-emerald-400"}`}>{txPrice} ₺</span>
                                             </button>
                                           );
                                         })}
@@ -9483,16 +9366,14 @@ useEffect(() => {
                                 </div>
                               </div>
 
-                              {/* --- 6. PLANLANAN TEDAVİ DETAYLARI (TABLO) --- */}
-                              <div className="mt-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden animate-pop no-print">
+                              {/* --- PLANLANAN TEDAVİ DETAYLARI TABLOSU --- */}
+                              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col shrink-0 no-print">
                                 <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
                                   <h4 className="font-black text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">
-                                      2
-                                    </span>
-                                    Planlanan Tedavi Detayları
+                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">2</span>
+                                    Planlanan Tedavi Tablosu
                                   </h4>
-                                  <div className="text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-1 rounded-lg shadow-sm">
+                                  <div className="text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-1.5 rounded-lg shadow-sm">
                                     Toplam: {patientForm.plannedTreatments?.reduce((sum, tx) => sum + (parseFloat(tx.price) || 0), 0).toLocaleString("tr-TR")} ₺
                                   </div>
                                 </div>
@@ -9502,55 +9383,45 @@ useEffect(() => {
                                     <thead className="text-[10px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700 sticky top-0 z-10">
                                       <tr>
                                         <th className="px-5 py-3">Tarih</th>
-                                        <th className="px-5 py-3">Diş / Bölge</th>
+                                        <th className="px-5 py-3">Diş/Bölge</th>
                                         <th className="px-5 py-3">İşlem Türü</th>
                                         <th className="px-5 py-3 text-right">Ücret</th>
-                                        <th className="px-5 py-3 text-center">İşlem</th>
+                                        <th className="px-5 py-3 text-center">Sil</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {(patientForm.plannedTreatments || []).length > 0 ? (
                                         patientForm.plannedTreatments.map((tx) => (
                                           <tr key={tx.id} className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
-                                            <td className="px-5 py-3 font-bold text-slate-500 dark:text-slate-400 text-xs">
+                                            <td className="px-5 py-3 font-bold text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
                                               {new Date(tx.date).toLocaleDateString("tr-TR")}
                                             </td>
-                                            <td className="px-5 py-3">
-                                              <span className="font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-md text-xs border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
+                                            <td className="px-5 py-3 whitespace-nowrap">
+                                              <span className="font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1 rounded-md text-xs border border-indigo-100 dark:border-indigo-800/50">
                                                 {tx.tooth === "Tüm Çene" ? "Tüm Çene" : `Diş ${tx.tooth}`}
                                               </span>
                                             </td>
                                             <td className="px-5 py-3 font-bold text-slate-700 dark:text-slate-300">
                                               {tx.treatment}
                                             </td>
-                                            <td className="px-5 py-3 text-right">
+                                            <td className="px-5 py-3 text-right whitespace-nowrap">
                                               {editingTxId === tx.id ? (
-                                                <div className="flex items-center justify-end gap-2 animate-pop">
+                                                <div className="flex items-center justify-end gap-2">
                                                   <input
                                                     type="number"
                                                     value={editingTxPrice}
                                                     onChange={(e) => setEditingTxPrice(e.target.value)}
-                                                    className="w-24 p-1.5 border border-slate-300 rounded-lg text-right text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-slate-900 dark:border-slate-600 dark:text-white transition-all shadow-inner"
+                                                    className="w-20 p-1.5 border border-slate-300 rounded-lg text-right text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-600 dark:text-white"
                                                     autoFocus
                                                   />
-                                                  <button
-                                                    onClick={() => handleUpdateTxPrice(tx.id, editingTxPrice, true, tx.docId)}
-                                                    className="bg-emerald-500 text-white w-7 h-7 rounded-lg flex items-center justify-center hover:bg-emerald-600 shadow-sm transition-transform hover:scale-105"
-                                                  >
+                                                  <button onClick={() => handleUpdateTxPrice(tx.id, editingTxPrice, true, tx.docId)} className="bg-emerald-500 text-white w-7 h-7 rounded-lg flex items-center justify-center hover:bg-emerald-600 shadow-sm">
                                                     <i className="fa-solid fa-check text-[10px]"></i>
                                                   </button>
                                                 </div>
                                               ) : (
                                                 <div className="font-black text-slate-800 dark:text-white flex items-center justify-end gap-3">
                                                   {renderMoney(tx.price)} ₺
-                                                  <button
-                                                    onClick={() => {
-                                                      setEditingTxId(tx.id);
-                                                      setEditingTxPrice(tx.price);
-                                                    }}
-                                                    className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors"
-                                                    title="Ücreti Düzenle"
-                                                  >
+                                                  <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
                                                     <i className="fa-solid fa-pen text-[11px]"></i>
                                                   </button>
                                                 </div>
@@ -9559,19 +9430,16 @@ useEffect(() => {
                                             <td className="px-5 py-3 text-center">
                                               <button
                                                 onClick={() => {
-                                                  showConfirm("Bu işlemi plandan silmek istediğinize emin misiniz?", () => {
+                                                  showConfirm("Silmek istediğinize emin misiniz?", () => {
                                                     const updatedTxs = patientForm.plannedTreatments.filter((t) => t.id !== tx.id);
                                                     const updatedPatient = { ...patientForm, plannedTreatments: updatedTxs };
                                                     setPatientForm(updatedPatient);
-                                                    saveGlobalData({
-                                                      ...globalData,
-                                                      patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient },
-                                                    });
-                                                    showNotification("İşlem plandan silindi.", "error");
+                                                    saveGlobalData({ ...globalData, patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient } });
+                                                    showNotification("İşlem silindi.", "error");
                                                   });
                                                 }}
-                                                className="w-8 h-8 rounded-xl bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white hover:border-rose-500 dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center mx-auto shadow-sm"
-                                                title="Plandan Çıkar"
+                                                className="w-8 h-8 rounded-xl bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center mx-auto shadow-sm"
+                                                title="Sil"
                                               >
                                                 <i className="fa-solid fa-trash-can text-xs"></i>
                                               </button>
@@ -9580,12 +9448,9 @@ useEffect(() => {
                                         ))
                                       ) : (
                                         <tr>
-                                          <td colSpan="5" className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50/50 dark:bg-slate-900/30">
-                                            <i className="fa-solid fa-tooth text-3xl mb-3 text-slate-300 dark:text-slate-700 block"></i>
-                                            Henüz planlanmış bir işlem bulunmuyor. <br />
-                                            <span className="text-xs">
-                                              Yukarıdaki haritadan diş seçerek veya işlem menüsünden tedavi oluşturabilirsiniz.
-                                            </span>
+                                          <td colSpan="5" className="text-center py-10 text-slate-400 text-sm font-medium">
+                                            <i className="fa-solid fa-tooth text-3xl mb-3 block opacity-50"></i>
+                                            Henüz planlanmış bir işlem bulunmuyor.
                                           </td>
                                         </tr>
                                       )}
@@ -9593,6 +9458,7 @@ useEffect(() => {
                                   </table>
                                 </div>
                               </div>
+
                             </div>
                           );
                         })()}
