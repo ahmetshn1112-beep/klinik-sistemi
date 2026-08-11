@@ -224,7 +224,7 @@ const useFirebase = () => {
         }, []);
 
         return (
-          <div className="text-xl font-black text-white/90 bg-white/20 inline-flex items-center gap-2 px-4 py-1.5 rounded-xl mt-3 tracking-widest shadow-inner border border-white/10 backdrop-blur-sm">
+          <div className="text-base font-black text-white/90 bg-white/20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl mt-2 tracking-widest shadow-inner border border-white/10 backdrop-blur-sm">
             <i className="fa-regular fa-clock"></i>
             {time.toLocaleDateString("tr-TR", {
               day: "2-digit",
@@ -612,7 +612,7 @@ const useFirebase = () => {
             >
               {/* YENİ EKLENEN KISIM: AKILLI TOOLTIP (BİLGİ KUTUSU) */}
               {treatments.length > 0 && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 dark:bg-slate-700 text-white text-[10px] px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-300 shadow-xl flex flex-col items-center scale-95 group-hover:scale-100">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-slate-900 dark:bg-slate-700 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-300 shadow-xl flex flex-col items-center scale-95 group-hover:scale-100">
                   <div className="font-black text-indigo-300 mb-0.5 border-b border-slate-700 pb-0.5 w-full text-center">
                     Diş {toothNo}
                   </div>
@@ -635,7 +635,7 @@ const useFirebase = () => {
                   <span className="pointer-events-none">{toothNo}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
-                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
+                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3 h-3 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
                     title="Diş Detayları"
                   >
                     <i className="fa-solid fa-info"></i>
@@ -855,7 +855,7 @@ const useFirebase = () => {
                   <span className="pointer-events-none">{toothNo}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
-                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
+                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3 h-3 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
                     title="Diş Detayları"
                   >
                     <i className="fa-solid fa-info"></i>
@@ -868,28 +868,28 @@ const useFirebase = () => {
 
         return (
           <div
-            className="relative w-full mx-auto bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-700 print-tooth-chart"
+            className="relative w-full mx-auto bg-white dark:bg-slate-800 p-2 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 print-tooth-chart"
             style={{ pageBreakInside: "avoid" }}
           >
             <div className="absolute top-[20%] left-[5%] right-[5%] h-[20%] bg-gradient-to-b from-rose-400 to-rose-200/20 blur-[20px] rounded-[100px] opacity-20 pointer-events-none"></div>
             <div className="absolute bottom-[20%] left-[5%] right-[5%] h-[20%] bg-gradient-to-t from-rose-400 to-rose-200/20 blur-[20px] rounded-[100px] opacity-20 pointer-events-none"></div>
 
             {/* YENİ: Pediatrik Mod Geçiş Butonları */}
-            <div className="flex justify-center mb-6 relative z-20 no-print">
-              <div className="bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl inline-flex shadow-inner">
+            <div className="flex justify-center mb-2 relative z-20 no-print">
+              <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl inline-flex shadow-inner">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     setIsPediatric(false);
                   }}
-                  className={`px-5 py-2 text-xs font-bold rounded-lg transition-all duration-300 ${
+                  className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 ${
                     !isPediatric
                       ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                       : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
                   }`}
                 >
-                  <i className="fa-solid fa-user mr-1.5"></i> Yetişkin
+                  <i className="fa-solid fa-user mr-1"></i> Yetişkin
                 </button>
                 <button
                   type="button"
@@ -897,18 +897,18 @@ const useFirebase = () => {
                     e.preventDefault();
                     setIsPediatric(true);
                   }}
-                  className={`px-5 py-2 text-xs font-bold rounded-lg transition-all duration-300 ${
+                  className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 ${
                     isPediatric
                       ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                       : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
                   }`}
                 >
-                  <i className="fa-solid fa-child mr-1.5"></i> Pediatrik
+                  <i className="fa-solid fa-child mr-1"></i> Pediatrik
                 </button>
               </div>
             </div>
 
-            <div className="flex justify-center gap-0.5 sm:gap-1 mb-8 border-b border-dashed border-slate-200 dark:border-slate-600 pb-6 relative z-10">
+            <div className="flex justify-center gap-0.5 sm:gap-1 mb-2 border-b border-dashed border-slate-200 dark:border-slate-600 pb-4 relative z-10">
               <div className="flex gap-0 sm:gap-0.5">
                 {topRight.map((t) => renderTooth(t, true))}
               </div>
@@ -920,7 +920,7 @@ const useFirebase = () => {
               </div>
             </div>
 
-            <div className="flex justify-center gap-0.5 sm:gap-1 pt-2 relative z-10">
+            <div className="flex justify-center gap-0.5 sm:gap-1 pt-1 relative z-10">
               <div className="flex gap-0 sm:gap-0.5">
                 {botRight.map((t) => renderTooth(t, false))}
               </div>
@@ -934,42 +934,42 @@ const useFirebase = () => {
 
             {/* YENİ EKLENEN: DİŞ DETAY MODALI */}
             {detailToothModal && (
-              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[300] p-4 transition-all" onClick={() => setDetailToothModal(null)}>
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
+              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[300] p-2 transition-all" onClick={() => setDetailToothModal(null)}>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
                   
                   {/* Modal Header */}
-                  <div className="px-6 py-4 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-                        <i className="fa-solid fa-tooth text-lg"></i>
+                  <div className="px-3 py-2 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                        <i className="fa-solid fa-tooth text-base"></i>
                       </div>
                       <div>
-                        <h3 className="font-black text-lg uppercase tracking-wider">{detailToothModal} Numaralı Diş</h3>
+                        <h3 className="font-black text-base uppercase tracking-wider">{detailToothModal} Numaralı Diş</h3>
                         <div className="text-[10px] text-slate-400 font-bold">Hasta: {patientForm.name}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <button onClick={() => {
                         const originalTitle = document.title;
                         document.title = `${patientForm.name} - Dis ${detailToothModal} Raporu`;
                         window.print();
                         setTimeout(() => document.title = originalTitle, 2000);
-                      }} className="w-8 h-8 flex justify-center items-center rounded-lg bg-white/10 hover:bg-white/20 transition" title="Yazdır">
-                        <i className="fa-solid fa-print text-sm"></i>
+                      }} className="w-7 h-7 flex justify-center items-center rounded-lg bg-white/10 hover:bg-white/20 transition" title="Yazdır">
+                        <i className="fa-solid fa-print text-[13px]"></i>
                       </button>
-                      <button onClick={() => setDetailToothModal(null)} className="w-8 h-8 flex justify-center items-center rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition">
-                        <i className="fa-solid fa-xmark text-lg"></i>
+                      <button onClick={() => setDetailToothModal(null)} className="w-7 h-7 flex justify-center items-center rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition">
+                        <i className="fa-solid fa-xmark text-base"></i>
                       </button>
                     </div>
                   </div>
 
                   {/* Tabs */}
-                  <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-2 gap-1 overflow-x-auto custom-scrollbar shrink-0">
+                  <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-1.5 gap-1 overflow-x-auto custom-scrollbar shrink-0">
                     {["genel", "randevular"].map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setDetailTab(tab)}
-                        className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider whitespace-nowrap transition-all ${
+                        className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition-all ${
                           detailTab === tab ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 shadow-sm" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                         }`}
                       >
@@ -980,28 +980,28 @@ const useFirebase = () => {
                   </div>
 
                   {/* Tab Contents */}
-                  <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-slate-800" id="print-tooth-detail">
+                  <div className="p-2 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-slate-800" id="print-tooth-detail">
                     
                     {/* YAZDIRMA İÇİN GİZLİ BAŞLIK */}
-                    <div className="hidden print-only mb-6 border-b-2 border-black pb-2">
-                      <h1 className="text-xl font-black uppercase text-black">{detailToothModal} NUMARALI DİŞ KLİNİK RAPORU</h1>
-                      <div className="text-sm font-bold text-gray-700 mt-2 grid grid-cols-2">
+                    <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
+                      <h1 className="text-base font-black uppercase text-black">{detailToothModal} NUMARALI DİŞ KLİNİK RAPORU</h1>
+                      <div className="text-[13px] font-bold text-gray-700 mt-2 grid grid-cols-2">
                         <div>Hasta: {patientForm.name}</div>
                         <div className="text-right">Tarih: {new Date().toLocaleDateString("tr-TR")}</div>
                       </div>
                     </div>
 
                     {detailTab === "genel" && (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Dişin Güncel Durumu</label>
-                            <div className="flex flex-wrap gap-2">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Dişin Güncel Durumu</label>
+                            <div className="flex flex-wrap gap-1">
                               {TOOTH_STATUS_OPTIONS.map(opt => (
                                 <button
                                   key={opt}
                                   onClick={() => setTempToothData({...tempToothData, status: opt})}
-                                  className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all ${
                                     tempToothData.status === opt 
                                       ? "bg-indigo-500 text-white border-indigo-600 shadow-md" 
                                       : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300"
@@ -1014,13 +1014,13 @@ const useFirebase = () => {
                           </div>
                           
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Tanılar / Semptomlar</label>
-                            <div className="flex flex-wrap gap-2 mb-3">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Tanılar / Semptomlar</label>
+                            <div className="flex flex-wrap gap-1 mb-2">
                               {DEFAULT_DIAGNOSES.map(diag => (
                                 <button
                                   key={diag}
                                   onClick={() => toggleDiagnosis(diag)}
-                                  className={`px-2.5 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+                                  className={`px-2 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1 ${
                                     tempToothData.diagnoses.includes(diag)
                                       ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400"
                                       : "bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-100"
@@ -1031,18 +1031,18 @@ const useFirebase = () => {
                                 </button>
                               ))}
                               {tempToothData.diagnoses.filter(d => !DEFAULT_DIAGNOSES.includes(d)).map(diag => (
-                                <button key={diag} onClick={() => toggleDiagnosis(diag)} className="px-2.5 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1.5 bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400">
+                                <button key={diag} onClick={() => toggleDiagnosis(diag)} className="px-2 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1 bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400">
                                   <i className="fa-solid fa-check"></i> {diag}
                                 </button>
                               ))}
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                               <input 
                                 type="text" 
                                 value={newDiagnosis} 
                                 onChange={(e) => setNewDiagnosis(e.target.value)} 
                                 placeholder="Özel tanı ekle..." 
-                                className="flex-1 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                                className="flex-1 p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                                 onKeyDown={(e) => {
                                   if(e.key === 'Enter' && newDiagnosis.trim()) {
                                     e.preventDefault();
@@ -1060,7 +1060,7 @@ const useFirebase = () => {
                                     setNewDiagnosis("");
                                   }
                                 }}
-                                className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-2 rounded-lg font-bold hover:bg-indigo-200 transition text-xs"
+                                className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 px-2.5 py-1.5 rounded-lg font-bold hover:bg-indigo-200 transition text-[11px]"
                               >
                                 Ekle
                               </button>
@@ -1070,14 +1070,14 @@ const useFirebase = () => {
 
                         {/* KANAL BOYU ALANI (Şartlı Gösterim) */}
                         {(tempToothData.status === "Kanal Tedavili" || tempToothData.diagnoses.some(d => d.includes("Pulpitis") || d.includes("Apse") || d.includes("Nekroz"))) && (
-                          <div className="p-4 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-800/50 rounded-xl mb-6">
-                            <label className="block text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase mb-3 flex items-center gap-2">
+                          <div className="p-2 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-800/50 rounded-xl mb-2">
+                            <label className="block text-[11px] font-black text-indigo-700 dark:text-indigo-400 uppercase mb-2 flex items-center gap-1">
                               <i className="fa-solid fa-ruler-vertical"></i> Kanal / Çalışma Boyu Ölçümleri (mm)
                             </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                               {[1, 2, 3, 4].map(num => (
                                 <div key={num} className="relative">
-                                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
                                     <span className="text-slate-400 text-[10px] font-black">K{num}</span>
                                   </div>
                                   <input 
@@ -1088,7 +1088,7 @@ const useFirebase = () => {
                                       ...tempToothData,
                                       canalLengths: { ...tempToothData.canalLengths, [`root${num}`]: e.target.value }
                                     })}
-                                    className="w-full pl-8 pr-2 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                                    className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                                   />
                                 </div>
                               ))}
@@ -1098,12 +1098,12 @@ const useFirebase = () => {
 
                         {/* KLİNİK NOTLAR ALANI */}
                         <div>
-                          <div className="flex justify-between items-center mb-2">
+                          <div className="flex justify-between items-center mb-1.5">
                             <label className="block text-[10px] font-bold text-slate-500 uppercase">Bu Dişe Özel Klinik Notlar</label>
                             {!isEditingNotes && (
                               <button 
                                 onClick={() => setIsEditingNotes(true)} 
-                                className="text-[11px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg font-bold transition flex items-center gap-1.5"
+                                className="text-[11px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1"
                               >
                                 <i className="fa-solid fa-pen"></i> Düzenle
                               </button>
@@ -1112,15 +1112,15 @@ const useFirebase = () => {
                           
                           {isEditingNotes ? (
                             <textarea 
-                              rows="5" 
+                              rows="4" 
                               value={tempToothData.notes}
                               onChange={e => setTempToothData({...tempToothData, notes: e.target.value})}
                               placeholder="Diş ile ilgili detaylı notlar, kullanılan materyaller vb..."
-                              className="w-full p-3 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-amber-400 resize-none shadow-inner"
+                              className="w-full p-2 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl text-[13px] font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-amber-400 resize-none shadow-inner"
                               autoFocus
                             ></textarea>
                           ) : (
-                            <div className="w-full p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 min-h-[100px] whitespace-pre-wrap">
+                            <div className="w-full p-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-medium text-slate-700 dark:text-slate-300 min-h-[80px] whitespace-pre-wrap">
                               {tempToothData.notes ? tempToothData.notes : <span className="text-slate-400 italic">Not girilmemiş...</span>}
                             </div>
                           )}
@@ -1142,16 +1142,16 @@ const useFirebase = () => {
                         });
                       }
                       return (
-                        <div className="space-y-3">
+                        <div className="space-y-1.5">
                           {apts.length > 0 ? apts.map((a, i) => (
-                            <div key={i} className="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm border-l-4 border-l-indigo-500">
+                            <div key={i} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm border-l-4 border-l-indigo-500">
                               <div>
-                                <div className="font-black text-sm text-indigo-700 dark:text-indigo-400">{a.treatment || "Genel İşlem"}</div>
-                                <div className="text-xs text-slate-500 font-bold mt-1"><i className="fa-regular fa-calendar mr-1"></i> {a.dateStr} - {a.timeStr}</div>
+                                <div className="font-black text-[13px] text-indigo-700 dark:text-indigo-400">{a.treatment || "Genel İşlem"}</div>
+                                <div className="text-[11px] text-slate-500 font-bold mt-0.5"><i className="fa-regular fa-calendar mr-1"></i> {a.dateStr} - {a.timeStr}</div>
                               </div>
                               <div className="text-[10px] font-bold px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{a.status}</div>
                             </div>
-                          )) : <div className="text-center py-10 text-slate-400 text-sm font-medium">Bu dişi içeren bir randevu bulunmuyor.</div>}
+                          )) : <div className="text-center py-8 text-slate-400 text-[13px] font-medium">Bu dişi içeren bir randevu bulunmuyor.</div>}
                         </div>
                       );
                     })()}
@@ -1159,12 +1159,12 @@ const useFirebase = () => {
                   </div>
                   
                   {/* Modal Footer (Sadece Genel sekmesinde Kaydet butonu aktif) */}
-                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 shrink-0 no-print">
-                    <button onClick={() => setDetailToothModal(null)} className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-sm">
+                  <div className="px-2 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2 shrink-0 no-print">
+                    <button onClick={() => setDetailToothModal(null)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[13px] hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-sm">
                       Kapat
                     </button>
                     {detailTab === "genel" && (
-                      <button onClick={saveToothDetails} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/30">
+                      <button onClick={saveToothDetails} className="px-3 py-2 bg-indigo-600 text-white rounded-xl font-black text-[13px] hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/30">
                         Durum ve Notları Kaydet
                       </button>
                     )}
@@ -2939,16 +2939,16 @@ useEffect(() => {
 
           if (past.length === 0 && future.length === 0)
             return (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-xl z-50 p-4 text-center text-sm font-bold text-slate-500 dark:text-slate-400">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-xl z-50 p-2 text-center text-[13px] font-bold text-slate-500 dark:text-slate-400">
                 Randevu bulunamadı.
               </div>
             );
 
           return (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl z-50 max-h-[400px] overflow-y-auto flex flex-col overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-50 max-h-[400px] overflow-y-auto flex flex-col overflow-hidden">
               {future.length > 0 && (
                 <div className="p-2">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase px-3 py-1 tracking-wider">
+                  <div className="text-[10px] font-black text-indigo-500 uppercase px-2.5 py-1 tracking-wider">
                     Gelecek Randevular
                   </div>
 
@@ -2970,13 +2970,13 @@ useEffect(() => {
 
                         setAptSearchQuery("");
                       }}
-                      className="px-3 py-2.5 mx-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 cursor-pointer rounded-xl border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800 transition-all mb-1 group"
+                      className="px-2.5 py-2 mx-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 cursor-pointer rounded-xl border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800 transition-all mb-1 group"
                     >
-                      <div className="font-black text-slate-800 dark:text-slate-200 text-sm group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition">
+                      <div className="font-black text-slate-800 dark:text-slate-200 text-[13px] group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition">
                         {a.patientName}
                       </div>
 
-                      <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center gap-1.5">
+                      <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center gap-1.5">
                         <i className="fa-regular fa-clock"></i> {a.dateStr} -{" "}
                         {a.timeStr}
                       </div>
@@ -2998,7 +2998,7 @@ useEffect(() => {
 
               {past.length > 0 && (
                 <div className="p-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80">
-                  <div className="text-[10px] font-black text-slate-400 uppercase px-3 py-1 tracking-wider">
+                  <div className="text-[10px] font-black text-slate-400 uppercase px-2.5 py-1 tracking-wider">
                     Geçmiş Randevular
                   </div>
 
@@ -3020,13 +3020,13 @@ useEffect(() => {
 
                         setAptSearchQuery("");
                       }}
-                      className="px-3 py-2.5 mx-1 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer rounded-xl border border-transparent transition-all mb-1 opacity-70 hover:opacity-100 grayscale hover:grayscale-0 group"
+                      className="px-2.5 py-2 mx-1 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer rounded-xl border border-transparent transition-all mb-1 opacity-70 hover:opacity-100 grayscale hover:grayscale-0 group"
                     >
-                      <div className="font-bold text-slate-600 dark:text-slate-300 text-sm group-hover:text-slate-800 dark:group-hover:text-white transition">
+                      <div className="font-bold text-slate-600 dark:text-slate-300 text-[13px] group-hover:text-slate-800 dark:group-hover:text-white transition">
                         {a.patientName}
                       </div>
 
-                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                      <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
                         <i className="fa-regular fa-calendar-check"></i>{" "}
                         {a.dateStr} - {a.timeStr}
                       </div>
@@ -3052,7 +3052,7 @@ useEffect(() => {
         const renderAppointmentSearchBox = () => (
           <div className="relative w-full" ref={aptSearchRef}>
             <div className="relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 text-sm"></i>
+              <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-[13px]"></i>
 
               <input
                 type="text"
@@ -3066,7 +3066,7 @@ useEffect(() => {
                 onFocus={() => {
                   if (aptSearchQuery.length > 1) setIsAptSearchOpen(true);
                 }}
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 dark:focus:ring-indigo-900/50 shadow-inner transition-all"
+                className="w-full pl-9 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 dark:focus:ring-indigo-900/50 shadow-inner transition-all"
               />
 
               {aptSearchQuery && (
@@ -3076,7 +3076,7 @@ useEffect(() => {
 
                     setIsAptSearchOpen(false);
                   }}
-                  className="absolute right-3 top-3.5 text-slate-400 hover:text-rose-500 transition"
+                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-rose-500 transition"
                 >
                   <i className="fa-solid fa-xmark"></i>
                 </button>
@@ -3274,10 +3274,10 @@ useEffect(() => {
 
         if (!isReady || isSyncing)
           return (
-            <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center gap-4">
-              <i className="fa-solid fa-spinner fa-spin text-4xl text-indigo-600"></i>
+            <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center gap-2">
+              <i className="fa-solid fa-spinner fa-spin text-lg text-indigo-600"></i>
 
-              <div className="text-slate-500 font-bold text-sm">
+              <div className="text-slate-500 font-bold text-[13px]">
                 Klinik Verileriniz Senkronize Ediliyor...
               </div>
             </div>
@@ -3285,22 +3285,22 @@ useEffect(() => {
 
         if (!currentUser)
           return (
-            <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] flex flex-col items-center justify-center p-2 relative overflow-hidden">
               {/* YENİ: Modern Arka Plan Ambiyans Işıkları */}
               <div className="absolute top-[-15%] left-[-10%] w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none"></div>
               <div className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] w-full max-w-md p-8 sm:p-10 border border-white/60 dark:border-slate-700/50 animate-pop relative z-10">
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 shadow-lg shadow-indigo-500/30">
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] w-full max-w-md p-2 sm:p-6 border border-white/60 dark:border-slate-700/50 animate-pop relative z-10">
+                <div className="text-center mb-2">
+                  <div className="w-14 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl flex items-center justify-center text-lg mx-auto mb-2 shadow-lg shadow-indigo-500/30">
                     <i className="fa-solid fa-tooth"></i>
                   </div>
 
-                  <h1 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">
+                  <h1 className="text-base font-black text-slate-800 dark:text-white tracking-tight">
                     Klinik Sistemi
                   </h1>
 
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 font-semibold">
+                  <p className="text-slate-500 dark:text-slate-400 text-[13px] mt-1 font-semibold">
                     {authMode === "login"
                       ? "Güvenli Hekim Giriş Paneli"
                       : authMode === "register"
@@ -3310,16 +3310,16 @@ useEffect(() => {
                 </div>
 
                 {authError && (
-                  <div className="mb-6 p-4 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-sm rounded-xl font-bold text-center border border-rose-100 dark:border-rose-800/50 flex items-center justify-center gap-2 animate-pop">
-                    <i className="fa-solid fa-triangle-exclamation text-lg"></i>{" "}
+                  <div className="mb-2 p-2.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-[13px] rounded-xl font-bold text-center border border-rose-100 dark:border-rose-800/50 flex items-center justify-center gap-1.5 animate-pop">
+                    <i className="fa-solid fa-triangle-exclamation text-base"></i>{" "}
                     {authError}
                   </div>
                 )}
 
                 {authMode === "login" && (
-                  <form onSubmit={handleAuthSubmit} className="space-y-4">
+                  <form onSubmit={handleAuthSubmit} className="space-y-2">
                     <div className="relative group">
-                      <i className="fa-solid fa-user absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
                         type="text"
                         required
@@ -3328,7 +3328,7 @@ useEffect(() => {
                         onChange={(e) =>
                           setAuthForm({ ...authForm, username: e.target.value })
                         }
-                        className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
                         placeholder="Kullanıcı Adınız"
                         autoComplete="off"
                       />
@@ -3340,7 +3340,7 @@ useEffect(() => {
                     </div>
 
                     <div className="relative group">
-                      <i className="fa-solid fa-lock absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-lock absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
                         type={showPassword ? "text" : "password"}
                         required
@@ -3348,13 +3348,13 @@ useEffect(() => {
                         onChange={(e) =>
                           setAuthForm({ ...authForm, password: e.target.value })
                         }
-                        className="w-full pl-11 pr-12 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className="w-full pl-10 pr-10 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
                         placeholder="Şifreniz"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-500 transition-colors"
+                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-indigo-500 transition-colors"
                       >
                         <i
                           className={`fa-solid ${
@@ -3364,14 +3364,14 @@ useEffect(() => {
                       </button>
                     </div>
 
-                    <div className="flex justify-end mt-1 mb-2">
+                    <div className="flex justify-end mt-0.5 mb-1.5">
                       <button
                         type="button"
                         onClick={() => {
                           setAuthMode("forgot");
                           setAuthError("");
                         }}
-                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
+                        className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
                       >
                         Şifremi Unuttum?
                       </button>
@@ -3379,14 +3379,14 @@ useEffect(() => {
 
                     <button
                       type="submit"
-                      className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2"
+                      className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-1.5"
                     >
                       Sisteme Giriş Yap{" "}
                       <i className="fa-solid fa-arrow-right"></i>
                     </button>
 
-                    <div className="text-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                    <div className="text-center mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
                         Sistemde henüz kaydınız yok mu?{" "}
                       </span>
                       <button
@@ -3395,7 +3395,7 @@ useEffect(() => {
                           setAuthMode("register");
                           setAuthError("");
                         }}
-                        className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:underline"
+                        className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline"
                       >
                         Yeni Hesap Oluştur
                       </button>
@@ -3404,9 +3404,9 @@ useEffect(() => {
                 )}
 
                 {authMode === "register" && (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                  <form onSubmit={handleRegisterSubmit} className="space-y-2">
                     <div className="relative group">
-                      <i className="fa-solid fa-id-card absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-id-card absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
                         type="text"
                         required
@@ -3417,13 +3417,13 @@ useEffect(() => {
                             name: e.target.value,
                           })
                         }
-                        className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
                         placeholder="Adınız Soyadınız"
                       />
                     </div>
 
                     <div className="relative group">
-                      <i className="fa-solid fa-user absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
                         type="text"
                         required
@@ -3434,13 +3434,13 @@ useEffect(() => {
                             username: e.target.value,
                           })
                         }
-                        className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
                         placeholder="Kullanıcı Adı Belirleyin"
                       />
                     </div>
 
                     <div className="relative group">
-                      <i className="fa-solid fa-lock absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-lock absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
                         type={showPassword ? "text" : "password"}
                         required
@@ -3451,13 +3451,13 @@ useEffect(() => {
                             password: e.target.value,
                           })
                         }
-                        className="w-full pl-11 pr-12 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className="w-full pl-10 pr-10 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
                         placeholder="Şifre Belirleyin"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-500 transition-colors"
+                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-indigo-500 transition-colors"
                       >
                         <i
                           className={`fa-solid ${
@@ -3469,16 +3469,16 @@ useEffect(() => {
 
                     <button
                       type="submit"
-                      className="w-full mt-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2"
+                      className="w-full mt-2 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-1.5"
                     >
                       Kaydı Tamamla <i className="fa-solid fa-check"></i>
                     </button>
 
-                    <div className="text-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                    <div className="text-center mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
                       <button
                         type="button"
                         onClick={() => setAuthMode("login")}
-                        className="text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1.5 w-full"
+                        className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1.5 w-full"
                       >
                         <i className="fa-solid fa-arrow-left"></i> Giriş
                         Ekranına Dön
@@ -3488,9 +3488,9 @@ useEffect(() => {
                 )}
 
                 {authMode === "forgot" && (
-                  <form onSubmit={handleForgotSubmit} className="space-y-4">
+                  <form onSubmit={handleForgotSubmit} className="space-y-2">
                     <div className="relative group">
-                      <i className="fa-solid fa-user absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
                         type="text"
                         required
@@ -3501,13 +3501,13 @@ useEffect(() => {
                             username: e.target.value,
                           })
                         }
-                        className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
                         placeholder="Mevcut Kullanıcı Adınız"
                       />
                     </div>
 
                     <div className="relative group">
-                      <i className="fa-solid fa-key absolute left-4 top-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-key absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
                         type={showPassword ? "text" : "password"}
                         required
@@ -3518,13 +3518,13 @@ useEffect(() => {
                             newPassword: e.target.value,
                           })
                         }
-                        className="w-full pl-11 pr-12 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className="w-full pl-10 pr-10 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
                         placeholder="Yeni Şifre Belirleyin"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-500 transition-colors"
+                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-indigo-500 transition-colors"
                       >
                         <i
                           className={`fa-solid ${
@@ -3536,17 +3536,17 @@ useEffect(() => {
 
                     <button
                       type="submit"
-                      className="w-full mt-6 py-3.5 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 font-black rounded-xl shadow-lg hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2"
+                      className="w-full mt-2 py-2 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 font-black rounded-xl shadow-lg hover:-translate-y-0.5 transition-all flex justify-center items-center gap-1.5"
                     >
                       Şifremi Sıfırla{" "}
                       <i className="fa-solid fa-rotate-right"></i>
                     </button>
 
-                    <div className="text-center mt-6 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+                    <div className="text-center mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
                       <button
                         type="button"
                         onClick={() => setAuthMode("login")}
-                        className="text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1.5 w-full"
+                        className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1.5 w-full"
                       >
                         <i className="fa-solid fa-arrow-left"></i> İptal Et ve
                         Geri Dön
@@ -3603,15 +3603,15 @@ useEffect(() => {
 
           return (
             <div
-              className={`flex flex-col gap-6 pb-10 animate-pop w-full h-full ${
+              className={`flex flex-col gap-3 pb-8 animate-pop w-full h-full ${
                 isDocChanging ? "refreshing" : ""
               }`}
             >
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between bg-gradient-to-r from-indigo-600 to-purple-700 rounded-2xl p-6 text-white shadow-lg overflow-hidden relative shrink-0 gap-6">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between bg-gradient-to-r from-indigo-600 to-purple-700 rounded-xl p-2.5 text-white shadow-lg overflow-hidden relative shrink-0 gap-2">
                 <div className="absolute right-0 top-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-10 -mt-20 blur-2xl pointer-events-none"></div>
 
                 <div className="z-10">
-                  <h1 className="text-2xl font-black mb-1">
+                  <h1 className="text-base font-black mb-0.5">
                     {new Date().getHours() >= 6 && new Date().getHours() < 12
                       ? "Günaydın ☀️"
                       : new Date().getHours() >= 12 &&
@@ -3630,13 +3630,13 @@ useEffect(() => {
                 </div>
 
                 {/* YENİ: Akıllı Sistem Bilgi Barı (Sıradaki Hasta & Hızlı Kısayollar) */}
-                <div className="z-10 flex bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 gap-5 shadow-inner w-full lg:w-auto overflow-x-auto custom-scrollbar">
-                  <div className="flex flex-col pr-5 border-r border-white/20 shrink-0 justify-center">
-                    <span className="text-[10px] uppercase font-bold opacity-75 tracking-wider mb-1">
+                <div className="z-10 flex bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1.5 gap-1.5 shadow-inner w-full lg:w-auto overflow-x-auto custom-scrollbar">
+                  <div className="flex flex-col pr-4 border-r border-white/20 shrink-0 justify-center">
+                    <span className="text-[10px] uppercase font-bold opacity-75 tracking-wider mb-0.5">
                       <i className="fa-solid fa-bolt text-amber-300 mr-1"></i>{" "}
                       Hızlı İşlemler
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
                       <button
                         onClick={() => {
                           setActiveTab("patients");
@@ -3654,7 +3654,7 @@ useEffect(() => {
                           setPatientModalTab("info");
                           setIsPatientModalOpen(true);
                         }}
-                        className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg font-black hover:bg-slate-100 transition shadow-sm"
+                        className="text-[11px] bg-white text-indigo-600 px-2.5 py-1 rounded-lg font-black hover:bg-slate-100 transition shadow-sm"
                       >
                         Yeni Hasta
                       </button>
@@ -3662,15 +3662,15 @@ useEffect(() => {
                         onClick={() => {
                           setActiveTab("calendar");
                         }}
-                        className="text-xs bg-indigo-900/50 text-white px-3 py-1.5 rounded-lg font-black hover:bg-indigo-900/70 border border-indigo-300/30 transition shadow-sm"
+                        className="text-[11px] bg-indigo-900/50 text-white px-2.5 py-1 rounded-lg font-black hover:bg-indigo-900/70 border border-indigo-300/30 transition shadow-sm"
                       >
                         Takvime Git
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex flex-col shrink-0 justify-center min-w-[140px]">
-                    <span className="text-[10px] uppercase font-bold opacity-75 tracking-wider mb-1">
+                  <div className="flex flex-col shrink-0 justify-center min-w-[120px]">
+                    <span className="text-[10px] uppercase font-bold opacity-75 tracking-wider mb-0.5">
                       <i className="fa-regular fa-clock text-rose-300 mr-1"></i>{" "}
                       Sıradaki Randevu
                     </span>
@@ -3682,7 +3682,7 @@ useEffect(() => {
                       if (nextApt) {
                         return (
                           <span
-                            className="text-sm font-black text-white truncate max-w-[180px]"
+                            className="text-[13px] font-black text-white truncate max-w-[150px]"
                             title={nextApt.patientName}
                           >
                             {nextApt.sortTime} -{" "}
@@ -3691,7 +3691,7 @@ useEffect(() => {
                         );
                       }
                       return (
-                        <span className="text-sm font-bold text-indigo-200">
+                        <span className="text-[13px] font-bold text-indigo-200">
                           Bekleyen Hasta Yok
                         </span>
                       );
@@ -3700,47 +3700,47 @@ useEffect(() => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-5">
-                  <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center text-3xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 shrink-0">
+                <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5">
+                  <div className="w-14 h-9 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center text-lg">
                     <i className="fa-regular fa-calendar-check"></i>
                   </div>
 
                   <div>
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">
                       Bugünkü Toplam Randevu
                     </div>
 
-                    <div className="text-3xl font-black text-slate-800 dark:text-white">
+                    <div className="text-lg font-black text-slate-800 dark:text-white">
                       {totalApts}
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-5">
-                  <div className="w-16 h-16 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center text-3xl">
+                <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5">
+                  <div className="w-14 h-9 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center text-lg">
                     <i className="fa-solid fa-hourglass-half"></i>
                   </div>
 
                   <div>
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">
                       Bekleyen Hastalar
                     </div>
 
-                    <div className="text-3xl font-black text-slate-800 dark:text-white">
+                    <div className="text-lg font-black text-slate-800 dark:text-white">
                       {waitingCount}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 flex flex-col">
-                <h3 className="text-lg font-black text-slate-800 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-2.5 flex flex-col">
+                <h3 className="text-base font-black text-slate-800 dark:text-white mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-1.5">
                   <i className="fa-regular fa-clock text-indigo-500"></i>{" "}
                   Yaklaşan Randevularınız
                 </h3>
 
-                <div className="space-y-3 pr-2">
+                <div className="space-y-1.5 pr-1.5">
                   {todaysApts.length > 0 ? (
                     todaysApts.map((apt, i) => {
                       const pId = apt.patientName
@@ -3775,7 +3775,7 @@ useEffect(() => {
                               apt,
                             })
                           }
-                          className={`flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-y border-r border-l-4 hover:shadow-md transition cursor-pointer group relative ${
+                          className={`flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-y border-r border-l-4 hover:shadow-md transition cursor-pointer group relative ${
                             apt.status === "Geldi"
                               ? "border-l-emerald-500 border-y-slate-200 border-r-slate-200 dark:border-y-slate-700 dark:border-r-slate-700 hover:border-emerald-400"
                               : apt.status === "Gelmedi"
@@ -3783,28 +3783,28 @@ useEffect(() => {
                               : "border-l-sky-500 border-y-slate-200 border-r-slate-200 dark:border-y-slate-700 dark:border-r-slate-700 hover:border-sky-400"
                           }`}
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="bg-white dark:bg-slate-800 font-black text-indigo-600 dark:text-indigo-400 px-3 py-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 text-xs w-32 text-center group-hover:bg-indigo-600 group-hover:text-white transition">
+                          <div className="flex items-center gap-1.5">
+                            <div className="bg-white dark:bg-slate-800 font-black text-indigo-600 dark:text-indigo-400 px-2.5 py-1.5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 text-[11px] w-28 text-center group-hover:bg-indigo-600 group-hover:text-white transition">
                               {apt.timeStr}
                             </div>
 
                             <div>
-                              <div className="font-black text-slate-800 dark:text-slate-200 flex items-center gap-2 text-sm">
+                              <div className="font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-[13px]">
                                 {apt.patientName}{" "}
                                 {anamnesis && (
                                   <i className="fa-solid fa-triangle-exclamation text-rose-500"></i>
                                 )}
                               </div>
 
-                              <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 max-w-[200px] truncate">
+                              <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 max-w-[160px] truncate">
                                 <i className="fa-solid fa-stethoscope mr-1"></i>{" "}
                                 {renderTreatmentText(apt)}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded-lg hidden sm:block">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-lg hidden sm:block">
                               {globalData.doctorProfiles?.[apt.docId]?.name}
                             </span>
 
@@ -3822,7 +3822,7 @@ useEffect(() => {
                       );
                     })
                   ) : (
-                    <div className="text-center py-10 text-slate-400 font-medium">
+                    <div className="text-center py-8 text-slate-400 font-medium">
                       Bugün için planlanmış bir randevu bulunmuyor.
                     </div>
                   )}
@@ -3830,9 +3830,9 @@ useEffect(() => {
               </div>
 
               {/* YENİ: İşlevsel Performans Analitiği, Tablolu Hacim ve Diş Detayları */}
-              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 flex flex-col shrink-0 mt-2">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-4 mb-6 gap-3">
-                  <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-2.5 flex flex-col shrink-0 mt-1">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-3 mb-2.5 gap-1.5">
+                  <h3 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1.5">
                     <i className="fa-solid fa-chart-pie text-indigo-500"></i>{" "}
                     Analitik ve İşlem Hacmi Tablosu
                   </h3>
@@ -3841,7 +3841,7 @@ useEffect(() => {
                     <select
                       value={dashboardPeriod}
                       onChange={(e) => setDashboardPeriod(e.target.value)}
-                      className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 outline-none cursor-pointer dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 shadow-sm appearance-none pr-8 transition-colors hover:bg-slate-200 dark:hover:bg-slate-800"
+                      className="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none cursor-pointer dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 shadow-sm appearance-none pr-7 transition-colors hover:bg-slate-200 dark:hover:bg-slate-800"
                     >
                       <option value="today">Bugün</option>
                       <option value="week">Bu Hafta</option>
@@ -3849,11 +3849,11 @@ useEffect(() => {
                       <option value="year">Bu Yıl</option>
                       <option value="all">Tüm Zamanlar</option>
                     </select>
-                    <i className="fa-solid fa-calendar-day absolute right-3 top-2.5 text-[11px] text-indigo-500 pointer-events-none"></i>
+                    <i className="fa-solid fa-calendar-day absolute right-2.5 top-2 text-[11px] text-indigo-500 pointer-events-none"></i>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
                   {(() => {
                     let totalApts = 0,
                       arrived = 0,
@@ -3970,17 +3970,17 @@ useEffect(() => {
                     return (
                       <>
                         {/* SOL TARAF: Devamlılık ve Sık İşlemler (5 Kolon) */}
-                        <div className="lg:col-span-5 flex flex-col gap-6">
+                        <div className="lg:col-span-5 flex flex-col gap-2">
                           {/* Profesyonel Devamlılık Oranı */}
                           <div
                             onClick={() =>
                               setShowAttendanceDetails(!showAttendanceDetails)
                             }
-                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-5 rounded-2xl shadow-sm cursor-pointer hover:border-emerald-300 transition-all relative group"
+                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-xl shadow-sm cursor-pointer hover:border-emerald-300 transition-all relative group"
                           >
-                            <div className="flex justify-between items-center mb-4">
+                            <div className="flex justify-between items-center mb-2">
                               <div>
-                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
                                   <i className="fa-solid fa-users-viewfinder text-emerald-500"></i>{" "}
                                   Hasta Devamlılık
                                   <i
@@ -3990,25 +3990,25 @@ useEffect(() => {
                                   ></i>
                                 </h4>
                               </div>
-                              <div className="text-3xl font-black text-slate-800 dark:text-white">
+                              <div className="text-lg font-black text-slate-800 dark:text-white">
                                 %{arrivalRate}
                               </div>
                             </div>
 
-                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 mb-2 relative overflow-hidden shadow-inner">
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-1.5 relative overflow-hidden shadow-inner">
                               <div
-                                className="bg-emerald-500 h-2.5 rounded-full transition-all duration-1000"
+                                className="bg-emerald-500 h-2 rounded-full transition-all duration-1000"
                                 style={{ width: `${arrivalRate}%` }}
                               ></div>
                             </div>
 
                             {showAttendanceDetails && (
-                              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 grid grid-cols-3 gap-2 text-center animate-pop">
+                              <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50 grid grid-cols-3 gap-1 text-center animate-pop">
                                 <div>
                                   <div className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
                                     Geldi
                                   </div>
-                                  <div className="text-xl font-black text-slate-700 dark:text-slate-200">
+                                  <div className="text-base font-black text-slate-700 dark:text-slate-200">
                                     {arrived}
                                   </div>
                                 </div>
@@ -4016,7 +4016,7 @@ useEffect(() => {
                                   <div className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">
                                     Gelmedi
                                   </div>
-                                  <div className="text-xl font-black text-slate-700 dark:text-slate-200">
+                                  <div className="text-base font-black text-slate-700 dark:text-slate-200">
                                     {noShow}
                                   </div>
                                 </div>
@@ -4024,7 +4024,7 @@ useEffect(() => {
                                   <div className="text-[9px] font-bold text-rose-500 uppercase tracking-wider">
                                     İptal
                                   </div>
-                                  <div className="text-xl font-black text-slate-700 dark:text-slate-200">
+                                  <div className="text-base font-black text-slate-700 dark:text-slate-200">
                                     {canceled}
                                   </div>
                                 </div>
@@ -4033,12 +4033,12 @@ useEffect(() => {
                           </div>
 
                           {/* Tıklanabilir En Sık Uygulanan İşlemler */}
-                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-5 rounded-2xl shadow-sm flex-1">
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-xl shadow-sm flex-1">
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                               <i className="fa-solid fa-layer-group text-indigo-500"></i>{" "}
                               Sık Uygulanan İşlemler (Detaylı)
                             </h4>
-                            <div className="space-y-3">
+                            <div className="space-y-1.5">
                               {sortedTreatments
                                 .slice(0, 5)
                                 .map(([tName, tData], i) => {
@@ -4046,7 +4046,7 @@ useEffect(() => {
                                   return (
                                     <div
                                       key={i}
-                                      className="group border border-slate-100 dark:border-slate-800 rounded-xl p-3 hover:border-indigo-200 transition-colors shadow-sm bg-slate-50/50 dark:bg-slate-800/30"
+                                      className="group border border-slate-100 dark:border-slate-800 rounded-xl p-1.5 hover:border-indigo-200 transition-colors shadow-sm bg-slate-50/50 dark:bg-slate-800/30"
                                     >
                                       <div
                                         className="flex justify-between items-center cursor-pointer"
@@ -4056,9 +4056,9 @@ useEffect(() => {
                                           )
                                         }
                                       >
-                                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 group-hover:text-indigo-600 transition-colors">
+                                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 group-hover:text-indigo-600 transition-colors">
                                           <div
-                                            className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                                            className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${
                                               isExpanded
                                                 ? "bg-indigo-500 text-white"
                                                 : "bg-white border dark:bg-slate-700 text-slate-400"
@@ -4067,32 +4067,32 @@ useEffect(() => {
                                             <i
                                               className={`fa-solid fa-chevron-${
                                                 isExpanded ? "down" : "right"
-                                              } text-[10px]`}
+                                              } text-[9px]`}
                                             ></i>
                                           </div>
                                           {tName}
                                         </span>
-                                        <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2.5 py-1 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                        <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-lg border border-indigo-100 dark:border-indigo-800">
                                           {tData.count} Kez
                                         </span>
                                       </div>
 
                                       {/* Tıklanınca açılan detay (Diş Dağılımı) */}
                                       {isExpanded && (
-                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 animate-pop">
-                                          <div className="text-[9px] text-slate-500 uppercase font-bold mb-2 tracking-wider flex items-center gap-1">
+                                        <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 animate-pop">
+                                          <div className="text-[9px] text-slate-500 uppercase font-bold mb-1.5 tracking-wider flex items-center gap-1">
                                             <i className="fa-solid fa-tooth text-indigo-400"></i>{" "}
                                             Uygulanan Dişler ve Dağılımı
                                           </div>
-                                          <div className="flex flex-wrap gap-2">
+                                          <div className="flex flex-wrap gap-1">
                                             {Object.entries(tData.teeth)
                                               .sort((a, b) => b[1] - a[1])
                                               .map(([tooth, tCount], idx) => (
                                                 <div
                                                   key={idx}
-                                                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg flex items-center gap-2 shadow-sm"
+                                                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm"
                                                 >
-                                                  <span className="text-xs font-black text-slate-700 dark:text-slate-200">
+                                                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">
                                                     {tooth !== "Belirtilmedi"
                                                       ? `Diş ${tooth}`
                                                       : "Genel İşlem"}
@@ -4109,7 +4109,7 @@ useEffect(() => {
                                   );
                                 })}
                               {sortedTreatments.length === 0 && (
-                                <div className="text-xs text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                                <div className="text-[11px] text-slate-400 text-center py-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
                                   Seçili dönemde veri bulunmuyor.
                                 </div>
                               )}
@@ -4118,58 +4118,58 @@ useEffect(() => {
                         </div>
 
                         {/* SAĞ TARAF: İşlem Hacmi Tablosu (7 Kolon) */}
-                        <div className="lg:col-span-7 flex flex-col h-full gap-6">
+                        <div className="lg:col-span-7 flex flex-col h-full gap-2">
                           {/* Mini Metrikler (Hacim Özeti) */}
-                          <div className="grid grid-cols-3 gap-4 shrink-0">
-                            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-4 rounded-2xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
-                              <i className="fa-solid fa-users absolute -right-3 -bottom-3 text-4xl text-white/10"></i>
-                              <div className="text-[9px] font-bold text-indigo-100 uppercase tracking-wider mb-1">
+                          <div className="grid grid-cols-3 gap-1.5 shrink-0">
+                            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-2 rounded-xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
+                              <i className="fa-solid fa-users absolute -right-3 -bottom-3 text-xl text-white/10"></i>
+                              <div className="text-[9px] font-bold text-indigo-100 uppercase tracking-wider mb-0.5">
                                 Aktif Hasta
                               </div>
-                              <div className="text-2xl font-black">
+                              <div className="text-base font-black">
                                 {uniquePatients.size}
                               </div>
                             </div>
-                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-2xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
-                              <i className="fa-solid fa-calendar-check absolute -right-3 -bottom-3 text-4xl text-white/10"></i>
-                              <div className="text-[9px] font-bold text-purple-100 uppercase tracking-wider mb-1">
+                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-2 rounded-xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
+                              <i className="fa-solid fa-calendar-check absolute -right-3 -bottom-3 text-xl text-white/10"></i>
+                              <div className="text-[9px] font-bold text-purple-100 uppercase tracking-wider mb-0.5">
                                 Randevu Hacmi
                               </div>
-                              <div className="text-2xl font-black">
+                              <div className="text-base font-black">
                                 {totalApts}
                               </div>
                             </div>
-                            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 rounded-2xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
-                              <i className="fa-solid fa-wallet absolute -right-3 -bottom-3 text-4xl text-white/10"></i>
-                              <div className="text-[9px] font-bold text-emerald-100 uppercase tracking-wider mb-1">
+                            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-2 rounded-xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
+                              <i className="fa-solid fa-wallet absolute -right-3 -bottom-3 text-xl text-white/10"></i>
+                              <div className="text-[9px] font-bold text-emerald-100 uppercase tracking-wider mb-0.5">
                                 Üretilen Ciro
                               </div>
-                              <div className="text-2xl font-black">
+                              <div className="text-base font-black">
                                 {earnedRev.toLocaleString("tr-TR")} ₺
                               </div>
                             </div>
                           </div>
 
                           {/* Detaylı Hacim Tablosu */}
-                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl flex-1 flex flex-col overflow-hidden shadow-sm">
-                            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
-                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex-1 flex flex-col overflow-hidden shadow-sm">
+                            <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
+                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
                                 <i className="fa-solid fa-table-list text-purple-500"></i>{" "}
                                 Detaylı İşlem ve Ciro Tablosu
                               </h4>
                             </div>
                             <div className="flex-1 overflow-auto custom-scrollbar">
-                              <table className="w-full text-left text-xs">
+                              <table className="w-full text-left text-[11px]">
                                 <thead className="text-[9px] text-slate-400 uppercase bg-white dark:bg-slate-900 font-black sticky top-0 border-b border-slate-100 dark:border-slate-800 z-10 shadow-sm">
                                   <tr>
-                                    <th className="px-5 py-3">Tedavi Türü</th>
-                                    <th className="px-5 py-3 text-center">
+                                    <th className="px-2.5 py-1.5">Tedavi Türü</th>
+                                    <th className="px-2.5 py-1.5 text-center">
                                       Toplam Adet
                                     </th>
-                                    <th className="px-5 py-3 text-center">
+                                    <th className="px-2.5 py-1.5 text-center">
                                       Etki Alanı
                                     </th>
-                                    <th className="px-5 py-3 text-right">
+                                    <th className="px-2.5 py-1.5 text-right">
                                       Üretilen Ciro
                                     </th>
                                   </tr>
@@ -4180,25 +4180,25 @@ useEffect(() => {
                                       key={i}
                                       className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                                     >
-                                      <td className="px-5 py-3.5 font-bold text-slate-700 dark:text-slate-300">
-                                        <div className="flex items-center gap-2">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                                      <td className="px-2.5 py-2 font-bold text-slate-700 dark:text-slate-300">
+                                        <div className="flex items-center gap-1">
+                                          <div className="w-1 h-1 rounded-full bg-indigo-400"></div>
                                           {tName}
                                         </div>
                                       </td>
-                                      <td className="px-5 py-3.5 text-center">
-                                        <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-black px-2 py-1 rounded-md border border-indigo-100 dark:border-indigo-800">
+                                      <td className="px-2.5 py-2 text-center">
+                                        <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-black px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800">
                                           {tData.count}
                                         </span>
                                       </td>
-                                      <td className="px-5 py-3.5 text-center">
-                                        <div className="text-[10px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded inline-block">
+                                      <td className="px-2.5 py-2 text-center">
+                                        <div className="text-[10px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded inline-block">
                                           <i className="fa-solid fa-tooth mr-1"></i>
                                           {Object.keys(tData.teeth).length}{" "}
                                           Farklı Bölge
                                         </div>
                                       </td>
-                                      <td className="px-5 py-3.5 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                                      <td className="px-2.5 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 text-[13px]">
                                         {tData.revenue.toLocaleString("tr-TR")}{" "}
                                         ₺
                                       </td>
@@ -4208,7 +4208,7 @@ useEffect(() => {
                                     <tr>
                                       <td
                                         colSpan="4"
-                                        className="text-center py-10 text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-900/30"
+                                        className="text-center py-8 text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-900/30"
                                       >
                                         Tabloyu dolduracak işlem verisi
                                         bulunamadı.
@@ -4256,34 +4256,34 @@ useEffect(() => {
               calendarDays.push(new Date(currentYear, currentMonth, i));
 
             return (
-              <div className="flex h-full gap-5 relative">
-                <div className="w-[300px] shrink-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 hidden lg:flex flex-col">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-black text-slate-800 dark:text-white text-lg">
+              <div className="flex h-full gap-1.5 relative">
+                <div className="w-[260px] shrink-0 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-2 hidden lg:flex flex-col">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-black text-slate-800 dark:text-white text-base">
                       Takvim
                     </h3>
 
                     <button
                       onClick={() => setSelectedDate(new Date())}
-                      className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition"
+                      className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition"
                     >
                       Bugün
                     </button>
                   </div>
 
-                  <div className="flex justify-between items-center mb-4 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <div className="flex justify-between items-center mb-2 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl border border-slate-100 dark:border-slate-700">
                     <button
                       onClick={() =>
                         setSelectedDate(
                           new Date(currentYear, currentMonth - 1, 1)
                         )
                       }
-                      className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-500 shadow-sm flex justify-center items-center"
+                      className="w-7 h-7 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-500 shadow-sm flex justify-center items-center"
                     >
-                      <i className="fa-solid fa-chevron-left text-xs"></i>
+                      <i className="fa-solid fa-chevron-left text-[11px]"></i>
                     </button>
 
-                    <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">
+                    <div className="font-bold text-slate-700 dark:text-slate-200 text-[13px]">
                       {MONTHS[currentMonth]} {currentYear}
                     </div>
 
@@ -4293,19 +4293,19 @@ useEffect(() => {
                           new Date(currentYear, currentMonth + 1, 1)
                         )
                       }
-                      className="w-8 h-8 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-500 shadow-sm flex justify-center items-center"
+                      className="w-7 h-7 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-500 shadow-sm flex justify-center items-center"
                     >
-                      <i className="fa-solid fa-chevron-right text-xs"></i>
+                      <i className="fa-solid fa-chevron-right text-[11px]"></i>
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-400 mb-2 uppercase tracking-wider">
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">
                     {DAYS.map((d) => (
                       <div key={d}>{d}</div>
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-7 gap-1.5">
+                  <div className="grid grid-cols-7 gap-1">
                     {calendarDays.map((d, i) => {
                       if (!d) return <div key={i}></div>;
 
@@ -4329,7 +4329,7 @@ useEffect(() => {
                         <button
                           key={i}
                           onClick={() => setSelectedDate(d)}
-                          className={`aspect-square rounded-xl text-xs font-bold flex flex-col items-center justify-center relative transition-all ${
+                          className={`aspect-square rounded-xl text-[11px] font-bold flex flex-col items-center justify-center relative transition-all ${
                             isSel
                               ? "bg-indigo-600 text-white shadow-md"
                               : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -4354,8 +4354,8 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-                  <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
+                  <div className="flex-1 overflow-y-auto p-2 space-y-1.5 bg-slate-50/50 dark:bg-slate-900/50">
                     {TIME_SLOTS.map((slot) => {
                       const fullKey = `${formatDateKey(selectedDate)}-${slot}`;
                       const apt =
@@ -4427,7 +4427,7 @@ useEffect(() => {
                           }`}
                         >
                           <div
-                            className={`w-16 shrink-0 flex items-center justify-center font-black text-sm ${
+                            className={`w-14 shrink-0 flex items-center justify-center font-black text-[13px] ${
                               apt
                                 ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-r border-indigo-100"
                                 : "bg-slate-50 dark:bg-slate-900/50 text-slate-400 border-r border-slate-100 dark:border-slate-700"
@@ -4436,15 +4436,15 @@ useEffect(() => {
                             {slot}
                           </div>
 
-                          <div className="flex-1 px-4 flex justify-between items-center relative">
+                          <div className="flex-1 px-2.5 flex justify-between items-center relative">
                             {apt ? (
                               <div className="relative apt-card-wrapper w-full h-full flex items-center group z-40">
                                 <div className="glass-tooltip flex flex-col gap-1 text-left">
-                                  <div className="font-black text-sm border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
+                                  <div className="font-black text-[13px] border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
                                     {apt.patientName}
                                   </div>
                                   {apt.treatment && (
-                                    <div className="text-xs flex items-center gap-1.5 font-bold">
+                                    <div className="text-[11px] flex items-center gap-1.5 font-bold">
                                       <i className="fa-solid fa-stethoscope"></i>{" "}
                                       {renderTreatmentText(apt)}
                                     </div>
@@ -4454,7 +4454,7 @@ useEffect(() => {
                                     Süre: {apt.duration} Dk
                                   </div>
                                   {apt.price && (
-                                    <div className="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-1 pt-1 border-t border-black/10 dark:border-white/10">
+                                    <div className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 mt-1 pt-1 border-t border-black/10 dark:border-white/10">
                                       Ücret: {renderMoney(apt.price)} ₺
                                     </div>
                                   )}
@@ -4503,19 +4503,19 @@ useEffect(() => {
                                     borderLeftColor: tColor.border,
                                   }}
                                 >
-                                  <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-1 gap-1 overflow-hidden">
-  <div className="flex flex-wrap items-center gap-1.5 truncate">
-    <span className="font-black text-slate-800 dark:text-white text-xs sm:text-sm truncate">
+                                  <div className="flex items-center gap-1.5 overflow-hidden">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-0.5 gap-0.5 overflow-hidden">
+  <div className="flex flex-wrap items-center gap-1 truncate">
+    <span className="font-black text-slate-800 dark:text-white text-[11px] sm:text-[13px] truncate">
       {apt.patientName} {anamnesis && (<i className="fa-solid fa-triangle-exclamation text-rose-500"></i>)}
     </span>
-    <span className="text-[10px] sm:text-xs font-bold opacity-80 truncate">
+    <span className="text-[10px] sm:text-[11px] font-bold opacity-80 truncate">
       • {renderTreatmentText(apt)} {apt.duration ? `(${apt.duration} Dk)` : ""}
     </span>
   </div>
 </div>
                                   </div>
-                                  <div className="flex items-center gap-3 shrink-0 ml-2">
+                                  <div className="flex items-center gap-1.5 shrink-0 ml-1.5">
                                     {getStatusBadge(apt.status, (e) =>
                                       handleStatusCycle(
                                         e,
@@ -4528,7 +4528,7 @@ useEffect(() => {
                                 </div>
                               </div>
                             ) : (
-                              <div className="text-slate-300 dark:text-slate-600 font-semibold text-xs flex items-center gap-2 opacity-0 hover:opacity-100 transition pointer-events-none">
+                              <div className="text-slate-300 dark:text-slate-600 font-semibold text-[11px] flex items-center gap-1.5 opacity-0 hover:opacity-100 transition pointer-events-none">
                                 <i className="fa-solid fa-plus"></i> Boş Seans
                               </div>
                             )}
@@ -4546,8 +4546,8 @@ useEffect(() => {
             const weekDays = getWeekDays(selectedDate);
 
             return (
-              <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
-                <div className="flex items-center justify-between p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
+              <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
+                <div className="flex items-center justify-between p-1.5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
                   <button
                     onClick={() =>
                       setSelectedDate(
@@ -4556,12 +4556,12 @@ useEffect(() => {
                         )
                       )
                     }
-                    className="px-3 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-xs font-bold dark:text-slate-200"
+                    className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200"
                   >
                     <i className="fa-solid fa-chevron-left"></i> Önceki Hafta
                   </button>
 
-                  <span className="font-black text-sm text-slate-700 dark:text-slate-200">
+                  <span className="font-black text-[13px] text-slate-700 dark:text-slate-200">
                     Haftalık Görünüm
                   </span>
 
@@ -4573,7 +4573,7 @@ useEffect(() => {
                         )
                       )
                     }
-                    className="px-3 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-xs font-bold dark:text-slate-200"
+                    className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200"
                   >
                     Sonraki Hafta <i className="fa-solid fa-chevron-right"></i>
                   </button>
@@ -4583,18 +4583,18 @@ useEffect(() => {
                 <div className="flex-1 overflow-auto bg-slate-100/50 dark:bg-slate-900/50 w-full relative custom-scrollbar">
                   {/* YENİ: min-w-[800px] ile mobilde sütunların sıkışması engellendi */}
                   <div className="weekly-grid h-full min-w-[800px] lg:min-w-full">
-                    <div className="sticky top-0 left-0 bg-white dark:bg-slate-800 z-30 border-b border-slate-200 dark:border-slate-700 time-col h-10 shadow-sm"></div>
+                    <div className="sticky top-0 left-0 bg-white dark:bg-slate-800 z-30 border-b border-slate-200 dark:border-slate-700 time-col h-8 shadow-sm"></div>
 
                     {weekDays.map((d, i) => (
                       <div
                         key={i}
-                        className="sticky top-0 bg-white dark:bg-slate-800 z-20 border-b border-slate-200 dark:border-slate-700 day-col h-10 flex flex-col items-center justify-center shadow-sm overflow-hidden"
+                        className="sticky top-0 bg-white dark:bg-slate-800 z-20 border-b border-slate-200 dark:border-slate-700 day-col h-8 flex flex-col items-center justify-center shadow-sm overflow-hidden"
                       >
                         <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">
                           {DAYS[i]}
                         </div>
 
-                        <div className="text-sm font-black text-slate-800 dark:text-white">
+                        <div className="text-[13px] font-black text-slate-800 dark:text-white">
                           {d.getDate()} {MONTHS[d.getMonth()]}
                         </div>
                       </div>
@@ -4602,7 +4602,7 @@ useEffect(() => {
 
                     {TIME_SLOTS.map((time) => (
                       <React.Fragment key={time}>
-                        <div className="time-col flex items-center justify-center text-xs font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 grid-row-h">
+                        <div className="time-col flex items-center justify-center text-[11px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 grid-row-h">
                           {time}
                         </div>
 
@@ -4673,11 +4673,11 @@ useEffect(() => {
                               {apt && (
                                 <div className="relative apt-card-wrapper w-full h-full flex flex-col justify-center items-start group">
                                   <div className="glass-tooltip flex flex-col gap-1 text-left">
-                                    <div className="font-black text-sm border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
+                                    <div className="font-black text-[13px] border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
                                       {apt.patientName}
                                     </div>
                                     {apt.treatment && (
-                                      <div className="text-xs flex items-center gap-1.5 font-bold">
+                                      <div className="text-[11px] flex items-center gap-1.5 font-bold">
                                         <i className="fa-solid fa-stethoscope"></i>{" "}
                                         {renderTreatmentText(apt)}
                                       </div>
@@ -4727,9 +4727,9 @@ useEffect(() => {
                                       borderLeftColor: tColor.border,
                                     }}
                                   >
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-1 gap-0.5 overflow-hidden">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-0.5 gap-0.5 overflow-hidden">
   <div className="flex flex-wrap items-center gap-1 truncate">
-    <span className="font-black text-slate-800 dark:text-white text-xs truncate">
+    <span className="font-black text-slate-800 dark:text-white text-[11px] truncate">
       {apt.patientName} {anamnesis && (<i className="fa-solid fa-triangle-exclamation text-rose-500"></i>)}
     </span>
     <span className="text-[10px] font-bold opacity-80 truncate">
@@ -4757,8 +4757,8 @@ useEffect(() => {
                 isDocChanging ? "refreshing" : ""
               }`}
             >
-              <div className="flex flex-wrap lg:flex-nowrap justify-between items-center mb-4 bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 shrink-0 gap-3">
-                <div className="font-black text-slate-800 dark:text-white text-sm sm:text-lg ml-2 whitespace-nowrap flex items-center gap-3">
+              <div className="flex flex-wrap lg:flex-nowrap justify-between items-center mb-2 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 shrink-0 gap-1.5">
+                <div className="font-black text-slate-800 dark:text-white text-[13px] sm:text-base ml-1.5 whitespace-nowrap flex items-center gap-1.5">
                   <div className="flex items-center">
                     <input
                       type="date"
@@ -4769,29 +4769,29 @@ useEffect(() => {
                           setSelectedDate(new Date(y, m - 1, d));
                         }
                       }}
-                      className="font-black text-slate-800 dark:text-white text-sm sm:text-lg bg-transparent cursor-pointer outline-none w-36 sm:w-44 focus:text-indigo-600 transition-colors"
+                      className="font-black text-slate-800 dark:text-white text-[13px] sm:text-base bg-transparent cursor-pointer outline-none w-32 sm:w-40 focus:text-indigo-600 transition-colors"
                     />
                   </div>
                   <button
                     onClick={() => setSelectedDate(new Date())}
-                    className="text-[9px] sm:text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 sm:px-2.5 py-1 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition align-middle"
+                    className="text-[9px] sm:text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 sm:px-2 py-0.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition align-middle"
                   >
                     Bugün
                   </button>
                 </div>
 
-                <div className="w-full lg:w-auto flex-1 flex justify-center min-w-[250px] order-last lg:order-none">
+                <div className="w-full lg:w-auto flex-1 flex justify-center min-w-[220px] order-last lg:order-none">
                   {renderAppointmentSearchBox()}
                 </div>
 
-                <div className="flex items-center gap-3 lg:gap-4 justify-end">
+                <div className="flex items-center gap-1.5 lg:gap-1.5 justify-end">
                   <div className="relative">
-                    <i className="fa-solid fa-user-doctor absolute left-3.5 top-2.5 text-slate-400 text-xs"></i>
+                    <i className="fa-solid fa-user-doctor absolute left-3 top-2 text-slate-400 text-[11px]"></i>
 
                     <select
                       value={calendarDoctor}
                       onChange={(e) => setCalendarDoctor(e.target.value)}
-                      className="pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 appearance-none cursor-pointer"
+                      className="pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 appearance-none cursor-pointer"
                     >
                       {allDoctors.map((doc) => (
                         <option key={doc} value={doc}>
@@ -4800,13 +4800,13 @@ useEffect(() => {
                       ))}
                     </select>
 
-                    <i className="fa-solid fa-chevron-down absolute right-3.5 top-3 text-slate-400 text-xs pointer-events-none"></i>
+                    <i className="fa-solid fa-chevron-down absolute right-3 top-1.5 text-slate-400 text-[11px] pointer-events-none"></i>
                   </div>
 
                   <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl justify-end overflow-hidden shrink-0">
                     <button
                       onClick={() => setCalendarViewMode("daily")}
-                      className={`px-2 sm:px-4 py-1.5 font-bold text-[10px] sm:text-xs rounded-lg transition-all ${
+                      className={`px-2 sm:px-2.5 py-1 font-bold text-[10px] sm:text-[11px] rounded-lg transition-all ${
                         calendarViewMode === "daily"
                           ? "bg-white dark:bg-slate-700 text-indigo-600"
                           : "text-slate-500"
@@ -4817,7 +4817,7 @@ useEffect(() => {
 
                     <button
                       onClick={() => setCalendarViewMode("weekly")}
-                      className={`px-2 sm:px-4 py-1.5 font-bold text-[10px] sm:text-xs rounded-lg transition-all ${
+                      className={`px-2 sm:px-2.5 py-1 font-bold text-[10px] sm:text-[11px] rounded-lg transition-all ${
                         calendarViewMode === "weekly"
                           ? "bg-white dark:bg-slate-700 text-indigo-600"
                           : "text-slate-500"
@@ -4828,7 +4828,7 @@ useEffect(() => {
 
                     <button
                       onClick={() => setCalendarViewMode("monthly")}
-                      className={`px-2 sm:px-4 py-1.5 font-bold text-[10px] sm:text-xs rounded-lg transition-all ${
+                      className={`px-2 sm:px-2.5 py-1 font-bold text-[10px] sm:text-[11px] rounded-lg transition-all ${
                         calendarViewMode === "monthly"
                           ? "bg-white dark:bg-slate-700 text-indigo-600"
                           : "text-slate-500"
@@ -4862,20 +4862,20 @@ useEffect(() => {
                     calendarDays.push(new Date(currentYear, currentMonth, i));
 
                   return (
-                    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
-                      <div className="flex items-center justify-between p-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
+                    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
+                      <div className="flex items-center justify-between p-1.5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
                         <button
                           onClick={() =>
                             setSelectedDate(
                               new Date(currentYear, currentMonth - 1, 1)
                             )
                           }
-                          className="px-3 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-xs font-bold dark:text-slate-200 transition hover:bg-slate-100"
+                          className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200 transition hover:bg-slate-100"
                         >
                           <i className="fa-solid fa-chevron-left mr-1"></i>{" "}
                           Önceki Ay
                         </button>
-                        <span className="font-black text-sm text-slate-700 dark:text-slate-200">
+                        <span className="font-black text-[13px] text-slate-700 dark:text-slate-200">
                           {MONTHS[currentMonth]} {currentYear}
                         </span>
                         <button
@@ -4884,7 +4884,7 @@ useEffect(() => {
                               new Date(currentYear, currentMonth + 1, 1)
                             )
                           }
-                          className="px-3 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-xs font-bold dark:text-slate-200 transition hover:bg-slate-100"
+                          className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200 transition hover:bg-slate-100"
                         >
                           Sonraki Ay{" "}
                           <i className="fa-solid fa-chevron-right ml-1"></i>
@@ -4895,7 +4895,7 @@ useEffect(() => {
                         {DAYS.map((d) => (
                           <div
                             key={d}
-                            className="text-center text-[10px] font-black text-slate-500 py-2 uppercase tracking-wider"
+                            className="text-center text-[10px] font-black text-slate-500 py-1.5 uppercase tracking-wider"
                           >
                             {d}
                           </div>
@@ -4945,14 +4945,14 @@ useEffect(() => {
                                   setSelectedDate(d);
                                   setCalendarViewMode("daily");
                                 }}
-                                className={`bg-white dark:bg-slate-800 p-2 flex flex-col overflow-y-auto custom-scrollbar min-h-0 hover:bg-indigo-50/50 dark:hover:bg-slate-750 cursor-pointer transition-colors relative ${
+                                className={`bg-white dark:bg-slate-800 p-1.5 flex flex-col overflow-y-auto custom-scrollbar min-h-0 hover:bg-indigo-50/50 dark:hover:bg-slate-750 cursor-pointer transition-colors relative ${
                                   isTod
                                     ? "ring-2 ring-inset ring-indigo-500 z-10"
                                     : ""
                                 }`}
                               >
                                 <div
-                                  className={`text-xs font-black mb-1 ${
+                                  className={`text-[11px] font-black mb-0.5 ${
                                     isTod
                                       ? "text-indigo-600 dark:text-indigo-400"
                                       : "text-slate-700 dark:text-slate-200"
@@ -4960,22 +4960,22 @@ useEffect(() => {
                                 >
                                   {d.getDate()}
                                 </div>
-                                <div className="flex flex-col gap-1 mt-auto">
+                                <div className="flex flex-col gap-0.5 mt-auto">
                                   {activeApts > 0 && (
-                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                                      <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm"></div>{" "}
+                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm"></div>{" "}
                                       {activeApts} Randevu
                                     </div>
                                   )}
                                   {canceled > 0 && (
-                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                                      <div className="w-2 h-2 rounded-full bg-rose-500 shadow-sm"></div>{" "}
+                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-sm"></div>{" "}
                                       {canceled} İptal
                                     </div>
                                   )}
                                   {emptySlots > 0 && (
-                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                                      <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm"></div>{" "}
+                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm"></div>{" "}
                                       {emptySlots} Boş
                                     </div>
                                   )}
@@ -5002,12 +5002,12 @@ useEffect(() => {
         const renderGridList = () => {
           return (
             <div
-              className={`flex flex-col h-full bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-pop w-full ${
+              className={`flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-pop w-full ${
                 isDocChanging ? "refreshing" : ""
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 gap-4 shrink-0">
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative shrink-0">
+              <div className="flex flex-wrap items-center justify-between p-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 gap-1.5 shrink-0">
+                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative shrink-0">
                   <button
                     onClick={() =>
                       setSelectedDate(
@@ -5016,9 +5016,9 @@ useEffect(() => {
                         )
                       )
                     }
-                    className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                    className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
                   >
-                    <i className="fa-solid fa-chevron-left text-xs"></i>
+                    <i className="fa-solid fa-chevron-left text-[11px]"></i>
                   </button>
 
                   <div className="relative flex items-center">
@@ -5037,10 +5037,10 @@ useEffect(() => {
                             )
                           );
                       }}
-                      className="font-black text-slate-800 dark:text-white text-sm px-2 py-1 bg-transparent cursor-pointer outline-none w-36 text-center z-10 relative"
+                      className="font-black text-slate-800 dark:text-white text-[13px] px-1.5 py-0.5 bg-transparent cursor-pointer outline-none w-32 text-center z-10 relative"
                     />
 
-                    <i className="fa-regular fa-calendar-days absolute right-2 text-indigo-500 z-0 pointer-events-none"></i>
+                    <i className="fa-regular fa-calendar-days absolute right-1.5 text-indigo-500 z-0 pointer-events-none"></i>
                   </div>
 
                   <button
@@ -5051,24 +5051,24 @@ useEffect(() => {
                         )
                       )
                     }
-                    className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                    className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
                   >
-                    <i className="fa-solid fa-chevron-right text-xs"></i>
+                    <i className="fa-solid fa-chevron-right text-[11px]"></i>
                   </button>
                 </div>
 
-                <div className="w-full md:w-auto flex-1 flex justify-center min-w-[250px] order-last md:order-none">
+                <div className="w-full md:w-auto flex-1 flex justify-center min-w-[220px] order-last md:order-none">
                   {renderAppointmentSearchBox()}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   <div className="relative">
-                    <i className="fa-solid fa-user-doctor absolute left-3.5 top-2.5 text-slate-400 text-xs"></i>
+                    <i className="fa-solid fa-user-doctor absolute left-3 top-1.5 text-slate-400 text-[11px]"></i>
 
                     <select
                       value={listDoctorFilter}
                       onChange={(e) => setListDoctorFilter(e.target.value)}
-                      className="pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 appearance-none dark:text-white cursor-pointer"
+                      className="pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 appearance-none dark:text-white cursor-pointer"
                     >
                       <option value="all">Tüm Hekimler (Izgara)</option>
 
@@ -5079,12 +5079,12 @@ useEffect(() => {
                       ))}
                     </select>
 
-                    <i className="fa-solid fa-chevron-down absolute right-3.5 top-3 text-slate-400 text-xs pointer-events-none"></i>
+                    <i className="fa-solid fa-chevron-down absolute right-3 top-1.5 text-slate-400 text-[11px] pointer-events-none"></i>
                   </div>
 
                   <button
                     onClick={() => setSelectedDate(new Date())}
-                    className="text-xs font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-4 py-2 rounded-xl border border-indigo-100 shadow-sm transition"
+                    className="text-[11px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2.5 py-1.5 rounded-xl border border-indigo-100 shadow-sm transition"
                   >
                     Bugün
                   </button>
@@ -5097,19 +5097,19 @@ useEffect(() => {
               >
                 {/* YENİ: min-w-[600px] veya lg:min-w-full ekleyerek mobilde sütun sıkışmasını engelliyoruz */}
                 <div className="calendar-grid min-w-[600px] lg:min-w-full h-full">
-                  <div className="sticky top-0 left-0 bg-white dark:bg-slate-800 z-30 border-b border-slate-200 dark:border-slate-700 time-col h-12 shadow-sm"></div>
+                  <div className="sticky top-0 left-0 bg-white dark:bg-slate-800 z-30 border-b border-slate-200 dark:border-slate-700 time-col h-8 shadow-sm"></div>
 
                   {visibleListDoctors.map((docId) => (
                     <div
                       key={`header-${docId}`}
-                      className="sticky top-0 bg-white dark:bg-slate-800 z-20 border-b border-slate-200 dark:border-slate-700 doc-col h-12 flex flex-col items-center justify-center shadow-sm overflow-hidden px-2"
+                      className="sticky top-0 bg-white dark:bg-slate-800 z-20 border-b border-slate-200 dark:border-slate-700 doc-col h-8 flex flex-col items-center justify-center shadow-sm overflow-hidden px-1.5"
                     >
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <div className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] shrink-0">
+                      <div className="flex items-center gap-1">
+                        <div className="w-4 h-4 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[9px] shrink-0">
                           <i className="fa-solid fa-user-doctor"></i>
                         </div>
 
-                        <span className="font-black text-slate-800 dark:text-white text-[10px] sm:text-sm truncate w-full text-center">
+                        <span className="font-black text-slate-800 dark:text-white text-[10px] sm:text-[13px] truncate w-full text-center">
                           {globalData.doctorProfiles?.[docId]?.name || docId}
                         </span>
                       </div>
@@ -5118,7 +5118,7 @@ useEffect(() => {
 
                   {TIME_SLOTS.map((time) => (
                     <React.Fragment key={time}>
-                      <div className="time-col flex items-center justify-center text-xs font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 grid-row-h shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                      <div className="time-col flex items-center justify-center text-[11px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 grid-row-h shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                         {time}
                       </div>
 
@@ -5231,7 +5231,7 @@ useEffect(() => {
                                   borderLeftColor: tColor.border,
                                 }}
                               >
-                                <div className="font-black truncate flex items-center gap-1.5 text-[10px] sm:text-xs">
+                                <div className="font-black truncate flex items-center gap-1 text-[10px] sm:text-[11px]">
                                   {apt.patientName}
                                   {anamnesis && (
                                     <i
@@ -5247,8 +5247,8 @@ useEffect(() => {
                                   )}
                                 </div>
 
-                                <div className="flex gap-1.5 items-center shrink-0 ml-1">
-                                  <span className="text-[9px] sm:text-[10px] font-bold opacity-80 hidden md:inline truncate max-w-[100px]">
+                                <div className="flex gap-1 items-center shrink-0 ml-0.5">
+                                  <span className="text-[9px] sm:text-[10px] font-bold opacity-80 hidden md:inline truncate max-w-[80px]">
                                     {renderTreatmentText(apt)}
                                   </span>
                                   {getStatusBadge(apt.status, (e) =>
@@ -5295,29 +5295,29 @@ useEffect(() => {
             );
 
           return (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 h-full flex flex-col animate-pop w-full">
-              <div className="p-5 border-b border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-slate-50 dark:bg-slate-900 rounded-t-2xl shrink-0">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-full flex flex-col animate-pop w-full">
+              <div className="p-2 border-b border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-1.5 bg-slate-50 dark:bg-slate-900 rounded-t-2xl shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
                     <i className="fa-solid fa-hospital-user text-indigo-500"></i>{" "}
                     Hasta Veritabanı
                   </h2>
 
-                  <div className="bg-indigo-100 text-indigo-700 font-bold px-3 py-1 rounded-full text-xs shadow-sm">
+                  <div className="bg-indigo-100 text-indigo-700 font-bold px-2.5 py-0.5 rounded-full text-[11px] shadow-sm">
                     Toplam: {patientsList.length}
                   </div>
                 </div>
 
-                <div className="flex gap-2 w-full xl:w-auto flex-wrap">
-                  <div className="relative flex-1 min-w-[200px]">
-                    <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                <div className="flex gap-1 w-full xl:w-auto flex-wrap">
+                  <div className="relative flex-1 min-w-[160px]">
+                    <i className="fa-solid fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
 
                     <input
                       type="text"
                       placeholder="İsim, TC, Tel ara..."
                       value={patientLocalSearch}
                       onChange={(e) => setPatientLocalSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
+                      className="w-full pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
                     />
                   </div>
 
@@ -5347,7 +5347,7 @@ useEffect(() => {
 
                       setIsPatientModalOpen(true);
                     }}
-                    className="bg-slate-900 dark:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
+                    className="bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-1.5 rounded-xl text-[13px] font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
                   >
                     <i className="fa-solid fa-plus mr-1"></i> Yeni
                   </button>
@@ -5355,20 +5355,20 @@ useEffect(() => {
               </div>
 
               <div className="flex-1 overflow-x-auto overflow-y-auto w-full">
-                <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300 min-w-[700px] border-separate border-spacing-y-2">
+                <table className="w-full text-left text-[13px] text-slate-600 dark:text-slate-300 min-w-[700px] border-separate border-spacing-y-1.5">
                   <thead className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider bg-transparent sticky top-0 z-10 backdrop-blur-md">
                     <tr>
-                      <th className="px-6 py-3 font-semibold">Hasta Adı</th>
-                      <th className="px-6 py-3 font-semibold">
+                      <th className="px-2.5 py-1.5 font-semibold">Hasta Adı</th>
+                      <th className="px-2.5 py-1.5 font-semibold">
                         Kişisel Bilgiler
                       </th>
-                      <th className="px-6 py-3 font-semibold">
+                      <th className="px-2.5 py-1.5 font-semibold">
                         Uyarı / Anamnez
                       </th>
-                      <th className="px-6 py-3 text-right font-semibold">
+                      <th className="px-2.5 py-1.5 text-right font-semibold">
                         Bakiye
                       </th>
-                      <th className="px-6 py-3 text-center font-semibold">
+                      <th className="px-2.5 py-1.5 text-center font-semibold">
                         İşlem
                       </th>
                     </tr>
@@ -5390,9 +5390,9 @@ useEffect(() => {
                             handleContextMenu(e, "patient", p)
                           }
                         >
-                          <td className="px-6 py-3 font-black text-slate-800 dark:text-slate-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                          <td className="px-2.5 py-1.5 font-black text-slate-800 dark:text-slate-100">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
                                 <i className="fa-regular fa-user"></i>
                               </div>
 
@@ -5404,7 +5404,7 @@ useEffect(() => {
                                   onClick={(e) =>
                                     handleCopyPhone(e, p.phone, p.id)
                                   }
-                                  className={`text-[10px] mt-0.5 inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded cursor-pointer transition-all border ${
+                                  className={`text-[10px] mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer transition-all border ${
                                     copiedPhoneId === p.id
                                       ? "bg-emerald-100 text-emerald-600 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-400 dark:border-emerald-800"
                                       : "text-slate-500 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700 hover:border-slate-200 dark:hover:border-slate-600"
@@ -5425,7 +5425,7 @@ useEffect(() => {
                             </div>
                           </td>
 
-                          <td className="px-6 py-3 font-medium">
+                          <td className="px-2.5 py-1.5 font-medium">
                             <div className="text-slate-700 dark:text-slate-300 font-bold">
                               {p.tc || "TC Yok"}
                             </div>
@@ -5436,23 +5436,23 @@ useEffect(() => {
                             </div>
                           </td>
 
-                          <td className="px-6 py-3">
+                          <td className="px-2.5 py-1.5">
                             {p.anamnesis ? (
-                              <span className="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-black uppercase">
+                              <span className="bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded text-[10px] font-black uppercase">
                                 <i className="fa-solid fa-triangle-exclamation mr-1"></i>{" "}
                                 Kayıtlı
                               </span>
                             ) : (
-                              <span className="text-slate-300 text-xs">-</span>
+                              <span className="text-slate-300 text-[11px]">-</span>
                             )}
                           </td>
 
-                          <td className="px-6 py-3 text-right font-black">
+                          <td className="px-2.5 py-1.5 text-right font-black">
                             <span
                               className={
                                 finance.debt > 0
-                                  ? "text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100 dark:bg-rose-900/30 dark:border-rose-800/50"
-                                  : "text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-800/50"
+                                  ? "text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-lg border border-rose-100 dark:bg-rose-900/30 dark:border-rose-800/50"
+                                  : "text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-lg border border-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-800/50"
                               }
                             >
                               {/* YENİ: Bakiye artık Gizlilik Modu ile uyumlu çalışacak */}
@@ -5461,9 +5461,9 @@ useEffect(() => {
                             </span>
                           </td>
 
-                          <td className="px-6 py-3 text-right pr-6">
+                          <td className="px-2.5 py-1.5 text-right pr-4">
                             {/* YENİ: Modern Hızlı Eylem Grubu */}
-                            <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all duration-300">
+                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 translate-x-3 group-hover:translate-x-0 transition-all duration-300">
                               {/* Hızlı WhatsApp/Ara Butonu */}
                               {p.phone && p.phone !== "-" && (
                                 <button
@@ -5476,7 +5476,7 @@ useEffect(() => {
                                       "_blank"
                                     );
                                   }}
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors shadow-sm"
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors shadow-sm"
                                   title="WhatsApp ile Mesaj At"
                                 >
                                   <i className="fa-brands fa-whatsapp"></i>
@@ -5491,7 +5491,7 @@ useEffect(() => {
                                   setPatientModalTab("info");
                                   setIsPatientModalOpen(true);
                                 }}
-                                className="px-4 py-2 rounded-lg text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 transition-colors shadow-sm flex items-center gap-2"
+                                className="px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 font-bold text-[11px] hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-500 transition-colors shadow-sm flex items-center gap-1"
                               >
                                 Dosya{" "}
                                 <i className="fa-solid fa-arrow-right"></i>
@@ -5505,14 +5505,14 @@ useEffect(() => {
                     {patientsList.length === 0 && (
                       <tr>
                         <td colSpan="5">
-                          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                            <div className="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
-                              <i className="fa-solid fa-hospital-user text-4xl text-slate-300 dark:text-slate-600"></i>
+                          <div className="flex flex-col items-center justify-center py-12 px-3 text-center">
+                            <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2">
+                              <i className="fa-solid fa-hospital-user text-xl text-slate-300 dark:text-slate-600"></i>
                             </div>
-                            <h4 className="text-slate-500 dark:text-slate-400 text-lg font-black mb-1">
+                            <h4 className="text-slate-500 dark:text-slate-400 text-base font-black mb-0.5">
                               Kayıt Bulunamadı
                             </h4>
-                            <p className="text-slate-400 dark:text-slate-500 text-sm font-medium max-w-sm">
+                            <p className="text-slate-400 dark:text-slate-500 text-[13px] font-medium max-w-sm">
                               Arama kriterlerinize uyan bir hasta dosyası
                               bulunmuyor. Yeni bir hasta kaydı
                               oluşturabilirsiniz.
@@ -5564,44 +5564,44 @@ useEffect(() => {
           };
 
           return (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 pb-10 flex flex-col p-6 animate-pop w-full h-full overflow-y-auto">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
-                <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 pb-8 flex flex-col p-2 animate-pop w-full h-full overflow-y-auto">
+              <div className="flex justify-between items-center mb-2 pb-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
                   <i className="fa-solid fa-tags text-pink-500"></i> İşlem
                   Ücretlendirmeleri
                 </h2>
               </div>
 
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">
+              <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-2 font-medium">
                 Klinikte uyguladığınız işlemlere ait standart tutarları aşağıdan
                 güncelleyebilirsiniz. Yeni eklenen işlemleri veya "0" olarak
                 görünenleri doldurup kaydettiğinizde tüm sistemde anında geçerli
                 olacaktır.
               </p>
 
-              <form onSubmit={handleSavePricing} className="space-y-8">
+              <form onSubmit={handleSavePricing} className="space-y-2">
                 {Object.entries(PRICING_CATEGORIES).map(([catName, data]) => (
                   <div
                     key={catName}
-                    className="bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800"
+                    className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800"
                   >
-                    <h3 className="font-black text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 pb-3 mb-5 text-lg flex items-center gap-2">
+                    <h3 className="font-black text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 pb-2 mb-2 text-base flex items-center gap-1">
                       <i className={`fa-solid ${data.icon} ${data.color}`}></i>{" "}
                       {catName}
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5">
                       {data.items.map((tx) => (
                         <div
                           key={tx}
-                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl flex items-center gap-1.5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
                         >
                           <div className="flex-1">
-                            <label className="font-bold text-slate-700 dark:text-slate-200 text-sm leading-tight block mb-2">
+                            <label className="font-bold text-slate-700 dark:text-slate-200 text-[13px] leading-tight block mb-1.5">
                               {tx}
                             </label>
                             <div className="relative">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="text-slate-400 text-sm font-black dark:text-slate-500">
+                              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                <span className="text-slate-400 text-[13px] font-black dark:text-slate-500">
                                   ₺
                                 </span>
                               </div>
@@ -5615,7 +5615,7 @@ useEffect(() => {
                                     [tx]: e.target.value,
                                   })
                                 }
-                                className="w-full text-right pr-4 pl-8 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 focus:border-indigo-500 focus:ring-2 outline-none font-black text-lg text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900 transition-all"
+                                className="w-full text-right pr-3 pl-7 py-2 rounded-lg border border-slate-200 dark:border-slate-600 focus:border-indigo-500 focus:ring-2 outline-none font-black text-base text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900 transition-all"
                                 placeholder="0"
                               />
                             </div>
@@ -5626,12 +5626,12 @@ useEffect(() => {
                   </div>
                 ))}
 
-                <div className="sticky bottom-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md pt-4 border-t border-slate-200 dark:border-slate-700 mt-6 flex justify-end">
+                <div className="sticky bottom-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md pt-3 border-t border-slate-200 dark:border-slate-700 mt-2 flex justify-end">
                   <button
                     type="submit"
-                    className="bg-indigo-600 text-white px-8 py-3.5 rounded-xl font-black shadow-lg hover:bg-indigo-700 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+                    className="bg-indigo-600 text-white px-3 py-2 rounded-xl font-black shadow-lg hover:bg-indigo-700 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
                   >
-                    <i className="fa-solid fa-save mr-2"></i> Ücretleri Kaydet
+                    <i className="fa-solid fa-save mr-1.5"></i> Ücretleri Kaydet
                   </button>
                 </div>
               </form>
@@ -5861,22 +5861,22 @@ useEffect(() => {
           return (
             <div className="w-full h-full flex flex-col relative animate-pop">
               {!isDoctorDetailsModalOpen && (
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 pb-10 flex flex-col p-6 w-full h-full overflow-y-auto">
-                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100 dark:border-slate-700 shrink-0">
-                    <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 pb-8 flex flex-col p-2 w-full h-full overflow-y-auto">
+                  <div className="flex justify-between items-center mb-2 pb-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                    <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
                       <i className="fa-solid fa-user-doctor text-indigo-500"></i>{" "}
                       Hekim Yönetimi
                     </h2>
 
                     <button
                       onClick={() => setIsAddDoctorModalOpen(true)}
-                      className="bg-slate-900 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
+                      className="bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-2 rounded-xl text-[13px] font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
                     >
                       <i className="fa-solid fa-plus mr-1"></i>Yeni Hekim Ekle
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 content-start">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5 content-start">
                     {allDoctors.map((doc) => {
                       const prof = globalData.doctorProfiles?.[doc] || {};
 
@@ -5887,9 +5887,9 @@ useEffect(() => {
                           onContextMenu={(e) =>
                             handleContextMenu(e, "doctor", doc)
                           }
-                          className="border border-slate-200 dark:border-slate-700 rounded-2xl p-5 flex items-center gap-4 bg-slate-50 dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:border-indigo-200 dark:hover:border-indigo-700 hover:shadow-md transition cursor-pointer group relative"
+                          className="border border-slate-200 dark:border-slate-700 rounded-xl p-2 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:border-indigo-200 dark:hover:border-indigo-700 hover:shadow-md transition cursor-pointer group relative"
                         >
-                          <div className="w-16 h-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-center text-slate-400 text-2xl shadow-sm group-hover:text-indigo-500 transition-colors overflow-hidden relative shrink-0">
+                          <div className="w-14 h-9 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 text-base shadow-sm group-hover:text-indigo-500 transition-colors overflow-hidden relative shrink-0">
                             {prof.avatar ? (
                               <img
                                 src={prof.avatar}
@@ -5907,15 +5907,15 @@ useEffect(() => {
                           </div>
 
                           <div className="flex-1">
-                            <div className="font-black text-slate-800 dark:text-white text-lg">
+                            <div className="font-black text-slate-800 dark:text-white text-base">
                               {prof.name || doc}
                             </div>
-                            <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/50 inline-block px-2.5 py-1 rounded-lg mt-1 shadow-sm">
+                            <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/50 inline-block px-2 py-0.5 rounded-lg mt-0.5 shadow-sm">
                               {prof.title || "Hekim"}
                             </div>
                           </div>
 
-                          <div className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 transition pr-2">
+                          <div className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 transition pr-1.5">
                             <i className="fa-solid fa-chevron-right"></i>
                           </div>
                         </div>
@@ -5926,9 +5926,9 @@ useEffect(() => {
               )}
 
               {isAddDoctorModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2">
                   <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-pop">
-                    <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
                       <h3 className="font-black">
                         <i className="fa-solid fa-user-plus mr-2"></i>Yeni Hekim
                         Ekle
@@ -5938,11 +5938,11 @@ useEffect(() => {
                         onClick={() => setIsAddDoctorModalOpen(false)}
                         className="text-slate-400 hover:text-white"
                       >
-                        <i className="fa-solid fa-xmark text-xl"></i>
+                        <i className="fa-solid fa-xmark text-base"></i>
                       </button>
                     </div>
 
-                    <form onSubmit={handleAddDoctor} className="p-6 space-y-4">
+                    <form onSubmit={handleAddDoctor} className="p-3 space-y-2">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                           Ad Soyad / Görünen İsim
@@ -5958,7 +5958,7 @@ useEffect(() => {
                               name: e.target.value,
                             })
                           }
-                          className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:text-white"
+                          className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                         />
                       </div>
 
@@ -5977,13 +5977,13 @@ useEffect(() => {
                               title: e.target.value,
                             })
                           }
-                          className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:text-white"
+                          className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                         />
                       </div>
 
                       <button
                         type="submit"
-                        className="w-full py-4 bg-[#0f172a] dark:bg-indigo-600 text-white rounded-xl font-black shadow-lg mt-4 hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
+                        className="w-full py-2 bg-[#0f172a] dark:bg-indigo-600 text-white rounded-xl font-black shadow-lg mt-2 hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
                       >
                         Kaydet ve Ekle
                       </button>
@@ -6021,18 +6021,18 @@ useEffect(() => {
                   }
 
                   return (
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col w-full h-full overflow-hidden animate-pop">
-                      <div className="p-5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80 flex justify-between items-center shrink-0">
-                        <div className="flex items-center gap-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col w-full h-full overflow-hidden animate-pop">
+                      <div className="p-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80 flex justify-between items-center shrink-0">
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => setIsDoctorDetailsModalOpen(false)}
-                            className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+                            className="w-9 h-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
                           >
                             <i className="fa-solid fa-arrow-left"></i>
                           </button>
 
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-2xl shadow-md overflow-hidden relative">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-12 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base shadow-md overflow-hidden relative">
                               {globalData.doctorProfiles?.[selectedDoctorId]
                                 ?.avatar ? (
                                 <img
@@ -6063,13 +6063,13 @@ useEffect(() => {
                               )}
                             </div>
                             <div>
-                              <h3 className="font-black text-slate-800 dark:text-white text-xl leading-tight">
+                              <h3 className="font-black text-slate-800 dark:text-white text-base leading-tight">
                                 {
                                   globalData.doctorProfiles?.[selectedDoctorId]
                                     ?.name
                                 }
                               </h3>
-                              <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mt-1 bg-indigo-50 dark:bg-indigo-900/30 inline-block px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800">
+                              <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mt-0.5 bg-indigo-50 dark:bg-indigo-900/30 inline-block px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800">
                                 {globalData.doctorProfiles?.[selectedDoctorId]
                                   ?.title || "Hekim Profili"}
                               </div>
@@ -6077,18 +6077,18 @@ useEffect(() => {
                           </div>
                         </div>
 
-                        <div className="hidden sm:flex bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
-                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                        <div className="hidden sm:flex bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
                             Sistemde Kayıtlı
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 px-6 pt-4 gap-6 shrink-0">
+                      <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 px-2.5 pt-3 gap-2 shrink-0">
                         <button
                           onClick={() => setDocModalTab("profile")}
-                          className={`pb-3 font-bold text-sm border-b-2 transition-all ${
+                          className={`pb-2 font-bold text-[13px] border-b-2 transition-all ${
                             docModalTab === "profile"
                               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
                               : "border-transparent text-slate-500 dark:text-slate-400"
@@ -6099,7 +6099,7 @@ useEffect(() => {
 
                         <button
                           onClick={() => setDocModalTab("stats")}
-                          className={`pb-3 font-bold text-sm border-b-2 transition-all ${
+                          className={`pb-2 font-bold text-[13px] border-b-2 transition-all ${
                             docModalTab === "stats"
                               ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
                               : "border-transparent text-slate-500 dark:text-slate-400"
@@ -6109,14 +6109,14 @@ useEffect(() => {
                         </button>
                       </div>
 
-                      <div className="p-6 overflow-y-auto flex-1">
+                      <div className="p-2 overflow-y-auto flex-1">
                         {docModalTab === "profile" && (
                           <form
                             onSubmit={handleUpdateDoctor}
-                            className="space-y-6 max-w-2xl mx-auto bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-lg mt-6 relative overflow-hidden"
+                            className="space-y-2 max-w-2xl mx-auto bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg mt-2 relative overflow-hidden"
                           >
-                            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-                            <h4 className="font-black text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-6 border-b border-slate-100 dark:border-slate-700 pb-3 flex items-center gap-2">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                            <h4 className="font-black text-[13px] uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-1">
                               <i className="fa-solid fa-id-card text-indigo-500"></i>{" "}
                               Temel Bilgiler & Yetkiler
                             </h4>
@@ -6135,7 +6135,7 @@ useEffect(() => {
                                     name: e.target.value,
                                   })
                                 }
-                                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:text-white"
+                                className="w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                               />
                             </div>
 
@@ -6153,7 +6153,7 @@ useEffect(() => {
                                     title: e.target.value,
                                   })
                                 }
-                                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:text-white"
+                                className="w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                               />
                             </div>
                             <div>
@@ -6170,7 +6170,7 @@ useEffect(() => {
                                     commissionRate: e.target.value,
                                   })
                                 }
-                                className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-emerald-500 dark:text-white mb-4"
+                                className="w-full p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-emerald-500 dark:text-white mb-2"
                               />
                             </div>
 
@@ -6179,7 +6179,7 @@ useEffect(() => {
                                 Profil Fotoğrafı
                               </label>
 
-                              <div className="flex items-center gap-4 mt-2">
+                              <div className="flex items-center gap-1.5 mt-1.5">
                                 <div
                                   onClick={() =>
                                     setAvatarModalInfo({
@@ -6191,7 +6191,7 @@ useEffect(() => {
                                       y: doctorEditForm.y || 50,
                                     })
                                   }
-                                  className="w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden relative hover:opacity-80 transition shadow-sm group"
+                                  className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0 cursor-pointer overflow-hidden relative hover:opacity-80 transition shadow-sm group"
                                 >
                                   {doctorEditForm.avatar ? (
                                     <>
@@ -6212,57 +6212,22 @@ useEffect(() => {
                                       </div>
                                     </>
                                   ) : (
-                                    <i className="fa-solid fa-camera text-slate-400 text-2xl group-hover:text-indigo-500"></i>
+                                    <i className="fa-solid fa-camera text-slate-400 text-base group-hover:text-indigo-500"></i>
                                   )}
                                 </div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                                   Fotoğraf eklemek veya hizalamak için
                                   <br />
                                   yandaki yuvaya tıklayın.
                                 </div>
                               </div>
                             </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                Profil Fotoğrafı
-                              </label>
-                              <div className="flex items-center gap-4 mt-2">
-                                {doctorEditForm.avatar ? (
-                                  <img
-                                    src={doctorEditForm.avatar}
-                                    className="w-16 h-16 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-sm shrink-0"
-                                  />
-                                ) : (
-                                  <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shrink-0">
-                                    <i className="fa-solid fa-user text-slate-400 text-2xl"></i>
-                                  </div>
-                                )}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => {
-                                    const file = e.target.files[0];
-                                    if (file) {
-                                      const reader = new FileReader();
-                                      reader.onloadend = () => {
-                                        setDoctorEditForm({
-                                          ...doctorEditForm,
-                                          avatar: reader.result,
-                                        });
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                  }}
-                                  className="text-xs w-full text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400 cursor-pointer"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-700 mt-2">
+                            <div className="flex gap-1 pt-3 border-t border-slate-100 dark:border-slate-700 mt-1.5">
                               {selectedDoctorId !== currentUser && (
                                 <button
                                   type="button"
                                   onClick={handleDeleteDoctor}
-                                  className="px-5 py-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 font-bold rounded-xl transition border border-rose-100 dark:border-rose-800/50 flex items-center gap-2"
+                                  className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 font-bold rounded-xl transition border border-rose-100 dark:border-rose-800/50 flex items-center gap-1"
                                 >
                                   <i className="fa-solid fa-trash"></i> Hekimi
                                   Sil
@@ -6271,7 +6236,7 @@ useEffect(() => {
 
                               <button
                                 type="submit"
-                                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md"
+                                className="flex-1 py-1.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md"
                               >
                                 Değişiklikleri Kaydet
                               </button>
@@ -6280,9 +6245,9 @@ useEffect(() => {
                         )}
 
                         {docModalTab === "stats" && (
-                          <div className="space-y-6 flex flex-col pb-4">
-                            <div className="flex justify-end gap-2 items-center bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 shrink-0">
-                              <span className="text-xs font-bold text-slate-500 mr-2">
+                          <div className="space-y-2 flex flex-col pb-3">
+                            <div className="flex justify-end gap-1 items-center bg-white dark:bg-slate-800 p-1.5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 shrink-0">
+                              <span className="text-[11px] font-bold text-slate-500 mr-1.5">
                                 <i className="fa-regular fa-calendar mr-1"></i>{" "}
                                 Tarih Aralığı:
                               </span>
@@ -6293,7 +6258,7 @@ useEffect(() => {
                                 onChange={(e) =>
                                   setDocStatsStart(e.target.value)
                                 }
-                                className="relative text-sm font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none cursor-pointer dark:text-white"
+                                className="relative text-[13px] font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer dark:text-white"
                               />
 
                               <span className="text-slate-400">-</span>
@@ -6302,14 +6267,14 @@ useEffect(() => {
                                 type="date"
                                 value={docStatsEnd}
                                 onChange={(e) => setDocStatsEnd(e.target.value)}
-                                className="relative text-sm font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none cursor-pointer dark:text-white"
+                                className="relative text-[13px] font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer dark:text-white"
                               />
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
                               <div
                                 onClick={() => setDocStatsActiveFilter("all")}
-                                className={`p-4 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
+                                className={`p-2 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
                                   docStatsActiveFilter === "all"
                                     ? "bg-indigo-50 border-indigo-500 dark:bg-indigo-900/40 ring-2 ring-indigo-500"
                                     : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
@@ -6318,14 +6283,14 @@ useEffect(() => {
                                 <div className="text-[10px] font-bold text-slate-500 uppercase">
                                   Toplam Randevu
                                 </div>
-                                <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                                <div className="text-base font-black text-indigo-600 dark:text-indigo-400">
                                   {stats.total}
                                 </div>
                               </div>
 
                               <div
                                 onClick={() => setDocStatsActiveFilter("done")}
-                                className={`p-4 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
+                                className={`p-2 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
                                   docStatsActiveFilter === "done"
                                     ? "bg-emerald-100 border-emerald-500 dark:bg-emerald-900/50 ring-2 ring-emerald-500"
                                     : "bg-emerald-50/30 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50"
@@ -6334,7 +6299,7 @@ useEffect(() => {
                                 <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
                                   İşlemi Biten
                                 </div>
-                                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                                <div className="text-base font-black text-emerald-600 dark:text-emerald-400">
                                   {stats.done}
                                 </div>
                               </div>
@@ -6343,7 +6308,7 @@ useEffect(() => {
                                 onClick={() =>
                                   setDocStatsActiveFilter("waiting")
                                 }
-                                className={`p-4 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
+                                className={`p-2 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
                                   docStatsActiveFilter === "waiting"
                                     ? "bg-amber-100 border-amber-500 dark:bg-amber-900/50 ring-2 ring-amber-500"
                                     : "bg-amber-50/30 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50"
@@ -6352,7 +6317,7 @@ useEffect(() => {
                                 <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">
                                   Bekleyen Aktif
                                 </div>
-                                <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
+                                <div className="text-base font-black text-amber-600 dark:text-amber-400">
                                   {stats.waiting}
                                 </div>
                               </div>
@@ -6361,7 +6326,7 @@ useEffect(() => {
                                 onClick={() =>
                                   setDocStatsActiveFilter("revenue")
                                 }
-                                className={`p-4 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
+                                className={`p-2 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
                                   docStatsActiveFilter === "revenue"
                                     ? "bg-blue-100 border-blue-500 dark:bg-blue-900/50 ring-2 ring-blue-500"
                                     : "bg-blue-50/30 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50"
@@ -6370,10 +6335,10 @@ useEffect(() => {
                                 <div className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase">
                                   Üretilen Ciro
                                 </div>
-                                <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                                <div className="text-base font-black text-blue-600 dark:text-blue-400">
                                   {stats.revenue.toLocaleString("tr-TR")} ₺
                                 </div>
-                                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-1 bg-white/50 dark:bg-black/20 rounded py-0.5">
+                                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 bg-white/50 dark:bg-black/20 rounded py-0.5">
                                   Hakediş:{" "}
                                   {(
                                     (stats.revenue *
@@ -6387,16 +6352,16 @@ useEffect(() => {
                               </div>
                             </div>
 
-                            <div className="flex flex-col md:flex-row gap-6 min-h-[500px]">
-                              <div className="flex-1 bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col min-h-0 h-full">
-                                <h4 className="font-black text-xs text-slate-500 uppercase mb-3 tracking-wider shrink-0">
+                            <div className="flex flex-col md:flex-row gap-2 min-h-[400px]">
+                              <div className="flex-1 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col min-h-0 h-full">
+                                <h4 className="font-black text-[11px] text-slate-500 uppercase mb-2 tracking-wider shrink-0">
                                   İşlem Dağılımı{" "}
                                   <span className="text-[9px] font-normal text-slate-400 normal-case block mt-0.5">
                                     Detay için işleme tıklayın
                                   </span>
                                 </h4>
 
-                                <div className="space-y-2 overflow-y-auto flex-1">
+                                <div className="space-y-1.5 overflow-y-auto flex-1">
                                   {Object.entries(stats.treatments).length >
                                   0 ? (
                                     Object.entries(stats.treatments).map(
@@ -6412,7 +6377,7 @@ useEffect(() => {
                                                 isSelected ? null : t
                                               )
                                             }
-                                            className={`flex justify-between items-center text-xs p-2.5 rounded-lg font-bold border cursor-pointer transition ${
+                                            className={`flex justify-between items-center text-[11px] p-1.5 rounded-lg font-bold border cursor-pointer transition ${
                                               isSelected
                                                 ? "bg-indigo-50 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-600 ring-1 ring-indigo-500"
                                                 : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -6429,7 +6394,7 @@ useEffect(() => {
                                             </span>
 
                                             <span
-                                              className={`px-2 py-0.5 rounded shadow-sm ${
+                                              className={`px-1.5 py-0.5 rounded shadow-sm ${
                                                 isSelected
                                                   ? "bg-indigo-600 text-white"
                                                   : "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300"
@@ -6442,16 +6407,16 @@ useEffect(() => {
                                       }
                                     )
                                   ) : (
-                                    <div className="text-xs text-slate-400 font-medium text-center py-4">
+                                    <div className="text-[11px] text-slate-400 font-medium text-center py-2">
                                       Kayıtlı işlem yok.
                                     </div>
                                   )}
                                 </div>
                               </div>
 
-                              <div className="flex-[2] bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col min-h-0 h-full">
-                                <div className="flex justify-between items-center mb-3 shrink-0">
-                                  <h4 className="font-black text-xs text-slate-500 uppercase tracking-wider">
+                              <div className="flex-[2] bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col min-h-0 h-full">
+                                <div className="flex justify-between items-center mb-2 shrink-0">
+                                  <h4 className="font-black text-[11px] text-slate-500 uppercase tracking-wider">
                                     Randevu Geçmişi Detayı{" "}
                                     <span className="text-indigo-600 dark:text-indigo-400 ml-1">
                                       [
@@ -6479,21 +6444,21 @@ useEffect(() => {
                                       onClick={() =>
                                         setDocStatsSelectedTreatment(null)
                                       }
-                                      className="text-[10px] bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 px-2 py-1 rounded font-bold transition"
+                                      className="text-[10px] bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold transition"
                                     >
                                       Filtreyi Temizle
                                     </button>
                                   )}
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                                <div className="flex-1 overflow-y-auto pr-1.5 space-y-1.5">
                                   {displayedPtList.map((pt, i) => (
                                     <div
                                       key={i}
-                                      className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-indigo-200 transition"
+                                      className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-indigo-200 transition"
                                     >
                                       <div>
-                                        <div className="font-black text-slate-800 dark:text-slate-200 text-sm">
+                                        <div className="font-black text-slate-800 dark:text-slate-200 text-[13px]">
                                           {pt.patient}
                                         </div>
 
@@ -6508,7 +6473,7 @@ useEffect(() => {
                                   ))}
 
                                   {displayedPtList.length === 0 && (
-                                    <div className="text-xs text-slate-400 font-medium text-center py-4">
+                                    <div className="text-[11px] text-slate-400 font-medium text-center py-2">
                                       Bu kriterlere uygun randevu yok.
                                     </div>
                                   )}
@@ -6744,18 +6709,18 @@ useEffect(() => {
           return (
             <div
               id="print-area"
-              className="flex flex-col gap-6 animate-pop pb-10 w-full h-full"
+              className="flex flex-col gap-2 animate-pop pb-8 w-full h-full"
             >
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm gap-4 shrink-0 no-print">
-                <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2 shadow-sm gap-1.5 shrink-0 no-print">
+                <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
                   <i className="fa-solid fa-chart-line text-emerald-500"></i>{" "}
                   Finans ve Bilanço
                 </h2>
 
-                <div className="flex gap-2 w-full md:w-auto flex-wrap">
+                <div className="flex gap-1 w-full md:w-auto flex-wrap">
                   {financePeriod === "custom" && (
-                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
-                      <span className="text-xs font-bold text-slate-500 mr-1">
+                    <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] font-bold text-slate-500 mr-1">
                         <i className="fa-regular fa-calendar mr-1"></i> Tarih
                         Aralığı:
                       </span>
@@ -6764,7 +6729,7 @@ useEffect(() => {
                         type="date"
                         value={financeCustomStart}
                         onChange={(e) => setFinanceCustomStart(e.target.value)}
-                        className="relative text-sm font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none cursor-pointer dark:text-white"
+                        className="relative text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer dark:text-white"
                       />
 
                       <span className="text-slate-400">-</span>
@@ -6773,7 +6738,7 @@ useEffect(() => {
                         type="date"
                         value={financeCustomEnd}
                         onChange={(e) => setFinanceCustomEnd(e.target.value)}
-                        className="relative text-sm font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none cursor-pointer dark:text-white"
+                        className="relative text-[13px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer dark:text-white"
                       />
                     </div>
                   )}
@@ -6784,7 +6749,7 @@ useEffect(() => {
                       setFinancePeriod(e.target.value);
                       setFinanceDetailView("overview");
                     }}
-                    className="p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm outline-none cursor-pointer dark:text-white"
+                    className="p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-[13px] outline-none cursor-pointer dark:text-white"
                   >
                     <option value="all">Tüm Zamanlar</option>
                     <option value="today">Bugün</option>
@@ -6815,127 +6780,127 @@ useEffect(() => {
                       )}.csv`;
                       link.click();
                     }}
-                    className="bg-emerald-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-emerald-700 transition"
+                    className="bg-emerald-600 text-white px-2.5 py-1.5 rounded-xl font-bold text-[13px] shadow-md hover:bg-emerald-700 transition"
                   >
                     <i className="fa-solid fa-file-excel mr-1"></i> Excel
                   </button>
 
                   <button
                     onClick={() => window.print()}
-                    className="bg-slate-900 dark:bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
+                    className="bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-1.5 rounded-xl font-bold text-[13px] shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
                   >
                     <i className="fa-solid fa-print mr-1"></i> Yazdır
                   </button>
                 </div>
               </div>
 
-              <div className="hidden print-only print-header-grid mb-6 border-b-2 border-black pb-2">
-                <h1 className="text-2xl font-black m-0">
+              <div className="hidden print-only print-header-grid mb-2 border-b-2 border-black pb-2">
+                <h1 className="text-base font-black m-0">
                   Klinik Finans Raporu
                 </h1>
 
-                <p className="text-sm font-bold m-0 mt-1">
+                <p className="text-[13px] font-bold m-0 mt-1">
                   Dönem: {getDateRangeText()}
                 </p>
 
-                <p className="text-xs text-gray-500 m-0">
+                <p className="text-[11px] text-gray-500 m-0">
                   Yazdırılma Tarihi: {new Date().toLocaleString("tr-TR")}
                 </p>
               </div>
 
               {financeDetailView === "overview" && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0 print-only-grid">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 shrink-0 print-only-grid">
                     {/* 1. KART: CİRO (SADE TIKLANABİLİR) */}
                     <div
-                      className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center relative overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all no-print group h-32"
+                      className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center relative overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all no-print group h-28"
                       onClick={() => setFinanceDetailView("revenue")}
                     >
-                      <i className="fa-solid fa-money-bill-wave absolute -right-4 -bottom-4 text-6xl text-slate-100 dark:text-slate-700/50 group-hover:scale-110 transition-transform duration-300"></i>
-                      <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2 flex justify-between items-center">
+                      <i className="fa-solid fa-money-bill-wave absolute -right-4 -bottom-4 text-5xl text-slate-100 dark:text-slate-700/50 group-hover:scale-110 transition-transform duration-300"></i>
+                      <div className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5 flex justify-between items-center">
                         Fatura Edilen Toplam Ciro
                         <i className="fa-solid fa-arrow-right text-indigo-400 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all"></i>
                       </div>
-                      <div className="text-3xl font-black text-slate-800 dark:text-white relative z-10">
+                      <div className="text-lg font-black text-slate-800 dark:text-white relative z-10">
                         {totalRevenue.toLocaleString("tr-TR")} ₺
                       </div>
                     </div>
 
                     {/* YAZDIRMA İÇİN KART 1 (GİZLİ) */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden hidden print-only h-32">
-                      <div className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden hidden print-only h-28">
+                      <div className="text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
                         Fatura Edilen Toplam Ciro
                       </div>
-                      <div className="text-3xl font-black text-slate-800">
+                      <div className="text-lg font-black text-slate-800">
                         {totalRevenue.toLocaleString("tr-TR")} ₺
                       </div>
                     </div>
 
                     {/* 2. KART: TAHSİLAT (SADE TIKLANABİLİR) */}
                     <div
-                      className="bg-emerald-50/50 dark:bg-emerald-900/20 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-800/50 shadow-sm flex flex-col justify-center relative overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all no-print group h-32"
+                      className="bg-emerald-50/50 dark:bg-emerald-900/20 p-2 rounded-xl border border-emerald-200 dark:border-emerald-800/50 shadow-sm flex flex-col justify-center relative overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-400 dark:hover:border-emerald-600 transition-all no-print group h-28"
                       onClick={() => setFinanceDetailView("collected")}
                     >
-                      <i className="fa-solid fa-vault absolute -right-4 -bottom-4 text-6xl text-emerald-100 dark:text-emerald-900/30 group-hover:scale-110 transition-transform duration-300"></i>
-                      <div className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex justify-between items-center">
+                      <i className="fa-solid fa-vault absolute -right-4 -bottom-4 text-5xl text-emerald-100 dark:text-emerald-900/30 group-hover:scale-110 transition-transform duration-300"></i>
+                      <div className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1.5 flex justify-between items-center">
                         Kasaya Giren (Tahsilat)
                         <i className="fa-solid fa-arrow-right text-emerald-500 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all"></i>
                       </div>
-                      <div className="text-3xl font-black text-emerald-600 dark:text-emerald-300 relative z-10">
+                      <div className="text-lg font-black text-emerald-600 dark:text-emerald-300 relative z-10">
                         {totalCollected.toLocaleString("tr-TR")} ₺
                       </div>
                     </div>
 
                     {/* YAZDIRMA İÇİN KART 2 (GİZLİ) */}
-                    <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-200 shadow-sm relative overflow-hidden hidden print-only h-32">
-                      <div className="text-xs font-black text-emerald-700 uppercase tracking-wider mb-2">
+                    <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-200 shadow-sm relative overflow-hidden hidden print-only h-28">
+                      <div className="text-[11px] font-black text-emerald-700 uppercase tracking-wider mb-1.5">
                         Kasaya Giren (Tahsilat)
                       </div>
-                      <div className="text-3xl font-black text-emerald-600">
+                      <div className="text-lg font-black text-emerald-600">
                         {totalCollected.toLocaleString("tr-TR")} ₺
                       </div>
                     </div>
 
                     {/* 3. KART: ALACAK (SADE TIKLANABİLİR) */}
                     <div
-                      className="bg-rose-50/50 dark:bg-rose-900/20 p-6 rounded-2xl border border-rose-200 dark:border-rose-800/50 shadow-sm flex flex-col justify-center relative overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-rose-400 dark:hover:border-rose-600 transition-all no-print group h-32"
+                      className="bg-rose-50/50 dark:bg-rose-900/20 p-2 rounded-xl border border-rose-200 dark:border-rose-800/50 shadow-sm flex flex-col justify-center relative overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-rose-400 dark:hover:border-rose-600 transition-all no-print group h-28"
                       onClick={() => setFinanceDetailView("pending")}
                     >
-                      <i className="fa-solid fa-triangle-exclamation absolute -right-4 -bottom-4 text-6xl text-rose-100 dark:text-rose-900/30 group-hover:scale-110 transition-transform duration-300"></i>
-                      <div className="text-xs font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-2 flex justify-between items-center">
+                      <i className="fa-solid fa-triangle-exclamation absolute -right-4 -bottom-4 text-5xl text-rose-100 dark:text-rose-900/30 group-hover:scale-110 transition-transform duration-300"></i>
+                      <div className="text-[11px] font-black text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-1.5 flex justify-between items-center">
                         Bekleyen Alacak (Bakiye)
                         <i className="fa-solid fa-arrow-right text-rose-500 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all"></i>
                       </div>
-                      <div className="text-3xl font-black text-rose-600 dark:text-rose-300 relative z-10">
+                      <div className="text-lg font-black text-rose-600 dark:text-rose-300 relative z-10">
                         {totalReceivable.toLocaleString("tr-TR")} ₺
                       </div>
                     </div>
 
                     {/* YAZDIRMA İÇİN KART 3 (GİZLİ) */}
-                    <div className="bg-rose-50 p-6 rounded-2xl border border-rose-200 shadow-sm relative overflow-hidden hidden print-only h-32">
-                      <div className="text-xs font-black text-rose-700 uppercase tracking-wider mb-2">
+                    <div className="bg-rose-50 p-2 rounded-xl border border-rose-200 shadow-sm relative overflow-hidden hidden print-only h-28">
+                      <div className="text-[11px] font-black text-rose-700 uppercase tracking-wider mb-1.5">
                         Bekleyen Alacak (Bakiye)
                       </div>
-                      <div className="text-3xl font-black text-rose-600">
+                      <div className="text-lg font-black text-rose-600">
                         {totalReceivable.toLocaleString("tr-TR")} ₺
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-6 mt-2 flex-1 min-h-0">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl border shadow-sm overflow-hidden flex flex-col">
-                      <div className="p-5 border-b bg-slate-50 dark:bg-slate-900">
-                        <h3 className="font-black text-sm uppercase tracking-wider dark:text-white">
+                  <div className="grid grid-cols-1 gap-2 mt-1.5 flex-1 min-h-0">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl border shadow-sm overflow-hidden flex flex-col">
+                      <div className="p-2 border-b bg-slate-50 dark:bg-slate-900">
+                        <h3 className="font-black text-[13px] uppercase tracking-wider dark:text-white">
                           Hekim Bazlı Üretilen Ciro
                         </h3>
                       </div>
 
                       <div className="overflow-x-auto w-full flex-1">
-                        <table className="w-full text-left text-sm print-table">
+                        <table className="w-full text-left text-[13px] print-table">
                           <thead className="text-[10px] uppercase border-b bg-white dark:bg-slate-800 font-black tracking-wider text-slate-400">
                             <tr>
-                              <th className="px-6 py-4">Hekim Adı</th>
-                              <th className="px-6 py-4 text-right">
+                              <th className="px-2.5 py-2">Hekim Adı</th>
+                              <th className="px-2.5 py-2 text-right">
                                 Ürettiği Ciro
                               </th>
                             </tr>
@@ -6949,13 +6914,13 @@ useEffect(() => {
                                   key={i}
                                   className="border-b transition dark:text-white"
                                 >
-                                  <td className="px-6 py-4 font-black flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center border no-print">
+                                  <td className="px-2.5 py-2 font-black flex items-center gap-1.5">
+                                    <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center border no-print">
                                       <i className="fa-solid fa-user-doctor"></i>
                                     </div>
                                     {doc.name}
                                   </td>
-                                  <td className="px-6 py-4 text-right font-black text-indigo-600 text-base">
+                                  <td className="px-2.5 py-2 text-right font-black text-indigo-600 text-base">
                                     {doc.revenue.toLocaleString("tr-TR")} ₺
                                   </td>
                                 </tr>
@@ -6966,28 +6931,28 @@ useEffect(() => {
                     </div>
                   </div>
 
-                  <div className="hidden print-only bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-col mt-4 print-only-section">
-                    <div className="p-4 border-b border-slate-100 bg-slate-50">
-                      <h3 className="font-black text-slate-800 text-sm uppercase">
+                  <div className="hidden print-only bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-col mt-2 print-only-section">
+                    <div className="p-2 border-b border-slate-100 bg-slate-50">
+                      <h3 className="font-black text-slate-800 text-[13px] uppercase">
                         Tahsilat Detayları (Özet)
                       </h3>
                     </div>
 
-                    <table className="w-full text-left text-xs print-table">
+                    <table className="w-full text-left text-[11px] print-table">
                       <thead>
                         <tr>
-                          <th className="px-4 py-2">Tarih</th>
+                          <th className="px-2.5 py-1.5">Tarih</th>
 
-                          <th className="px-4 py-2">Hasta</th>
+                          <th className="px-2.5 py-1.5">Hasta</th>
 
-                          <th className="px-4 py-2 text-right">Tutar</th>
+                          <th className="px-2.5 py-1.5 text-right">Tutar</th>
                         </tr>
                       </thead>
 
                       <tbody>
                         {paymentHistory.slice(0, 15).map((pay, i) => (
                           <tr key={i}>
-                            <td className="px-4 py-2">
+                            <td className="px-2.5 py-1.5">
                               {new Date(pay.date).toLocaleString("tr-TR", {
                                 day: "2-digit",
 
@@ -7001,9 +6966,9 @@ useEffect(() => {
                               })}
                             </td>
 
-                            <td className="px-4 py-2">{pay.patientName}</td>
+                            <td className="px-2.5 py-1.5">{pay.patientName}</td>
 
-                            <td className="px-4 py-2 text-right">
+                            <td className="px-2.5 py-1.5 text-right">
                               +{pay.amount} ₺
                             </td>
                           </tr>
@@ -7015,37 +6980,37 @@ useEffect(() => {
               )}
 
               {financeDetailView === "revenue" && (
-                <div className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 animate-pop dark:bg-slate-800 dark:border-slate-700">
-                  <div className="p-5 border-b bg-indigo-50 flex justify-between dark:bg-slate-900 dark:border-slate-700">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 animate-pop dark:bg-slate-800 dark:border-slate-700">
+                  <div className="p-2 border-b bg-indigo-50 flex justify-between dark:bg-slate-900 dark:border-slate-700">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setFinanceDetailView("overview")}
-                        className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 border dark:border-slate-600 shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 transition"
+                        className="w-7 h-7 rounded-full bg-white dark:bg-slate-800 border dark:border-slate-600 shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 transition"
                       >
                         <i className="fa-solid fa-arrow-left"></i>
                       </button>
 
-                      <h3 className="font-black text-indigo-800 text-sm uppercase tracking-wider dark:text-indigo-400">
+                      <h3 className="font-black text-indigo-800 text-[13px] uppercase tracking-wider dark:text-indigo-400">
                         Toplam Bilanço Detayları
                       </h3>
                     </div>
 
-                    <div className="font-black text-indigo-600 text-xl dark:text-indigo-400">
+                    <div className="font-black text-indigo-600 text-base dark:text-indigo-400">
                       {totalRevenue.toLocaleString("tr-TR")} ₺
                     </div>
                   </div>
 
                   <div className="overflow-y-auto w-full flex-1">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full text-left text-[13px]">
                       <thead className="text-[10px] text-slate-400 uppercase border-b dark:border-slate-700 font-black sticky top-0 bg-white dark:bg-slate-800">
                         <tr>
-                          <th className="px-6 py-4">Tarih</th>
+                          <th className="px-2.5 py-2">Tarih</th>
 
-                          <th className="px-6 py-4">Hasta</th>
+                          <th className="px-2.5 py-2">Hasta</th>
 
-                          <th className="px-6 py-4">İşlem Detayı</th>
+                          <th className="px-2.5 py-2">İşlem Detayı</th>
 
-                          <th className="px-6 py-4 text-right">Tutar</th>
+                          <th className="px-2.5 py-2 text-right">Tutar</th>
                         </tr>
                       </thead>
 
@@ -7065,7 +7030,7 @@ useEffect(() => {
                               if (pObj) handleContextMenu(e, "patient", pObj);
                             }}
                           >
-                            <td className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">
+                            <td className="px-2.5 py-2 font-bold text-slate-500 dark:text-slate-400">
                               {new Date(rev.date).toLocaleString("tr-TR", {
                                 day: "2-digit",
 
@@ -7076,20 +7041,20 @@ useEffect(() => {
                             </td>
 
                             <td
-                              className="px-6 py-4 font-black text-slate-800 cursor-pointer hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400"
+                              className="px-2.5 py-2 font-black text-slate-800 cursor-pointer hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400"
                               onClick={() => openPatientByName(rev.patientName)}
                             >
                               {rev.patientName}
                             </td>
 
-                            <td className="px-6 py-4 font-bold text-slate-600 dark:text-slate-300">
+                            <td className="px-2.5 py-2 font-bold text-slate-600 dark:text-slate-300">
                               {rev.treatment}{" "}
-                              <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded dark:bg-slate-700 dark:text-slate-400">
+                              <span className="ml-1.5 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded dark:bg-slate-700 dark:text-slate-400">
                                 {rev.type}
                               </span>
                             </td>
 
-                            <td className="px-6 py-4 text-right font-black text-indigo-600 dark:text-indigo-400">
+                            <td className="px-2.5 py-2 text-right font-black text-indigo-600 dark:text-indigo-400">
                               {rev.amount.toLocaleString("tr-TR")} ₺
                             </td>
                           </tr>
@@ -7099,7 +7064,7 @@ useEffect(() => {
                           <tr>
                             <td
                               colSpan="4"
-                              className="text-center py-8 text-slate-400 font-medium"
+                              className="text-center py-2 text-slate-400 font-medium"
                             >
                               Bu dönemde fatura edilen işlem bulunmuyor.
                             </td>
@@ -7112,35 +7077,35 @@ useEffect(() => {
               )}
 
               {financeDetailView === "collected" && (
-                <div className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 animate-pop">
-                  <div className="p-5 border-b bg-emerald-50 flex justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 animate-pop">
+                  <div className="p-2 border-b bg-emerald-50 flex justify-between">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setFinanceDetailView("overview")}
-                        className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 transition"
+                        className="w-7 h-7 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 transition"
                       >
                         <i className="fa-solid fa-arrow-left"></i>
                       </button>
 
-                      <h3 className="font-black text-emerald-800 text-sm uppercase tracking-wider">
+                      <h3 className="font-black text-emerald-800 text-[13px] uppercase tracking-wider">
                         Tahsilat Detayları
                       </h3>
                     </div>
 
-                    <div className="font-black text-emerald-600 text-xl">
+                    <div className="font-black text-emerald-600 text-base">
                       {totalCollected.toLocaleString("tr-TR")} ₺
                     </div>
                   </div>
 
                   <div className="overflow-y-auto w-full flex-1">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full text-left text-[13px]">
                       <thead className="text-[10px] text-slate-400 uppercase border-b font-black sticky top-0 bg-white">
                         <tr>
-                          <th className="px-6 py-4">Tarih ve Saat</th>
+                          <th className="px-2.5 py-2">Tarih ve Saat</th>
 
-                          <th className="px-6 py-4">Hasta</th>
+                          <th className="px-2.5 py-2">Hasta</th>
 
-                          <th className="px-6 py-4 text-right">Tutar</th>
+                          <th className="px-2.5 py-2 text-right">Tutar</th>
                         </tr>
                       </thead>
 
@@ -7160,7 +7125,7 @@ useEffect(() => {
                               if (pObj) handleContextMenu(e, "patient", pObj);
                             }}
                           >
-                            <td className="px-6 py-4 font-bold text-slate-500 dark:text-slate-400">
+                            <td className="px-2.5 py-2 font-bold text-slate-500 dark:text-slate-400">
                               {new Date(pay.date).toLocaleString("tr-TR", {
                                 day: "2-digit",
 
@@ -7175,13 +7140,13 @@ useEffect(() => {
                             </td>
 
                             <td
-                              className="px-6 py-4 font-black text-slate-800 cursor-pointer hover:text-indigo-600"
+                              className="px-2.5 py-2 font-black text-slate-800 cursor-pointer hover:text-indigo-600"
                               onClick={() => openPatientByName(pay.patientName)}
                             >
                               {pay.patientName}
                             </td>
 
-                            <td className="px-6 py-4 text-right font-black text-emerald-600">
+                            <td className="px-2.5 py-2 text-right font-black text-emerald-600">
                               +{pay.amount.toLocaleString("tr-TR")} ₺
                             </td>
                           </tr>
@@ -7193,33 +7158,33 @@ useEffect(() => {
               )}
 
               {financeDetailView === "pending" && (
-                <div className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 animate-pop">
-                  <div className="p-5 border-b bg-rose-50 flex justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 animate-pop">
+                  <div className="p-2 border-b bg-rose-50 flex justify-between">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setFinanceDetailView("overview")}
-                        className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 transition"
+                        className="w-7 h-7 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-indigo-600 transition"
                       >
                         <i className="fa-solid fa-arrow-left"></i>
                       </button>
 
-                      <h3 className="font-black text-rose-800 text-sm uppercase tracking-wider">
+                      <h3 className="font-black text-rose-800 text-[13px] uppercase tracking-wider">
                         Bekleyen Alacaklar
                       </h3>
                     </div>
 
-                    <div className="font-black text-rose-600 text-xl">
+                    <div className="font-black text-rose-600 text-base">
                       {totalReceivable.toLocaleString("tr-TR")} ₺
                     </div>
                   </div>
 
                   <div className="overflow-y-auto w-full flex-1">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full text-left text-[13px]">
                       <thead className="text-[10px] text-slate-400 uppercase border-b font-black sticky top-0 bg-white">
                         <tr>
-                          <th className="px-6 py-4">Hasta</th>
+                          <th className="px-2.5 py-2">Hasta</th>
 
-                          <th className="px-6 py-4 text-right">Borç Tutarı</th>
+                          <th className="px-2.5 py-2 text-right">Borç Tutarı</th>
                         </tr>
                       </thead>
 
@@ -7240,13 +7205,13 @@ useEffect(() => {
                             }}
                           >
                             <td
-                              className="px-6 py-4 font-black text-slate-800 cursor-pointer hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400"
+                              className="px-2.5 py-2 font-black text-slate-800 cursor-pointer hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400"
                               onClick={() => openPatientByName(p.patientName)}
                             >
                               {p.patientName}
                             </td>
 
-                            <td className="px-6 py-4 text-right font-black text-rose-600">
+                            <td className="px-2.5 py-2 text-right font-black text-rose-600">
                               {p.debt.toLocaleString("tr-TR")} ₺
                             </td>
                           </tr>
@@ -7261,30 +7226,30 @@ useEffect(() => {
         };
 
         const SidebarItem = ({ icon, label, id }) => (
-          <div className="relative group px-2">
+          <div className="relative group px-1.5">
             {/* YENİ: Aktif Sekme Göstergesi (Indicator) */}
             {activeTab === id && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-indigo-600 rounded-r-full shadow-[2px_0_8px_rgba(79,70,229,0.5)] z-10"></div>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r-full shadow-[2px_0_8px_rgba(79,70,229,0.5)] z-10"></div>
             )}
             <button
               onClick={() => {
                 setActiveTab(id);
                 setIsSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${
+              className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-300 ${
                 activeTab === id
                   ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 font-bold shadow-sm ring-1 ring-indigo-100 dark:ring-indigo-800"
                   : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
               }`}
             >
               <i
-                className={`fa-solid ${icon} w-6 text-center text-lg transition-transform duration-300 ${
+                className={`fa-solid ${icon} w-5 text-center text-base transition-transform duration-300 ${
                   activeTab === id ? "scale-110" : "group-hover:scale-110"
                 }`}
               ></i>
 
               <span
-                className={`text-sm whitespace-nowrap transition-opacity duration-200 ${
+                className={`text-[13px] whitespace-nowrap transition-opacity duration-200 ${
                   isSidebarOpen ? "opacity-100" : "opacity-0 hidden"
                 }`}
               >
@@ -7299,13 +7264,13 @@ useEffect(() => {
             {/* YENİ: SAĞ TIK / UZUN BASMA MENÜSÜ ARAYÜZÜ */}
             {contextMenu && contextMenu.isOpen && (
               <div
-                className="fixed bg-white dark:bg-slate-800 rounded-xl shadow-[0_15px_50px_-10px_rgba(0,0,0,0.4)] border border-slate-200 dark:border-slate-700 py-2 z-[300] min-w-[220px] animate-pop"
+                className="fixed bg-white dark:bg-slate-800 rounded-xl shadow-[0_15px_50px_-10px_rgba(0,0,0,0.4)] border border-slate-200 dark:border-slate-700 py-1.5 z-[300] min-w-[200px] animate-pop"
                 style={{ top: contextMenu.y, left: contextMenu.x }}
                 onContextMenu={(e) => e.preventDefault()} // Menü üzerinde tekrar sağ tıklanmasını engelle
               >
                 {contextMenu.type === "patient" && (
                   <div className="flex flex-col">
-                    <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-xs uppercase tracking-wider truncate">
+                    <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-[11px] uppercase tracking-wider truncate">
                       {contextMenu.data.name}
                     </div>
                     <button
@@ -7314,7 +7279,7 @@ useEffect(() => {
                         setPatientModalTab("info");
                         setIsPatientModalOpen(true);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition"
+                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 transition"
                     >
                       <i className="fa-regular fa-calendar-plus w-4 text-center"></i>{" "}
                       Randevu / Not Ekle
@@ -7325,7 +7290,7 @@ useEffect(() => {
                         setPatientModalTab("plan");
                         setIsPatientModalOpen(true);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition"
+                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 transition"
                     >
                       <i className="fa-solid fa-tooth w-4 text-center"></i>{" "}
                       Tedavi Ekle (Plan)
@@ -7336,7 +7301,7 @@ useEffect(() => {
                         setPatientModalTab("finance");
                         setIsPatientModalOpen(true);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 flex items-center gap-3 transition"
+                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 flex items-center gap-1.5 transition"
                     >
                       <i className="fa-solid fa-money-bill-wave w-4 text-center"></i>{" "}
                       Ödeme Al
@@ -7347,7 +7312,7 @@ useEffect(() => {
                         setPatientForm(contextMenu.data);
                         handleDeletePatient();
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 flex items-center gap-3 transition"
+                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 flex items-center gap-1.5 transition"
                     >
                       <i className="fa-solid fa-trash w-4 text-center"></i>{" "}
                       Hastayı Sil
@@ -7357,7 +7322,7 @@ useEffect(() => {
 
                 {contextMenu.type === "appointment" && (
                   <div className="flex flex-col">
-                    <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-xs uppercase tracking-wider truncate">
+                    <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-[11px] uppercase tracking-wider truncate">
                       {contextMenu.data.apt.patientName}
                     </div>
                     <button
@@ -7368,7 +7333,7 @@ useEffect(() => {
                           contextMenu.data.docId
                         )
                       }
-                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition"
+                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 transition"
                     >
                       <i className="fa-solid fa-pen-to-square w-4 text-center"></i>{" "}
                       Randevuyu Düzenle
@@ -7382,7 +7347,7 @@ useEffect(() => {
                           contextMenu.data.apt
                         )
                       }
-                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 flex items-center gap-3 transition"
+                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 flex items-center gap-1.5 transition"
                     >
                       <i className="fa-solid fa-rotate w-4 text-center"></i>{" "}
                       Durumu Değiştir
@@ -7392,7 +7357,7 @@ useEffect(() => {
 
                 {contextMenu.type === "doctor" && (
                   <div className="flex flex-col">
-                    <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-xs uppercase tracking-wider truncate">
+                    <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-[11px] uppercase tracking-wider truncate">
                       {globalData.doctorProfiles?.[contextMenu.data]?.name ||
                         contextMenu.data}
                     </div>
@@ -7412,7 +7377,7 @@ useEffect(() => {
                         setDocStatsSelectedTreatment(null);
                         setIsDoctorDetailsModalOpen(true);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition"
+                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 transition"
                     >
                       <i className="fa-solid fa-user-pen w-4 text-center"></i>{" "}
                       Profili İncele / Düzenle
@@ -7423,7 +7388,7 @@ useEffect(() => {
             )}
             {/* YENİ: OFFLINE MOD UYARI BARI */}
             {isOffline && (
-              <div className="absolute top-0 left-0 w-full bg-rose-500 text-white text-[11px] font-black uppercase tracking-widest text-center py-1.5 z-[200] shadow-md flex justify-center items-center gap-2 animate-pulse">
+              <div className="absolute top-0 left-0 w-full bg-rose-500 text-white text-[11px] font-black uppercase tracking-widest text-center py-1 z-[200] shadow-md flex justify-center items-center gap-1 animate-pulse">
                 <i className="fa-solid fa-wifi-slash"></i>
                 İnternet Bağlantısı Koptu - Çevrimdışı (Offline) Modda
                 Çalışıyorsunuz
@@ -7432,7 +7397,7 @@ useEffect(() => {
 
             {notification && (
               <div
-                className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3.5 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] font-black text-sm text-white z-[100] animate-[modalPop_0.3s_ease-out_forwards] backdrop-blur-xl flex items-center gap-3 border ${
+                className={`fixed top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] font-black text-[13px] text-white z-[100] animate-[modalPop_0.3s_ease-out_forwards] backdrop-blur-xl flex items-center gap-2 border ${
                   notification.type === "error"
                     ? "bg-rose-500/90 border-rose-400"
                     : "bg-slate-900/90 dark:bg-indigo-600/90 border-slate-700 dark:border-indigo-400"
@@ -7443,17 +7408,17 @@ useEffect(() => {
                     notification.type === "error"
                       ? "fa-triangle-exclamation"
                       : "fa-check-circle"
-                  } text-lg`}
+                  } text-base`}
                 ></i>
                 {notification.message}
               </div>
             )}
 
             {confirmModal.isOpen && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop">
-                  <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
-                    <h3 className="font-black text-sm uppercase tracking-wider">
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop">
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
+                    <h3 className="font-black text-[13px] uppercase tracking-wider">
                       <i className="fa-solid fa-circle-exclamation mr-2"></i>
                       Onay
                     </h3>
@@ -7462,26 +7427,26 @@ useEffect(() => {
                       onClick={handleCancelConfirm}
                       className="text-slate-400 hover:text-white"
                     >
-                      <i className="fa-solid fa-xmark text-lg"></i>
+                      <i className="fa-solid fa-xmark text-base"></i>
                     </button>
                   </div>
 
-                  <div className="p-6 space-y-4">
+                  <div className="p-3 space-y-2">
                     <p className="text-slate-700 dark:text-slate-300 font-bold text-base">
                       {confirmModal.message}
                     </p>
 
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex gap-1.5 pt-1.5">
                       <button
                         onClick={handleCancelConfirm}
-                        className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-200"
+                        className="flex-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-200"
                       >
                         Vazgeç
                       </button>
 
                       <button
                         onClick={handleConfirm}
-                        className="flex-[2] px-4 py-3 bg-rose-500 text-white rounded-xl font-black hover:bg-rose-600 transition"
+                        className="flex-[2] px-2.5 py-1.5 bg-rose-500 text-white rounded-xl font-black hover:bg-rose-600 transition"
                       >
                         Evet, Sil
                       </button>
@@ -7494,23 +7459,23 @@ useEffect(() => {
             <aside
               ref={sidebarRef}
               className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-40 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full lg:relative lg:h-auto ${
-                isSidebarOpen ? "w-64" : "w-[76px] hidden sm:flex"
+                isSidebarOpen ? "w-56" : "w-[68px] hidden sm:flex"
               } no-print`}
             >
               <div
-                className="h-20 flex items-center px-5 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-3 overflow-hidden bg-slate-50/50 dark:bg-slate-900 cursor-pointer"
+                className="h-16 flex items-center px-2.5 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-1.5 overflow-hidden bg-slate-50/50 dark:bg-slate-900 cursor-pointer"
                 onClick={() => {
                   setActiveTab("home");
 
                   setIsSidebarOpen(false);
                 }}
               >
-                <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm shadow-md">
+                <div className="w-8 h-7 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-[13px] shadow-md">
                   <i className="fa-solid fa-tooth"></i>
                 </div>
 
                 <span
-                  className={`font-black text-lg text-slate-800 dark:text-white tracking-tight transition-opacity whitespace-nowrap ${
+                  className={`font-black text-base text-slate-800 dark:text-white tracking-tight transition-opacity whitespace-nowrap ${
                     isSidebarOpen ? "opacity-100" : "opacity-0 hidden"
                   }`}
                 >
@@ -7518,7 +7483,7 @@ useEffect(() => {
                 </span>
               </div>
 
-              <div className="flex-1 px-3 py-6 flex flex-col gap-1.5 overflow-y-auto">
+              <div className="flex-1 px-2 py-1.5 flex flex-col gap-1 overflow-y-auto">
                 <SidebarItem
                   icon="fa-chart-pie text-sky-500"
                   label="Anasayfa (Özet)"
@@ -7565,11 +7530,11 @@ useEffect(() => {
 
             {/* YENİ: Mobil için Pürüzsüz Glassmorphism Alt Menü */}
             <div
-              className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-slate-800/50 flex overflow-x-auto p-2 pb-4 gap-1 justify-around z-40 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)] no-print transition-colors"
+              className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-slate-800/50 flex overflow-x-auto p-1.5 pb-3 gap-1 justify-around z-40 shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)] no-print transition-colors"
               style={{
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",
-                paddingBottom: "env(safe-area-inset-bottom, 16px)",
+                paddingBottom: "env(safe-area-inset-bottom, 12px)",
               }}
             >
               {[
@@ -7593,10 +7558,10 @@ useEffect(() => {
                     setActiveTab(tab);
                     setIsSidebarOpen(false);
                   }}
-                  className={`flex shrink-0 flex-col items-center justify-center py-2 px-1 rounded-xl transition-all duration-300 ${
+                  className={`flex shrink-0 flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-300 ${
                     activeTab === tab
-                      ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 w-20"
-                      : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 w-12"
+                      ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 w-16"
+                      : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 w-10"
                   }`}
                 >
                   <i
@@ -7614,13 +7579,13 @@ useEffect(() => {
                         : tab === "doctors"
                         ? "fa-user-doctor"
                         : "fa-vault"
-                    } text-xl transition-transform ${
+                    } text-lg transition-transform ${
                       activeTab === tab ? "scale-110 -translate-y-0.5" : ""
                     }`}
                   ></i>
                   {/* YENİ: Sadece aktif sekmede beliren metin */}
                   {activeTab === tab && (
-                    <span className="text-[9px] font-black mt-1 animate-pop tracking-wider">
+                    <span className="text-[9px] font-black mt-0.5 animate-pop tracking-wider">
                       {tab === "home"
                         ? "ÖZET"
                         : tab === "calendar"
@@ -7640,7 +7605,7 @@ useEffect(() => {
               ))}
             </div>
 
-            <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative pb-24 sm:pb-0 w-full">
+            <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative pb-20 sm:pb-0 w-full">
               {activeTab === "doctors" && !isHeaderVisible && (
                 <div
                   className="header-trigger-zone"
@@ -7649,7 +7614,7 @@ useEffect(() => {
               )}
 
               <header
-                className={`h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 lg:px-8 z-30 shrink-0 shadow-sm w-full absolute top-0 left-0 right-0 header-transition no-print ${
+                className={`h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 lg:px-4 z-30 shrink-0 shadow-sm w-full absolute top-0 left-0 right-0 header-transition no-print ${
                   activeTab === "doctors" && !isHeaderVisible
                     ? "header-hidden"
                     : ""
@@ -7661,15 +7626,15 @@ useEffect(() => {
               >
                 <button
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:bg-indigo-100 transition mr-2 lg:hidden"
+                  className="w-9 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:bg-indigo-100 transition mr-2 lg:hidden"
                 >
-                  <i className="fa-solid fa-tooth text-lg"></i>
+                  <i className="fa-solid fa-tooth text-base"></i>
                 </button>
 
-                <div className="relative flex-1 max-w-sm mr-4" ref={searchRef}>
-                  <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 w-full focus-within:border-indigo-400 focus-within:ring-2 transition-all shadow-inner group relative">
+                <div className="relative flex-1 max-w-sm mr-3" ref={searchRef}>
+                  <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 w-full focus-within:border-indigo-400 focus-within:ring-2 transition-all shadow-inner group relative">
                     <div className="flex items-center flex-1 min-w-0">
-                      <i className="fa-solid fa-magnifying-glass text-indigo-400 text-sm shrink-0"></i>
+                      <i className="fa-solid fa-magnifying-glass text-indigo-400 text-[13px] shrink-0"></i>
                       <input
                         type="text"
                         placeholder="İsim, Tel, TC Ara..."
@@ -7679,7 +7644,7 @@ useEffect(() => {
                           setSearchDropdownOpen(true);
                         }}
                         onFocus={() => setSearchDropdownOpen(true)}
-                        className="bg-transparent outline-none border-none text-sm ml-3 w-full font-bold dark:text-white"
+                        className="bg-transparent outline-none border-none text-[13px] ml-2 w-full font-bold dark:text-white"
                       />
                     </div>
 
@@ -7697,12 +7662,12 @@ useEffect(() => {
                   </div>
 
                   {searchDropdownOpen && globalSearch && (
-                    <div className="absolute top-full left-0 mt-2 w-full bg-white dark:bg-slate-800 rounded-2xl shadow-xl border overflow-hidden z-50 animate-pop">
-                      <div className="p-2 bg-slate-50 dark:bg-slate-900 text-[10px] font-black text-slate-400 uppercase text-center border-b tracking-wider">
+                    <div className="absolute top-full left-0 mt-1.5 w-full bg-white dark:bg-slate-800 rounded-xl shadow-xl border overflow-hidden z-50 animate-pop">
+                      <div className="p-1.5 bg-slate-50 dark:bg-slate-900 text-[10px] font-black text-slate-400 uppercase text-center border-b tracking-wider">
                         Bulunan Hastalar
                       </div>
 
-                      <div className="max-h-64 overflow-y-auto">
+                      <div className="max-h-56 overflow-y-auto">
                         {Object.values(globalData.patientsDb || {})
                           .filter(
                             (p) =>
@@ -7732,14 +7697,14 @@ useEffect(() => {
 
                                 setGlobalSearch("");
                               }}
-                              className="p-3 border-b hover:bg-indigo-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center transition group"
+                              className="p-1.5 border-b hover:bg-indigo-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center transition group"
                             >
                               <div>
-                                <div className="font-black text-sm group-hover:text-indigo-700 transition dark:text-white">
+                                <div className="font-black text-[13px] group-hover:text-indigo-700 transition dark:text-white">
                                   {p.name}
                                 </div>
 
-                                <div className="text-xs text-slate-500 font-medium">
+                                <div className="text-[11px] text-slate-500 font-medium">
                                   <i className="fa-solid fa-phone mr-1"></i>
 
                                   {p.phone || "-"}
@@ -7754,11 +7719,11 @@ useEffect(() => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 lg:gap-4 shrink-0">
+                <div className="flex items-center gap-1 lg:gap-1.5 shrink-0">
                   {/* YENİ: Hasta Mahremiyeti / Gizlilik Modu Butonu */}
                   <button
                     onClick={() => setIsPrivacyMode(!isPrivacyMode)}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition shadow-sm ${
+                    className={`w-9 h-8 rounded-xl flex items-center justify-center transition shadow-sm ${
                       isPrivacyMode
                         ? "bg-rose-100 text-rose-600 dark:bg-rose-900/40 dark:text-rose-400"
                         : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200"
@@ -7774,16 +7739,16 @@ useEffect(() => {
 
                   <button
                     onClick={() => setIsDarkMode(!isDarkMode)}
-                    className="relative w-16 h-8 rounded-full bg-slate-200 dark:bg-slate-700 transition-colors duration-300 flex items-center px-1 border border-slate-300 dark:border-slate-600 shadow-inner shrink-0"
+                    className="relative w-14 h-7 rounded-full bg-slate-200 dark:bg-slate-700 transition-colors duration-300 flex items-center px-1 border border-slate-300 dark:border-slate-600 shadow-inner shrink-0"
                     title="Temayı Değiştir"
                   >
                     <div
-                      className={`absolute w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center transition-transform duration-300 ${
-                        isDarkMode ? "translate-x-8" : "translate-x-0"
+                      className={`absolute w-5 h-5 rounded-full bg-white shadow-md flex items-center justify-center transition-transform duration-300 ${
+                        isDarkMode ? "translate-x-7" : "translate-x-0"
                       }`}
                     >
                       <i
-                        className={`fa-solid text-[10px] ${
+                        className={`fa-solid text-[9px] ${
                           isDarkMode
                             ? "fa-moon text-indigo-600"
                             : "fa-sun text-amber-500"
@@ -7795,15 +7760,15 @@ useEffect(() => {
                   <div className="relative" ref={userMenuRef}>
                     <div
                       onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                      className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1.5 pr-3 rounded-2xl transition border border-transparent"
+                      className="flex items-center gap-1.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 pr-2.5 rounded-xl transition border border-transparent"
                     >
                       <div className="text-right hidden xl:block">
-                        <div className="text-sm font-black dark:text-white">
+                        <div className="text-[13px] font-black dark:text-white">
                           {globalData.doctorProfiles?.[currentUser]?.name ||
                             currentUser}
                         </div>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-lg border shadow-sm shrink-0 overflow-hidden relative">
+                      <div className="w-9 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-base border shadow-sm shrink-0 overflow-hidden relative">
                         {globalData.doctorProfiles?.[currentUser]?.avatar ? (
                           <img
                             src={globalData.doctorProfiles[currentUser].avatar}
@@ -7826,10 +7791,10 @@ useEffect(() => {
                     </div>
 
                     {isUserMenuOpen && (
-                      <div className="absolute right-0 top-full mt-3 w-64 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-200/50 dark:border-slate-700/50 overflow-hidden z-50 animate-pop ring-1 ring-black/5 dark:ring-white/10">
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-200/50 dark:border-slate-700/50 overflow-hidden z-50 animate-pop ring-1 ring-black/5 dark:ring-white/10">
                         {/* Menü İçi Kullanıcı Özeti */}
-                        <div className="p-4 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50">
-                          <div className="font-black text-sm text-slate-800 dark:text-white truncate">
+                        <div className="p-2.5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50">
+                          <div className="font-black text-[13px] text-slate-800 dark:text-white truncate">
                             {globalData.doctorProfiles?.[currentUser]?.name ||
                               currentUser}
                           </div>
@@ -7839,37 +7804,37 @@ useEffect(() => {
                           </div>
                         </div>
 
-                        <div className="p-2 space-y-1">
+                        <div className="p-1.5 space-y-0.5">
                           <button
                             onClick={() => {
                               setIsPasswordModalOpen(true);
                               setIsUserMenuOpen(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 text-xs font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-xl flex items-center gap-3 group"
+                            className="w-full text-left px-2.5 py-2 text-[11px] font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors rounded-xl flex items-center gap-1.5 group"
                           >
-                            <i className="fa-solid fa-key w-5 text-center text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
+                            <i className="fa-solid fa-key w-4 text-center text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
                             Şifre Değiştir
                           </button>
 
                           <button
                             onClick={triggerInstall}
-                            className="w-full text-left px-3 py-2.5 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition-colors rounded-xl flex items-center gap-3 group"
+                            className="w-full text-left px-2.5 py-2 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition-colors rounded-xl flex items-center gap-1.5 group"
                           >
-                            <i className="fa-solid fa-download w-5 text-center text-slate-400 group-hover:text-slate-500 transition-colors"></i>
+                            <i className="fa-solid fa-download w-4 text-center text-slate-400 group-hover:text-slate-500 transition-colors"></i>
                             Uygulamayı Yükle
                           </button>
                         </div>
 
-                        <div className="p-2 border-t border-slate-100 dark:border-slate-700/50">
+                        <div className="p-1.5 border-t border-slate-100 dark:border-slate-700/50">
                           <button
                             onClick={() => {
                               sessionStorage.removeItem("klinikAktifKullanici");
                               sessionStorage.removeItem("klinikOturumTokeni");
                               window.location.reload();
                             }}
-                            className="w-full text-left px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-700 transition-colors rounded-xl flex items-center gap-3 group"
+                            className="w-full text-left px-2.5 py-2 text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-700 transition-colors rounded-xl flex items-center gap-1.5 group"
                           >
-                            <i className="fa-solid fa-arrow-right-from-bracket w-5 text-center text-rose-400 group-hover:text-rose-600 transition-colors"></i>
+                            <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center text-rose-400 group-hover:text-rose-600 transition-colors"></i>
                             Sistemden Çıkış Yap
                           </button>
                         </div>
@@ -7881,15 +7846,15 @@ useEffect(() => {
 
               <div
                 id="main-content-area"
-                className={`flex-1 p-2 sm:p-4 lg:p-6 overflow-x-hidden overflow-y-auto bg-slate-100/30 dark:bg-[#0f172a] relative w-full flex flex-col transition-all duration-300 ${
+                className={`flex-1 p-1.5 sm:p-2 lg:p-2.5 overflow-x-hidden overflow-y-auto bg-slate-100/30 dark:bg-[#0f172a] relative w-full flex flex-col transition-all duration-300 ${
                   activeTab !== "doctors"
-                    ? "mt-20"
+                    ? "mt-16"
                     : isHeaderVisible
-                    ? "mt-20"
+                    ? "mt-16"
                     : "mt-0"
                 } ${
                   isSplitMode && isPatientModalOpen
-                    ? "sm:pl-[400px] xl:pl-[450px]"
+                    ? "sm:pl-[360px] xl:pl-[400px]"
                     : ""
                 }`}
               >
@@ -7910,10 +7875,10 @@ useEffect(() => {
             </main>
 
             {isPasswordModalOpen && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2">
                 <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-pop">
-                  <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
-                    <h3 className="font-black text-sm uppercase tracking-wider">
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
+                    <h3 className="font-black text-[13px] uppercase tracking-wider">
                       <i className="fa-solid fa-key mr-2"></i>Şifre Değiştir
                     </h3>
 
@@ -7921,13 +7886,13 @@ useEffect(() => {
                       onClick={() => setIsPasswordModalOpen(false)}
                       className="text-slate-400 hover:text-white"
                     >
-                      <i className="fa-solid fa-xmark text-lg"></i>
+                      <i className="fa-solid fa-xmark text-base"></i>
                     </button>
                   </div>
 
                   <form
                     onSubmit={handleChangePassword}
-                    className="p-6 space-y-4"
+                    className="p-3 space-y-2"
                   >
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
@@ -7945,7 +7910,7 @@ useEffect(() => {
                             oldPass: e.target.value,
                           })
                         }
-                        className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:text-white"
+                        className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                       />
                     </div>
 
@@ -7965,13 +7930,13 @@ useEffect(() => {
                             newPass: e.target.value,
                           })
                         }
-                        className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:text-white"
+                        className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-black mt-2 shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition"
+                      className="w-full py-2 bg-indigo-600 text-white rounded-xl font-black mt-1.5 shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition"
                     >
                       Güncelle
                     </button>
@@ -7981,10 +7946,10 @@ useEffect(() => {
             )}
 
             {isInstallModalOpen && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2">
                 <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl animate-pop">
-                  <div className="px-6 py-5 bg-[#0f172a] text-white flex justify-between items-center">
-                    <h3 className="font-black text-base flex items-center gap-2">
+                  <div className="px-3 py-2 bg-[#0f172a] text-white flex justify-between items-center">
+                    <h3 className="font-black text-base flex items-center gap-1">
                       <i className="fa-solid fa-download text-blue-400"></i>{" "}
                       Uygulamayı Yükle
                     </h3>
@@ -7993,18 +7958,18 @@ useEffect(() => {
                       onClick={() => setIsInstallModalOpen(false)}
                       className="text-slate-400 hover:text-white"
                     >
-                      <i className="fa-solid fa-xmark text-xl"></i>
+                      <i className="fa-solid fa-xmark text-base"></i>
                     </button>
                   </div>
 
-                  <div className="p-6 space-y-4 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                  <div className="p-3 space-y-2 text-[13px] text-slate-600 dark:text-slate-300 font-medium">
                     <p className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">
                       Veri Kaybı Yaşamadan Hızlı Kurulum:
                     </p>
 
-                    <div className="space-y-3 pt-2">
-                      <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
-                        <strong className="text-slate-800 dark:text-white block mb-1 text-base">
+                    <div className="space-y-1.5 pt-1.5">
+                      <div className="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                        <strong className="text-slate-800 dark:text-white block mb-0.5 text-base">
                           <i className="fa-brands fa-apple text-slate-400"></i>{" "}
                           iPhone / iPad (Safari):
                         </strong>{" "}
@@ -8014,8 +7979,8 @@ useEffect(() => {
                         <b>"Ana Ekrana Ekle"</b> seçeneğini seçin.
                       </div>
 
-                      <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm">
-                        <strong className="text-emerald-800 dark:text-emerald-400 block mb-1 text-base">
+                      <div className="p-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                        <strong className="text-emerald-800 dark:text-emerald-400 block mb-0.5 text-base">
                           <i className="fa-brands fa-android text-emerald-500"></i>{" "}
                           Android (Chrome):
                         </strong>{" "}
@@ -8027,7 +7992,7 @@ useEffect(() => {
 
                     <button
                       onClick={() => setIsInstallModalOpen(false)}
-                      className="w-full mt-4 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white font-black rounded-xl hover:bg-slate-800 dark:hover:bg-indigo-700 transition shadow-lg"
+                      className="w-full mt-2 py-2 bg-slate-900 dark:bg-indigo-600 text-white font-black rounded-xl hover:bg-slate-800 dark:hover:bg-indigo-700 transition shadow-lg"
                     >
                       Anladım, Kapat
                     </button>
@@ -8038,7 +8003,7 @@ useEffect(() => {
 
             {isModalOpen && (
               <div
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-4 transition-opacity"
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-2 transition-opacity"
                 onClick={() => setIsModalOpen(false)} // YENİ: Dışarı tıklayınca kapanır
               >
                 <div
@@ -8046,13 +8011,13 @@ useEffect(() => {
                   onClick={(e) => e.stopPropagation()} // YENİ: İçeri tıklayınca kapanmasını engeller
                 >
                   {/* YENİ: Sadece mobilde görünen tutamaç (Drag Handle) */}
-                  <div className="w-full flex justify-center pt-3 pb-1 bg-[#0f172a] sm:hidden rounded-t-[2rem]">
-                    <div className="w-12 h-1.5 bg-white/30 rounded-full"></div>
+                  <div className="w-full flex justify-center pt-2.5 pb-0.5 bg-[#0f172a] sm:hidden rounded-t-[2rem]">
+                    <div className="w-10 h-1 bg-white/30 rounded-full"></div>
                   </div>
 
-                  <div className="px-6 py-4 sm:py-5 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0 cursor-default">
+                  <div className="px-3 py-2 sm:py-1.5 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0 cursor-default">
                     <div>
-                      <h3 className="font-black text-lg">Randevu İşlemleri</h3>
+                      <h3 className="font-black text-base">Randevu İşlemleri</h3>
 
                       <div className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">
                         {globalData.doctorProfiles?.[activeSlotDoctor]?.name ||
@@ -8060,41 +8025,41 @@ useEffect(() => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="bg-white/10 text-white text-xs font-black px-4 py-2 rounded-xl border border-white/20 shadow-inner">
+                    <div className="flex items-center gap-1.5">
+                      <div className="bg-white/10 text-white text-[11px] font-black px-2.5 py-1.5 rounded-xl border border-white/20 shadow-inner">
                         <i className="fa-regular fa-clock mr-1"></i>{" "}
                         {selectedSlot}
                       </div>
                       <button
                         onClick={() => setIsModalOpen(false)}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white border border-rose-500/30 transition shadow-sm"
+                        className="w-7 h-7 flex items-center justify-center rounded-full bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white border border-rose-500/30 transition shadow-sm"
                       >
-                        <i className="fa-solid fa-xmark text-lg"></i>
+                        <i className="fa-solid fa-xmark text-base"></i>
                       </button>
                     </div>
                   </div>
 
                   {aptModalMode === "view" ? (
-                    <div className="p-6 space-y-4 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
+                    <div className="p-3 space-y-2 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
                       {formData.anamnesis && (
-                        <div className="bg-rose-100 text-rose-700 p-4 rounded-2xl border shadow-sm flex gap-3 items-start dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800">
-                          <i className="fa-solid fa-triangle-exclamation text-xl mt-0.5"></i>
+                        <div className="bg-rose-100 text-rose-700 p-2.5 rounded-xl border shadow-sm flex gap-2 items-start dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800">
+                          <i className="fa-solid fa-triangle-exclamation text-base mt-0.5"></i>
 
                           <div>
-                            <div className="font-black text-xs mb-1 uppercase tracking-wider">
+                            <div className="font-black text-[11px] mb-1 uppercase tracking-wider">
                               Önemli Uyarı (Anamnez)
                             </div>
 
-                            <div className="text-xs font-semibold">
+                            <div className="text-[11px] font-semibold">
                               {formData.anamnesis}
                             </div>
                           </div>
                         </div>
                       )}
 
-                      <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-                        <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
-                          <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                      <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
+                        <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100 dark:border-slate-700">
+                          <div className="w-9 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                             <i className="fa-solid fa-user"></i>
                           </div>
 
@@ -8103,19 +8068,19 @@ useEffect(() => {
                               Hasta Adı
                             </div>
 
-                            <div className="font-black text-lg text-slate-800 dark:text-white">
+                            <div className="font-black text-base text-slate-800 dark:text-white">
                               {formData.patientName}
                             </div>
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-1.5">
                           <div>
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                               Telefon & İletişim
                             </div>
 
-                            <div className="font-bold mt-1 text-slate-700 dark:text-slate-300 flex items-center gap-3">
+                            <div className="font-bold mt-1 text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                               <div>
                                 <i className="fa-solid fa-phone text-slate-400 mr-1"></i>
                                 {formData.phone || "-"}
@@ -8143,9 +8108,9 @@ useEffect(() => {
                                         "_blank"
                                       );
                                     }}
-                                    className="text-[10px] bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-lg hover:bg-emerald-200 transition shadow-sm flex items-center gap-1 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border dark:border-emerald-800"
+                                    className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg hover:bg-emerald-200 transition shadow-sm flex items-center gap-1 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border dark:border-emerald-800"
                                   >
-                                    <i className="fa-brands fa-whatsapp text-sm"></i>{" "}
+                                    <i className="fa-brands fa-whatsapp text-[13px]"></i>{" "}
                                     Hatırlat
                                   </button>
                                 )}
@@ -8187,11 +8152,11 @@ useEffect(() => {
                         </div>
                       </div>
 
-                      <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                      <div className="flex gap-1.5 pt-3 border-t border-slate-200 dark:border-slate-700">
                         <button
                           type="button"
                           onClick={handleDeleteAppointment}
-                          className="px-5 py-3.5 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition shadow-sm border border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50"
+                          className="px-2.5 py-2 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition shadow-sm border border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50"
                         >
                           <i className="fa-solid fa-trash"></i>
                         </button>
@@ -8199,7 +8164,7 @@ useEffect(() => {
                         <button
                           type="button"
                           onClick={() => setIsModalOpen(false)}
-                          className="flex-1 px-4 py-3.5 bg-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-300 transition shadow-sm dark:bg-slate-700 dark:text-slate-200"
+                          className="flex-1 px-2.5 py-2 bg-slate-200 text-slate-600 rounded-xl font-bold text-[13px] hover:bg-slate-300 transition shadow-sm dark:bg-slate-700 dark:text-slate-200"
                         >
                           Kapat
                         </button>
@@ -8207,9 +8172,9 @@ useEffect(() => {
                         <button
                           type="button"
                           onClick={() => setAptModalMode("edit")}
-                          className="flex-[2] px-4 py-3.5 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-xl hover:bg-indigo-700 transition"
+                          className="flex-[2] px-2.5 py-2 bg-indigo-600 text-white rounded-xl font-black text-[13px] shadow-xl hover:bg-indigo-700 transition"
                         >
-                          <i className="fa-solid fa-pen-to-square mr-2"></i>
+                          <i className="fa-solid fa-pen-to-square mr-1.5"></i>
                           Düzenle
                         </button>
                       </div>
@@ -8217,20 +8182,20 @@ useEffect(() => {
                   ) : (
                     <form
                       onSubmit={handleSaveAppointment}
-                      className="p-6 space-y-4 overflow-y-auto bg-white dark:bg-slate-800"
+                      className="p-3 space-y-2 overflow-y-auto bg-white dark:bg-slate-800"
                     >
                       {/* YENİ: Geçmiş Tarih Uyarısı */}
                       {activeSlotDate &&
                         new Date(
                           formatDateKey(activeSlotDate) + "T" + selectedSlot
                         ).getTime() < new Date().getTime() && (
-                          <div className="bg-amber-50 text-amber-700 p-4 rounded-2xl border border-amber-200 shadow-sm flex items-start gap-3 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/50">
-                            <i className="fa-solid fa-clock-rotate-left text-2xl"></i>
+                          <div className="bg-amber-50 text-amber-700 p-2.5 rounded-xl border border-amber-200 shadow-sm flex items-start gap-1.5 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/50">
+                            <i className="fa-solid fa-clock-rotate-left text-base"></i>
                             <div>
-                              <div className="font-black text-sm mb-1 uppercase tracking-wider">
+                              <div className="font-black text-[13px] mb-0.5 uppercase tracking-wider">
                                 Geçmiş Tarihli Kayıt
                               </div>
-                              <div className="text-sm font-semibold">
+                              <div className="text-[13px] font-semibold">
                                 Geçmiş bir tarih veya saat dilimi için işlem
                                 yapıyorsunuz. Lütfen tarihi kontrol edin.
                               </div>
@@ -8239,15 +8204,15 @@ useEffect(() => {
                         )}
 
                       {formData.anamnesis && (
-                        <div className="bg-rose-100 text-rose-700 p-4 rounded-2xl border shadow-sm flex items-start gap-3 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
-                          <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
+                        <div className="bg-rose-100 text-rose-700 p-2.5 rounded-xl border shadow-sm flex items-start gap-1.5 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
+                          <i className="fa-solid fa-triangle-exclamation text-base"></i>
 
                           <div>
-                            <div className="font-black text-sm mb-1 uppercase tracking-wider">
+                            <div className="font-black text-[13px] mb-0.5 uppercase tracking-wider">
                               Önemli Uyarı (Anamnez)
                             </div>
 
-                            <div className="text-sm font-semibold whitespace-pre-wrap">
+                            <div className="text-[13px] font-semibold whitespace-pre-wrap">
                               {formData.anamnesis}
                             </div>
                           </div>
@@ -8255,13 +8220,13 @@ useEffect(() => {
                       )}
 
                       <div className="relative group">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
                           Hasta Seç veya Adı Soyadı Yaz *
                         </label>
 
                         <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <i className="fa-regular fa-user text-slate-400 group-focus-within:text-indigo-500 transition-colors text-lg"></i>
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <i className="fa-regular fa-user text-slate-400 group-focus-within:text-indigo-500 transition-colors text-base"></i>
                           </div>
 
                           <input
@@ -8285,14 +8250,14 @@ useEffect(() => {
                                 );
                             }}
                             autoComplete="off"
-                            className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-black text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all dark:bg-slate-900 dark:text-white"
+                            className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-black text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all dark:bg-slate-900 dark:text-white"
                             placeholder="Örn: Ayşe Demir"
                           />
                         </div>
 
                         {patientSuggestions.length > 0 && (
-                          <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 dark:border-slate-700 shadow-2xl rounded-2xl z-50 max-h-56 overflow-y-auto overflow-hidden dark:bg-slate-800">
-                            <div className="p-2 bg-slate-50/80 backdrop-blur-sm text-[9px] font-black uppercase text-slate-400 tracking-wider text-center dark:bg-slate-900/80 border-b dark:border-slate-700 sticky top-0 z-10">
+                          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-100 dark:border-slate-700 shadow-2xl rounded-xl z-50 max-h-48 overflow-y-auto overflow-hidden dark:bg-slate-800">
+                            <div className="p-1.5 bg-slate-50/80 backdrop-blur-sm text-[9px] font-black uppercase text-slate-400 tracking-wider text-center dark:bg-slate-900/80 border-b dark:border-slate-700 sticky top-0 z-10">
                               Kayıtlı Hastalardan Seçin
                             </div>
 
@@ -8300,12 +8265,12 @@ useEffect(() => {
                               <div
                                 key={i}
                                 onClick={() => selectPatientSuggestion(p)}
-                                className="px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition-colors group dark:hover:bg-slate-750"
+                                className="px-2.5 py-1.5 border-b border-slate-50 dark:border-slate-700/50 hover:bg-indigo-50 cursor-pointer flex justify-between items-center transition-colors group dark:hover:bg-slate-750"
                               >
-                                <div className="font-black text-sm text-slate-700 group-hover:text-indigo-700 dark:text-slate-200 dark:group-hover:text-indigo-400 transition-colors">
+                                <div className="font-black text-[13px] text-slate-700 group-hover:text-indigo-700 dark:text-slate-200 dark:group-hover:text-indigo-400 transition-colors">
                                   {p.name}
                                 </div>
-                                <div className="text-[11px] text-slate-500 font-bold bg-white border border-slate-100 px-2 py-1 rounded-md shadow-sm dark:bg-slate-800 dark:border-slate-600">
+                                <div className="text-[11px] text-slate-500 font-bold bg-white border border-slate-100 px-1.5 py-0.5 rounded-md shadow-sm dark:bg-slate-800 dark:border-slate-600">
                                   <i className="fa-solid fa-phone mr-1 opacity-70"></i>
                                   {p.phone || "-"}
                                 </div>
@@ -8316,7 +8281,7 @@ useEffect(() => {
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
                           Planlanan İşlemler (Birden Fazla Seçilebilir)
                         </label>
                         {(() => {
@@ -8379,7 +8344,7 @@ useEffect(() => {
 
                           if (availablePlans.length > 0) {
                             return (
-                              <div className="max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 p-2 space-y-1.5 custom-scrollbar shadow-inner">
+                              <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 p-1.5 space-y-1 custom-scrollbar shadow-inner">
                                 {availablePlans.map((tx, idx) => {
                                   // Seçili mi kontrolü (Eski tekli kayıtlar için de geriye dönük uyumluluk)
                                   const isSelected =
@@ -8399,7 +8364,7 @@ useEffect(() => {
                                   return (
                                     <label
                                       key={idx}
-                                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
+                                      className={`flex items-center gap-1.5 p-1.5 rounded-lg cursor-pointer transition-all border ${
                                         isSelected
                                           ? "bg-indigo-50 border-indigo-200 dark:bg-indigo-900/40 dark:border-indigo-700 shadow-sm"
                                           : "bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-750"
@@ -8459,21 +8424,21 @@ useEffect(() => {
                                           }}
                                         />
                                         <div
-                                          className={`w-5 h-5 rounded-[6px] border-[1.5px] flex items-center justify-center transition-all ${
+                                          className={`w-4 h-4 rounded-[6px] border-[1.5px] flex items-center justify-center transition-all ${
                                             isSelected
                                               ? "bg-indigo-600 border-indigo-600 text-white"
                                               : "bg-white border-slate-300 dark:bg-slate-800 dark:border-slate-500"
                                           }`}
                                         >
                                           {isSelected && (
-                                            <i className="fa-solid fa-check text-[10px]"></i>
+                                            <i className="fa-solid fa-check text-[9px]"></i>
                                           )}
                                         </div>
                                       </div>
 
                                       <div className="flex flex-col flex-1 min-w-0">
                                         <div
-                                          className={`text-sm font-black truncate ${
+                                          className={`text-[13px] font-black truncate ${
                                             isSelected
                                               ? "text-indigo-800 dark:text-indigo-300"
                                               : "text-slate-700 dark:text-slate-200"
@@ -8498,8 +8463,8 @@ useEffect(() => {
                             );
                           } else {
                             return (
-                              <div className="text-xs text-slate-500 font-bold py-2 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 flex items-center gap-2 shadow-sm">
-                                <i className="fa-solid fa-circle-info text-slate-400 text-lg"></i>
+                              <div className="text-[11px] text-slate-500 font-bold py-1.5 bg-slate-50 rounded-xl px-2.5 py-2 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 flex items-center gap-1 shadow-sm">
+                                <i className="fa-solid fa-circle-info text-slate-400 text-base"></i>
                                 Bu hasta için planlanan tüm işlemler randevulara
                                 bağlanmış veya henüz plan oluşturulmamış.
                               </div>
@@ -8508,13 +8473,13 @@ useEffect(() => {
                         })()}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-5">
+                      <div className="grid grid-cols-2 gap-1.5">
                         <div className="relative group">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
                             İşlem Süresi
                           </label>
                           <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                               <i className="fa-solid fa-hourglass-half text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                             </div>
                             <select
@@ -8525,7 +8490,7 @@ useEffect(() => {
                                   duration: e.target.value,
                                 })
                               }
-                              className="w-full pl-10 pr-10 py-3.5 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm dark:bg-slate-900 dark:text-white"
+                              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold text-slate-700 outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm dark:bg-slate-900 dark:text-white"
                             >
                               <option value="30">30 Dakika</option>
                               <option value="45">45 Dakika</option>
@@ -8533,14 +8498,14 @@ useEffect(() => {
                               <option value="90">1.5 Saat</option>
                               <option value="120">2 Saat+</option>
                             </select>
-                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                               <i className="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i>
                             </div>
                           </div>
                         </div>
 
                         <div className="relative group">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 tracking-wider">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
                             Durum
                           </label>
                           <div className="relative">
@@ -8552,7 +8517,7 @@ useEffect(() => {
                                   status: e.target.value,
                                 })
                               }
-                              className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-black text-slate-700 outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm dark:bg-slate-900 dark:text-white"
+                              className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-black text-slate-700 outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all shadow-sm dark:bg-slate-900 dark:text-white"
                             >
                               <option value="Yeni Kayıt">
                                 Yeni Kayıt (Bekliyor)
@@ -8561,7 +8526,7 @@ useEffect(() => {
                               <option value="Gelmedi">Gelmedi</option>
                               <option value="İptal">İptal Edildi</option>
                             </select>
-                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none">
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                               <i className="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i>
                             </div>
                           </div>
@@ -8569,11 +8534,11 @@ useEffect(() => {
                       </div>
 
                       <div>
-                        <div className="flex justify-between items-end mb-2">
+                        <div className="flex justify-between items-end mb-1.5">
                           <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                             Notlar
                           </label>
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-1">
                             <button
                               type="button"
                               onClick={() =>
@@ -8585,7 +8550,7 @@ useEffect(() => {
                                       : "") + "Ağrı Şikayeti",
                                 })
                               }
-                              className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                              className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-lg font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                             >
                               Ağrı
                             </button>
@@ -8600,7 +8565,7 @@ useEffect(() => {
                                       : "") + "Kontrol Randevusu",
                                 })
                               }
-                              className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                              className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-lg font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                             >
                               Kontrol
                             </button>
@@ -8615,7 +8580,7 @@ useEffect(() => {
                                       : "") + "Anestezi İstemiyor",
                                 })
                               }
-                              className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-lg font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                              className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-lg font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                             >
                               Anestezi Yok
                             </button>
@@ -8628,23 +8593,23 @@ useEffect(() => {
                           onChange={(e) =>
                             setFormData({ ...formData, notes: e.target.value })
                           }
-                          className="w-full p-4 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 resize-none outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all dark:bg-slate-900 dark:text-white"
+                          className="w-full p-2 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-semibold text-slate-700 resize-none outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all dark:bg-slate-900 dark:text-white"
                           placeholder="Randevu ile ilgili notlar..."
                         />
                       </div>
 
-                      <div className="flex gap-4 pt-6 border-t border-slate-100 dark:border-slate-700/50 mt-2">
+                      <div className="flex gap-1.5 pt-4 border-t border-slate-100 dark:border-slate-700/50 mt-1.5">
                         <button
                           type="button"
                           onClick={() => setIsModalOpen(false)}
-                          className="flex-1 px-4 py-3.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors shadow-sm dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                          className="flex-1 px-2.5 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-[13px] hover:bg-slate-200 transition-colors shadow-sm dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                         >
                           İptal Kapat
                         </button>
 
                         <button
                           type="submit"
-                          className="flex-[2] px-4 py-3.5 bg-[#0f172a] text-white rounded-xl font-black text-sm shadow-lg hover:shadow-xl hover:-translate-y-0.5 hover:bg-slate-800 transition-all dark:bg-indigo-600 hover:dark:bg-indigo-700"
+                          className="flex-[2] px-2.5 py-2 bg-[#0f172a] text-white rounded-xl font-black text-[13px] shadow-lg hover:shadow-xl hover:-translate-y-0.5 hover:bg-slate-800 transition-all dark:bg-indigo-600 hover:dark:bg-indigo-700"
                         >
                           Değişiklikleri Kaydet
                         </button>
@@ -8674,34 +8639,34 @@ useEffect(() => {
                   <div
                     className={
                       isSplitMode
-                        ? `fixed top-20 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full sm:w-[400px] xl:w-[450px] ${
+                        ? `fixed top-16 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full sm:w-[360px] xl:w-[400px] ${
                             isSidebarOpen
-                              ? "left-0 lg:left-[256px]"
-                              : "left-0 sm:left-[76px]"
+                              ? "left-0 lg:left-[224px]"
+                              : "left-0 sm:left-[68px]"
                           }`
-                        : "fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300"
+                        : "fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 transition-all duration-300"
                     }
                   >
                     <div
                       className={
                         isSplitMode
                           ? "w-full h-full flex flex-col bg-white dark:bg-slate-800 overflow-hidden relative"
-                          : "bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh] max-h-[900px] animate-pop relative"
+                          : "bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col h-[90vh] max-h-[850px] animate-pop relative"
                       }
                     >
-                      <div className="px-4 sm:px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0 no-print">
-                        <h3 className="font-black text-sm sm:text-lg flex items-center gap-2 truncate pr-2">
+                      <div className="px-3 py-2 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0 no-print">
+                        <h3 className="font-black text-[13px] sm:text-base flex items-center gap-1 truncate pr-1.5">
                           <i className="fa-regular fa-folder-open text-indigo-400 shrink-0"></i>{" "}
                           <span className="truncate">{patientForm.name}</span>
                         </h3>
 
-                        <div className="flex gap-2 items-center shrink-0">
+                        <div className="flex gap-1 items-center shrink-0">
                           <button
                             onClick={() => {
                               setIsSplitMode(!isSplitMode);
                               if (!isSplitMode) setActiveTab("calendar");
                             }}
-                            className={`hidden sm:flex px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition items-center gap-1.5 shadow-sm mr-1 ${
+                            className={`hidden sm:flex px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition items-center gap-1 shadow-sm mr-0.5 ${
                               isSplitMode
                                 ? "bg-indigo-500 text-white shadow-indigo-500/30 border border-indigo-600"
                                 : "bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700 hover:text-white"
@@ -8714,7 +8679,7 @@ useEffect(() => {
                           {patientForm.id && !isSplitMode && (
                             <button
                               onClick={handleDeletePatient}
-                              className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition mr-1 shadow-sm"
+                              className="bg-rose-500 hover:bg-rose-600 text-white px-2.5 py-1 rounded-lg text-[11px] font-bold transition mr-0.5 shadow-sm"
                             >
                               <i className="fa-solid fa-trash mr-1"></i>Sil
                             </button>
@@ -8725,106 +8690,106 @@ useEffect(() => {
                               setIsPatientModalOpen(false);
                               setIsSplitMode(false);
                             }}
-                            className="text-slate-400 hover:text-white transition w-8 h-8 flex items-center justify-center bg-slate-800 rounded-lg hover:bg-rose-500 hover:text-white"
+                            className="text-slate-400 hover:text-white transition w-7 h-7 flex items-center justify-center bg-slate-800 rounded-lg hover:bg-rose-500 hover:text-white"
                           >
-                            <i className="fa-solid fa-xmark text-lg"></i>
+                            <i className="fa-solid fa-xmark text-base"></i>
                           </button>
                         </div>
                       </div>
 
                       {/* YENİ: iOS Stili Segmented Control Sekmeler */}
-                      <div className="px-6 py-4 bg-white dark:bg-slate-800 border-b dark:border-slate-700 shrink-0 no-print">
-                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl gap-1 overflow-x-auto custom-scrollbar shadow-inner">
+                      <div className="px-2.5 py-2 bg-white dark:bg-slate-800 border-b dark:border-slate-700 shrink-0 no-print">
+                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl gap-0.5 overflow-x-auto custom-scrollbar shadow-inner">
                           <button
                             onClick={() => setPatientModalTab("info")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
+                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "info"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             }`}
                           >
-                            <i className="fa-regular fa-address-card mr-1.5"></i> Kimlik & Randevu
+                            <i className="fa-regular fa-address-card mr-1"></i> Kimlik & Randevu
                           </button>
 
                           <button
                             onClick={() => setPatientModalTab("finance")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
+                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "finance"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             }`}
                           >
-                            <i className="fa-solid fa-money-bill-wave mr-1.5"></i> Hesap Özeti
+                            <i className="fa-solid fa-money-bill-wave mr-1"></i> Hesap Özeti
                           </button>
 
                           <button
                             onClick={() => setPatientModalTab("plan")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
+                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "plan"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             }`}
                           >
-                            <i className="fa-solid fa-tooth mr-1.5"></i> Planlama
+                            <i className="fa-solid fa-tooth mr-1"></i> Planlama
                           </button>
 
                           <button
                             onClick={() => setPatientModalTab("history")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
+                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "history"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             }`}
                           >
-                            <i className="fa-solid fa-notes-medical mr-1.5"></i> Klinik Geçmiş
+                            <i className="fa-solid fa-notes-medical mr-1"></i> Klinik Geçmiş
                           </button>
                         </div>
                       </div>
 
                       {patientModalTab === "info" && (
                         <div
-                          className={`flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-6 bg-slate-50/50 dark:bg-slate-900/50 ${
+                          className={`flex-1 overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-900/50 ${
                             isSplitMode ? "" : "lg:flex-row"
                           }`}
                         >
-                          <div className="flex-[3] space-y-4">
+                          <div className="flex-[3] space-y-1.5">
                             {patientForm.anamnesis && (
-                              <div className="bg-rose-100 text-rose-700 p-4 rounded-2xl border shadow-sm animate-pop flex items-start gap-3 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
-                                <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
+                              <div className="bg-rose-100 text-rose-700 p-2.5 rounded-xl border shadow-sm animate-pop flex items-start gap-1.5 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
+                                <i className="fa-solid fa-triangle-exclamation text-base"></i>
 
                                 <div>
-                                  <div className="font-black text-sm mb-1 uppercase tracking-wider">
+                                  <div className="font-black text-[13px] mb-0.5 uppercase tracking-wider">
                                     Önemli Uyarı (Anamnez)
                                   </div>
 
-                                  <div className="text-sm font-semibold whitespace-pre-wrap">
+                                  <div className="text-[13px] font-semibold whitespace-pre-wrap">
                                     {patientForm.anamnesis}
                                   </div>
                                 </div>
                               </div>
                             )}
 
-                            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                              <h4 className="font-black text-slate-800 mb-3 border-b border-slate-100 pb-2 text-sm uppercase tracking-wider dark:text-white dark:border-slate-700">
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                              <h4 className="font-black text-slate-800 mb-2 border-b border-slate-100 pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
                                 Kimlik & İletişim
                               </h4>
 
-                              <form className="space-y-4">
+                              <form className="space-y-1.5">
                                 <div
-                                  className={`grid gap-4 ${
+                                  className={`grid gap-2 ${
                                     isSplitMode ? "grid-cols-1" : "grid-cols-2"
                                   }`}
                                 >
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
                                       Ad Soyad *
                                     </label>
 
@@ -8838,16 +8803,16 @@ useEffect(() => {
                                           name: e.target.value,
                                         })
                                       }
-                                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                      className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
                                     />
                                   </div>
 
                                   <div>
-                                    <div className="flex justify-between items-center mb-1">
+                                    <div className="flex justify-between items-center mb-0.5">
                                       <label className="block text-[10px] font-bold text-slate-500 uppercase">
                                         TC Kimlik / Pasaport No
                                       </label>
-                                      <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 cursor-pointer">
+                                      <label className="flex items-center gap-1 text-[10px] font-bold text-slate-500 cursor-pointer">
                                         <input
                                           type="checkbox"
                                           checked={
@@ -8887,17 +8852,17 @@ useEffect(() => {
                                             tc: val,
                                           });
                                         }}
-                                        className="w-full p-3 pr-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                        className="w-full p-1.5 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
                                       />
                                       {patientForm.tc &&
                                         !patientForm.isForeign && (
-                                          <div className="absolute right-3 top-3.5">
+                                          <div className="absolute right-2.5 top-2">
                                             {(() => {
                                               const tc = patientForm.tc;
                                               if (tc.length < 11) {
                                                 return (
                                                   <i
-                                                    className="fa-solid fa-triangle-exclamation text-amber-500 text-lg"
+                                                    className="fa-solid fa-triangle-exclamation text-amber-500 text-base"
                                                     title="TC 11 hane olmalıdır"
                                                   ></i>
                                                 );
@@ -8914,7 +8879,7 @@ useEffect(() => {
                                               if (tc[0] === "0" || isAllSame)
                                                 return (
                                                   <i
-                                                    className="fa-solid fa-circle-xmark text-rose-500 text-lg"
+                                                    className="fa-solid fa-circle-xmark text-rose-500 text-base"
                                                     title="Geçersiz TC"
                                                   ></i>
                                                 );
@@ -8945,14 +8910,14 @@ useEffect(() => {
                                               ) {
                                                 return (
                                                   <i
-                                                    className="fa-solid fa-circle-check text-emerald-500 text-lg"
+                                                    className="fa-solid fa-circle-check text-emerald-500 text-base"
                                                     title="Geçerli TC"
                                                   ></i>
                                                 );
                                               }
                                               return (
                                                 <i
-                                                  className="fa-solid fa-circle-xmark text-rose-500 text-lg"
+                                                  className="fa-solid fa-circle-xmark text-rose-500 text-base"
                                                   title="Geçersiz TC Algoritması"
                                                 ></i>
                                               );
@@ -8961,9 +8926,9 @@ useEffect(() => {
                                         )}
                                       {patientForm.tc &&
                                         patientForm.isForeign && (
-                                          <div className="absolute right-3 top-3.5">
+                                          <div className="absolute right-2.5 top-2">
                                             <i
-                                              className="fa-solid fa-earth-americas text-indigo-400 text-lg"
+                                              className="fa-solid fa-earth-americas text-indigo-400 text-base"
                                               title="Yurt Dışı Hasta Belgesi"
                                             ></i>
                                           </div>
@@ -8973,12 +8938,12 @@ useEffect(() => {
                                 </div>
 
                                 <div
-                                  className={`grid gap-4 ${
+                                  className={`grid gap-2 ${
                                     isSplitMode ? "grid-cols-1" : "grid-cols-3"
                                   }`}
                                 >
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
                                       Yaş
                                     </label>
 
@@ -8992,7 +8957,7 @@ useEffect(() => {
                                           age: e.target.value,
                                         })
                                       }
-                                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                      className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
                                     />
                                   </div>
 
@@ -9001,7 +8966,7 @@ useEffect(() => {
                                       isSplitMode ? "col-span-1" : "col-span-2"
                                     }
                                   >
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
                                       Telefon
                                     </label>
 
@@ -9063,13 +9028,13 @@ useEffect(() => {
                                           phone: formatted,
                                         });
                                       }}
-                                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 transition-colors"
+                                      className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 transition-colors"
                                     />
                                   </div>
                                 </div>
 
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
                                     Cinsiyet
                                   </label>
 
@@ -9082,7 +9047,7 @@ useEffect(() => {
                                         gender: e.target.value,
                                       })
                                     }
-                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                    className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none dark:bg-slate-900 dark:text-white dark:border-slate-700"
                                   >
                                     <option>Belirtilmemiş</option>
 
@@ -9093,7 +9058,7 @@ useEffect(() => {
                                 </div>
 
                                 <div>
-                                  <label className="block text-[10px] font-black text-rose-500 uppercase mb-1 tracking-wider">
+                                  <label className="block text-[10px] font-black text-rose-500 uppercase mb-0.5 tracking-wider">
                                     Sistemik Hastalık / Anamnez / Alerji
                                   </label>
 
@@ -9106,28 +9071,28 @@ useEffect(() => {
                                         anamnesis: e.target.value,
                                       })
                                     }
-                                    className="w-full p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm font-bold text-slate-800 resize-none outline-none focus:border-rose-400 placeholder-slate-400 dark:bg-rose-900/20 dark:text-white dark:border-rose-800/50 transition-colors"
+                                    className="w-full p-1.5 bg-rose-50 border border-rose-200 rounded-xl text-[13px] font-bold text-slate-800 resize-none outline-none focus:border-rose-400 placeholder-slate-400 dark:bg-rose-900/20 dark:text-white dark:border-rose-800/50 transition-colors"
                                     placeholder="Özel bir not veya uyarı girebilirsiniz..."
                                   ></textarea>
 
                                   {/* Katlanabilir Modern Anamnez Menüsü */}
-                                  <details className="group border border-rose-200 dark:border-rose-800/60 rounded-xl bg-white dark:bg-slate-800 mt-2 shadow-sm open:shadow-md transition-all">
-                                    <summary className="px-4 py-3 font-bold text-xs text-rose-600 dark:text-rose-400 cursor-pointer list-none flex justify-between items-center outline-none select-none hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors">
-                                      <span className="flex items-center gap-2">
-                                        <i className="fa-solid fa-notes-medical text-lg"></i>{" "}
+                                  <details className="group border border-rose-200 dark:border-rose-800/60 rounded-xl bg-white dark:bg-slate-800 mt-1.5 shadow-sm open:shadow-md transition-all">
+                                    <summary className="px-2.5 py-1.5 font-bold text-[11px] text-rose-600 dark:text-rose-400 cursor-pointer list-none flex justify-between items-center outline-none select-none hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors">
+                                      <span className="flex items-center gap-1">
+                                        <i className="fa-solid fa-notes-medical text-base"></i>{" "}
                                         Literatürden Hızlı Ekle
                                       </span>
                                       <i className="fa-solid fa-chevron-down group-open:rotate-180 transition-transform duration-300"></i>
                                     </summary>
 
-                                    <div className="p-4 border-t border-rose-100 dark:border-rose-800/50 max-h-[260px] overflow-y-auto custom-scrollbar flex flex-col gap-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-b-xl">
+                                    <div className="p-2 border-t border-rose-100 dark:border-rose-800/50 max-h-[220px] overflow-y-auto custom-scrollbar flex flex-col gap-1.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-b-xl">
                                       {Object.entries(ANAMNESIS_CATEGORIES).map(
                                         ([catName, options]) => (
                                           <div key={catName}>
-                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">
+                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-0.5">
                                               {catName}
                                             </div>
-                                            <div className="flex flex-wrap gap-1.5">
+                                            <div className="flex flex-wrap gap-1">
                                               {options.map((opt) => {
                                                 const isSelected =
                                                   patientForm.anamnesis &&
@@ -9144,7 +9109,7 @@ useEffect(() => {
                                                         "patient"
                                                       )
                                                     }
-                                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1.5 ${
+                                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
                                                       isSelected
                                                         ? "bg-rose-600 text-white border-rose-700 shadow-sm"
                                                         : "bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:text-rose-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-600 dark:hover:text-rose-400"
@@ -9170,10 +9135,10 @@ useEffect(() => {
                             </div>
                           </div>
 
-                          <div className="flex-[2] flex flex-col gap-4">
-                            <div className="flex-1 bg-white p-4 rounded-2xl border shadow-sm flex flex-col h-[280px] dark:bg-slate-800 dark:border-slate-700">
-                              <div className="flex justify-between items-center mb-2 border-b border-slate-100 dark:border-slate-700 pb-2">
-                                <h4 className="font-black text-indigo-700 text-xs uppercase tracking-wider flex items-center gap-2 dark:text-indigo-400">
+                          <div className="flex-[2] flex flex-col gap-1.5">
+                            <div className="flex-1 bg-white p-2.5 rounded-xl border shadow-sm flex flex-col h-[240px] dark:bg-slate-800 dark:border-slate-700">
+                              <div className="flex justify-between items-center mb-1.5 border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                                <h4 className="font-black text-indigo-700 text-[11px] uppercase tracking-wider flex items-center gap-1 dark:text-indigo-400">
                                   <i className="fa-solid fa-calendar-check"></i>{" "}
                                   Planlanan Randevular ({future.length})
                                 </h4>
@@ -9190,21 +9155,21 @@ useEffect(() => {
                                       );
                                     }, 300);
                                   }}
-                                  className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 px-2 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 shadow-sm"
+                                  className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 px-1.5 py-0.5 rounded-lg font-bold transition flex items-center gap-1 shadow-sm"
                                 >
                                   <i className="fa-solid fa-calendar-plus"></i>{" "}
                                   Takvimden Ekle
                                 </button>
                               </div>
 
-                              <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+                              <div className="flex-1 overflow-y-auto pr-0.5 space-y-1.5">
                                 {future.length > 0 ? (
                                   future.map((a, idx) => (
                                     <div
                                       key={idx}
-                                      className="bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100 text-xs dark:bg-indigo-900/30 dark:border-indigo-800/50"
+                                      className="bg-indigo-50/50 p-2 rounded-xl border border-indigo-100 text-[11px] dark:bg-indigo-900/30 dark:border-indigo-800/50"
                                     >
-                                      <div className="flex justify-between items-center mb-1">
+                                      <div className="flex justify-between items-center mb-0.5">
                                         <span className="font-black text-indigo-900 dark:text-indigo-300">
                                           <i className="fa-regular fa-clock mr-1"></i>
                                           {a.dateStr} - {a.timeStr}
@@ -9214,7 +9179,7 @@ useEffect(() => {
                                       </div>
 
                                       <div className="font-bold text-slate-700 dark:text-slate-300 flex justify-between">
-                                        <span className="truncate max-w-[150px]">
+                                        <span className="truncate max-w-[130px]">
                                           {renderTreatmentText(a)}
                                         </span>
 
@@ -9225,29 +9190,29 @@ useEffect(() => {
                                     </div>
                                   ))
                                 ) : (
-                                  <div className="text-center text-slate-400 font-medium text-xs py-4">
+                                  <div className="text-center text-slate-400 font-medium text-[11px] py-2">
                                     Gelecek randevusu yok.
                                   </div>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex-1 bg-white p-4 rounded-2xl border shadow-sm flex flex-col h-[280px] dark:bg-slate-800 dark:border-slate-700">
-                              <h4 className="font-black text-slate-600 mb-2 border-b pb-2 text-xs uppercase tracking-wider flex items-center gap-2 dark:text-white dark:border-slate-700">
+                            <div className="flex-1 bg-white p-2.5 rounded-xl border shadow-sm flex flex-col h-[240px] dark:bg-slate-800 dark:border-slate-700">
+                              <h4 className="font-black text-slate-600 mb-1.5 border-b pb-1.5 text-[11px] uppercase tracking-wider flex items-center gap-1 dark:text-white dark:border-slate-700">
                                 <i className="fa-solid fa-clock-rotate-left"></i>{" "}
                                 Geçmiş Randevular ({past.length})
                               </h4>
 
                               {/* YENİ: Geçmiş Randevular Zaman Tüneli (Timeline) */}
-                              <div className="flex-1 overflow-y-auto pr-2 relative mt-4 custom-scrollbar px-2">
+                              <div className="flex-1 overflow-y-auto pr-1.5 relative mt-2 custom-scrollbar px-1.5">
                                 {past.length > 0 ? (
-                                  <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent dark:before:via-slate-700">
+                                  <div className="relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent dark:before:via-slate-700">
                                     {past.map((a, idx) => (
                                       <div
                                         key={idx}
-                                        className="relative flex items-center justify-start group mb-6 pl-12"
+                                        className="relative flex items-center justify-start group mb-2 pl-10"
                                       >
-                                        <div className="absolute left-1.5 flex items-center justify-center w-8 h-8 rounded-full border-4 border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 group-hover:text-white transition-colors duration-300 text-slate-500 shadow z-10">
+                                        <div className="absolute left-0.5 flex items-center justify-center w-6 h-6 rounded-full border-4 border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 group-hover:text-white transition-colors duration-300 text-slate-500 shadow z-10">
                                           <i
                                             className={`fa-solid ${
                                               a.status === "Geldi"
@@ -9255,20 +9220,20 @@ useEffect(() => {
                                                 : a.status === "Gelmedi"
                                                 ? "fa-xmark text-rose-500 group-hover:text-white"
                                                 : "fa-calendar-check"
-                                            } text-[10px]`}
+                                            } text-[9px]`}
                                           ></i>
                                         </div>
-                                        <div className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 shadow-sm group-hover:shadow-md transition-shadow relative before:absolute before:top-4 before:right-full before:w-3 before:h-0.5 before:bg-slate-200 dark:before:bg-slate-700 group-hover:before:bg-indigo-300">
-                                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
-                                            <time className="font-bold text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded">
+                                        <div className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 shadow-sm group-hover:shadow-md transition-shadow relative before:absolute before:top-2.5 before:right-full before:w-2.5 before:h-0.5 before:bg-slate-200 dark:before:bg-slate-700 group-hover:before:bg-indigo-300">
+                                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1.5 gap-1 border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                                            <time className="font-bold text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">
                                               {a.dateStr} • {a.timeStr}
                                             </time>
                                             {getStatusBadge(a.status)}
                                           </div>
-                                          <h4 className="font-black text-slate-800 dark:text-slate-200 text-sm mb-1 mt-2">
+                                          <h4 className="font-black text-slate-800 dark:text-slate-200 text-[13px] mb-0.5 mt-1">
                                             {renderTreatmentText(a)}
                                           </h4>
-                                          <div className="text-[10px] font-bold text-slate-400 mt-2">
+                                          <div className="text-[10px] font-bold text-slate-400 mt-1.5">
                                             <i className="fa-solid fa-user-doctor mr-1"></i>{" "}
                                             {globalData.doctorProfiles?.[
                                               a.docId
@@ -9279,9 +9244,9 @@ useEffect(() => {
                                     ))}
                                   </div>
                                 ) : (
-                                  <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-10">
-                                    <i className="fa-solid fa-clock-rotate-left text-3xl text-slate-300 dark:text-slate-600 mb-2"></i>
-                                    <span className="text-slate-500 dark:text-slate-400 font-bold text-xs">
+                                  <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-8">
+                                    <i className="fa-solid fa-clock-rotate-left text-lg text-slate-300 dark:text-slate-600 mb-1.5"></i>
+                                    <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px]">
                                       Geçmiş randevusu bulunmuyor.
                                     </span>
                                   </div>
@@ -9293,27 +9258,27 @@ useEffect(() => {
                       )}
 
                       {patientModalTab === "finance" && (
-                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 flex justify-center dark:bg-slate-900/50">
-                          <div className="w-full flex flex-col lg:flex-row gap-6">
-                            <div className="flex-[3] flex flex-col gap-6">
-                              <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col max-h-[400px] dark:bg-slate-800 dark:border-slate-700">
-                                <h4 className="font-black text-slate-800 mb-4 border-b pb-3 text-sm uppercase tracking-wider dark:text-white dark:border-slate-700">
+                        <div className="flex-1 overflow-y-auto p-2.5 bg-slate-50/50 flex justify-center dark:bg-slate-900/50">
+                          <div className="w-full flex flex-col lg:flex-row gap-2">
+                            <div className="flex-[3] flex flex-col gap-2">
+                              <div className="bg-white p-2.5 rounded-xl border shadow-sm flex flex-col max-h-[350px] dark:bg-slate-800 dark:border-slate-700">
+                                <h4 className="font-black text-slate-800 mb-2 border-b pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
                                   Uygulanan/Planlanan Borç Yaratan İşlemler
                                 </h4>
 
-                                <div className="overflow-y-auto flex-1 pr-2 space-y-2">
+                                <div className="overflow-y-auto flex-1 pr-1.5 space-y-1.5">
                                   {fin.treatments.length > 0 ? (
                                     fin.treatments.map((tx, idx) => (
                                       <div
                                         key={idx}
-                                        className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border dark:bg-slate-900 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition group"
+                                        className="flex justify-between items-center bg-slate-50 p-1.5 rounded-xl border dark:bg-slate-900 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition group"
                                       >
                                         <div>
-                                          <div className="font-black text-slate-800 text-sm dark:text-slate-200">
+                                          <div className="font-black text-slate-800 text-[13px] dark:text-slate-200">
                                             {tx.treatment}
                                           </div>
 
-                                          <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                                          <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
                                             <span>
                                               <i className="fa-regular fa-calendar mr-1"></i>
 
@@ -9328,9 +9293,9 @@ useEffect(() => {
                                           </div>
                                         </div>
 
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1.5">
                                           {editingTxId === tx.id ? (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1">
                                               <input
                                                 type="number"
                                                 value={editingTxPrice}
@@ -9339,7 +9304,7 @@ useEffect(() => {
                                                     e.target.value
                                                   )
                                                 }
-                                                className="w-20 px-2 py-1 text-sm font-bold border rounded outline-none dark:bg-slate-800 dark:text-white"
+                                                className="w-16 px-1.5 py-0.5 text-[13px] font-bold border rounded outline-none dark:bg-slate-800 dark:text-white"
                                                 autoFocus
                                               />
 
@@ -9355,7 +9320,7 @@ useEffect(() => {
                                                     tx.docId
                                                   )
                                                 }
-                                                className="text-emerald-600 bg-emerald-50 px-2 py-1 rounded hover:bg-emerald-100 transition"
+                                                className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded hover:bg-emerald-100 transition"
                                               >
                                                 <i className="fa-solid fa-check"></i>
                                               </button>
@@ -9364,7 +9329,7 @@ useEffect(() => {
                                                 onClick={() =>
                                                   setEditingTxId(null)
                                                 }
-                                                className="text-slate-500 bg-slate-200 px-2 py-1 rounded hover:bg-slate-300 transition"
+                                                className="text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded hover:bg-slate-300 transition"
                                               >
                                                 <i className="fa-solid fa-xmark"></i>
                                               </button>
@@ -9391,7 +9356,7 @@ useEffect(() => {
                                       </div>
                                     ))
                                   ) : (
-                                    <div className="text-center text-slate-400 font-medium text-sm py-4">
+                                    <div className="text-center text-slate-400 font-medium text-[13px] py-2">
                                       Ücret girilmiş kayıt bulunmuyor.
                                     </div>
                                   )}
@@ -9400,12 +9365,12 @@ useEffect(() => {
 
                               <form
                                 onSubmit={handleAddPayment}
-                                className="bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner flex flex-col gap-4"
+                                className="bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner flex flex-col gap-1.5"
                               >
-                                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-700">
-                                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-black">
-                                    <i className="fa-solid fa-cash-register text-xl"></i>
-                                    <span className="uppercase text-sm tracking-wider">
+                                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
+                                  <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-black">
+                                    <i className="fa-solid fa-cash-register text-base"></i>
+                                    <span className="uppercase text-[13px] tracking-wider">
                                       Tahsilat İşlemi
                                     </span>
                                   </div>
@@ -9413,16 +9378,16 @@ useEffect(() => {
                                     <button
                                       type="button"
                                       onClick={() => setPaymentInput(fin.debt)}
-                                      className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-200 transition"
+                                      className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg font-bold hover:bg-emerald-200 transition"
                                     >
                                       Kalanı Kapat ({fin.debt} ₺)
                                     </button>
                                   )}
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                                       Alınan Tutar
                                     </label>
                                     <div className="relative">
@@ -9434,17 +9399,17 @@ useEffect(() => {
                                         onChange={(e) =>
                                           setPaymentInput(e.target.value)
                                         }
-                                        className="w-full pl-4 pr-10 py-3 border border-slate-300 dark:border-slate-600 rounded-xl text-lg font-black bg-white dark:bg-slate-800 outline-none focus:border-emerald-500 text-slate-800 dark:text-white shadow-sm"
+                                        className="w-full pl-3.5 pr-9 py-1.5 border border-slate-300 dark:border-slate-600 rounded-xl text-base font-black bg-white dark:bg-slate-800 outline-none focus:border-emerald-500 text-slate-800 dark:text-white shadow-sm"
                                       />
-                                      <i className="fa-solid fa-turkish-lira-sign absolute right-4 top-4 text-slate-400"></i>
+                                      <i className="fa-solid fa-turkish-lira-sign absolute right-3.5 top-2.5 text-slate-400"></i>
                                     </div>
                                   </div>
 
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                                       Ödeme Yöntemi
                                     </label>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-1">
                                       {[
                                         "Nakit",
                                         "Kredi Kartı",
@@ -9457,24 +9422,24 @@ useEffect(() => {
                                           onClick={() =>
                                             setPaymentMethod(method)
                                           }
-                                          className={`flex-1 py-3 text-xs font-bold rounded-xl border transition-all ${
+                                          className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl border transition-all ${
                                             paymentMethod === method
                                               ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
                                               : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
                                           }`}
                                         >
                                           {method === "Nakit" && (
-                                            <i className="fa-solid fa-money-bill-wave mr-1"></i>
+                                            <i className="fa-solid fa-money-bill-wave mr-0.5"></i>
                                           )}
                                           {method === "Kredi Kartı" && (
-                                            <i className="fa-solid fa-credit-card mr-1"></i>
+                                            <i className="fa-solid fa-credit-card mr-0.5"></i>
                                           )}
                                           {method === "Havale" && (
-                                            <i className="fa-solid fa-building-columns mr-1"></i>
+                                            <i className="fa-solid fa-building-columns mr-0.5"></i>
                                           )}
                                           {/* YENİ: İndirim İkonu */}
                                           {method === "İndirim" && (
-                                            <i className="fa-solid fa-percent mr-1"></i>
+                                            <i className="fa-solid fa-percent mr-0.5"></i>
                                           )}
                                           {method}
                                         </button>
@@ -9485,24 +9450,24 @@ useEffect(() => {
 
                                 <button
                                   type="submit"
-                                  className="w-full mt-2 bg-emerald-500 text-white py-3.5 rounded-xl font-black shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition"
+                                  className="w-full mt-1.5 bg-emerald-500 text-white py-2 rounded-xl font-black shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition"
                                 >
                                   Ödemeyi Onayla ve Kaydet
                                 </button>
                               </form>
                             </div>
 
-                            <div className="flex-[2] flex flex-col gap-6">
-                              <div className="bg-white p-6 rounded-2xl border shadow-sm shrink-0 dark:bg-slate-800 dark:border-slate-700">
-                                <h4 className="font-black text-slate-800 mb-5 border-b pb-3 text-sm uppercase tracking-wider dark:text-white dark:border-slate-700">
+                            <div className="flex-[2] flex flex-col gap-2">
+                              <div className="bg-white p-2.5 rounded-xl border shadow-sm shrink-0 dark:bg-slate-800 dark:border-slate-700">
+                                <h4 className="font-black text-slate-800 mb-2 border-b pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
                                   Hesap Özeti
                                 </h4>
 
                                 {/* YENİ: Hesap Özeti ve İlerleme Çubuğu (Progress Bar) */}
-                                <div className="space-y-4">
+                                <div className="space-y-1.5">
                                   <div className="flex justify-between text-base items-center">
-                                    <span className="text-slate-500 font-bold dark:text-slate-400 flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full bg-slate-800 dark:bg-white"></div>
+                                    <span className="text-slate-500 font-bold dark:text-slate-400 flex items-center gap-1">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-slate-800 dark:bg-white"></div>
                                       Fatura Edilen:
                                     </span>
                                     <span className="font-black text-slate-800 dark:text-white">
@@ -9512,8 +9477,8 @@ useEffect(() => {
                                   </div>
 
                                   <div className="flex justify-between text-base items-center">
-                                    <span className="text-slate-500 font-bold dark:text-slate-400 flex items-center gap-2">
-                                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    <span className="text-slate-500 font-bold dark:text-slate-400 flex items-center gap-1">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                                       Yapılan Tahsilat:
                                     </span>
                                     <span className="font-black text-emerald-600 dark:text-emerald-400">
@@ -9523,8 +9488,8 @@ useEffect(() => {
 
                                   {/* İlerleme Çubuğu Grafiği */}
                                   {fin.totalBilled > 0 && (
-                                    <div className="py-2">
-                                      <div className="flex justify-between text-[10px] font-black text-slate-400 mb-1">
+                                    <div className="py-1.5">
+                                      <div className="flex justify-between text-[10px] font-black text-slate-400 mb-0.5">
                                         <span>Tahsilat Oranı</span>
                                         <span className="text-emerald-600">
                                           {Math.round(
@@ -9534,9 +9499,9 @@ useEffect(() => {
                                           %
                                         </span>
                                       </div>
-                                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden shadow-inner">
+                                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden shadow-inner">
                                         <div
-                                          className="bg-emerald-500 h-2.5 rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
+                                          className="bg-emerald-500 h-2 rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
                                           style={{
                                             width: `${Math.min(
                                               100,
@@ -9553,17 +9518,17 @@ useEffect(() => {
                                     </div>
                                   )}
 
-                                  <div className="flex justify-between items-center text-lg sm:text-xl pt-4 border-t mt-2 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 -mx-6 px-6 -mb-6 pb-6 rounded-b-2xl">
-                                    <span className="text-slate-800 font-black dark:text-white flex items-center gap-2">
-                                      <i className="fa-solid fa-scale-balanced text-slate-400 text-sm"></i>{" "}
+                                  <div className="flex justify-between items-center text-base sm:text-base pt-3 border-t mt-1.5 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 -mx-2.5 px-2.5 -mb-2.5 pb-3 rounded-b-2xl">
+                                    <span className="text-slate-800 font-black dark:text-white flex items-center gap-1">
+                                      <i className="fa-solid fa-scale-balanced text-slate-400 text-[13px]"></i>{" "}
                                       Bakiye:
                                     </span>
 
                                     <span
                                       className={`font-black ${
                                         fin.debt > 0
-                                          ? "text-rose-600 bg-white px-3 py-1.5 rounded-xl border border-rose-200 shadow-sm dark:text-rose-400 dark:bg-slate-800 dark:border-rose-900/50"
-                                          : "text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 shadow-sm dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400"
+                                          ? "text-rose-600 bg-white px-2.5 py-1 rounded-xl border border-rose-200 shadow-sm dark:text-rose-400 dark:bg-slate-800 dark:border-rose-900/50"
+                                          : "text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shadow-sm dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400"
                                       }`}
                                     >
                                       {fin.debt > 0 ? (
@@ -9577,12 +9542,12 @@ useEffect(() => {
                                 </div>
                               </div>
 
-                              <div className="bg-white p-6 rounded-2xl border shadow-sm flex-1 flex flex-col min-h-[250px] dark:bg-slate-800 dark:border-slate-700">
-                                <h4 className="font-black text-slate-800 mb-4 border-b pb-3 text-sm uppercase tracking-wider dark:text-white dark:border-slate-700">
+                              <div className="bg-white p-2.5 rounded-xl border shadow-sm flex-1 flex flex-col min-h-[200px] dark:bg-slate-800 dark:border-slate-700">
+                                <h4 className="font-black text-slate-800 mb-2 border-b pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
                                   Geçmiş Tahsilat Dökümü
                                 </h4>
 
-                                <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+                                <div className="space-y-1.5 overflow-y-auto flex-1 pr-0.5">
                                   {patientForm.payments &&
                                   patientForm.payments.length > 0 ? (
                                     patientForm.payments
@@ -9594,10 +9559,10 @@ useEffect(() => {
                                       .map((pay) => (
                                         <div
                                           key={pay.id}
-                                          className="flex justify-between items-center text-sm bg-slate-50 p-3.5 rounded-xl border dark:bg-slate-900 dark:border-slate-700"
+                                          className="flex justify-between items-center text-[13px] bg-slate-50 p-2 rounded-xl border dark:bg-slate-900 dark:border-slate-700"
                                         >
                                           <span className="text-slate-500 font-bold dark:text-slate-400">
-                                            <i className="fa-regular fa-calendar mr-2"></i>
+                                            <i className="fa-regular fa-calendar mr-1.5"></i>
 
                                             {new Date(pay.date).toLocaleString(
                                               "tr-TR",
@@ -9621,7 +9586,7 @@ useEffect(() => {
                                               +{pay.amount} ₺
                                             </span>
                                             {pay.method && (
-                                              <span className="text-[10px] font-bold text-slate-400 mt-0.5 bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm border border-slate-100 dark:border-slate-700">
+                                              <span className="text-[10px] font-bold text-slate-400 mt-0.5 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm border border-slate-100 dark:border-slate-700">
                                                 {pay.method}
                                               </span>
                                             )}
@@ -9629,7 +9594,7 @@ useEffect(() => {
                                         </div>
                                       ))
                                   ) : (
-                                    <div className="text-center text-slate-400 font-medium text-sm py-4">
+                                    <div className="text-center text-slate-400 font-medium text-[13px] py-2">
                                       Ödeme kaydı bulunmuyor.
                                     </div>
                                   )}
@@ -9672,16 +9637,16 @@ useEffect(() => {
                           return (
                             <div
                               id="print-plan-area"
-                              className="flex-1 overflow-y-auto p-4 lg:p-6 bg-slate-50 flex flex-col gap-6 relative dark:bg-slate-900/50 print:bg-white print:p-0"
+                              className="flex-1 overflow-y-auto p-2.5 lg:p-2.5 bg-slate-50 flex flex-col gap-2 relative dark:bg-slate-900/50 print:bg-white print:p-0"
                             >
                               {/* --- ARAÇ ÇUBUĞU (Yazdırılmaz) --- */}
-                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-4 shrink-0">
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1.5 shrink-0">
                                 <div>
-                                  <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2 text-lg">
+                                  <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-1 text-base">
                                     <i className="fa-solid fa-file-signature text-indigo-500"></i>
                                     Tedavi Planı ve Çıktı Alma
                                   </h3>
-                                  <p className="text-xs text-slate-500 font-medium mt-1">
+                                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                                     Hastaya sunulacak detaylı tedavi planını buradan yazdırabilirsiniz.
                                   </p>
                                 </div>
@@ -9695,39 +9660,39 @@ useEffect(() => {
                                       document.title = originalTitle;
                                     }, 2000);
                                   }}
-                                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 w-full sm:w-auto justify-center"
+                                  className="bg-indigo-600 text-white px-2.5 py-2 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-1 w-full sm:w-auto justify-center"
                                 >
                                   <i className="fa-solid fa-print"></i> Planı Yazdır
                                 </button>
                               </div>
 
                               {/* --- YAZDIRMA KLİNİK ANTETİ (Gizli, Sadece Baskıda Görünür) --- */}
-                              <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
-                                <div className="flex justify-between items-end mb-2">
+                              <div className="hidden print-only mb-1.5 border-b-2 border-black pb-1.5">
+                                <div className="flex justify-between items-end mb-1.5">
                                   <div>
-                                    <h1 className="text-xl font-black uppercase tracking-wider mb-0.5 flex items-center text-black">
-                                      <i className="fa-solid fa-tooth text-gray-300 mr-2 text-2xl"></i>
+                                    <h1 className="text-base font-black uppercase tracking-wider mb-0.5 flex items-center text-black">
+                                      <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-base"></i>
                                       KLİNİK RANDEVU
                                     </h1>
-                                    <h2 className="text-xs font-bold text-gray-600">Tedavi Planı ve Bilgilendirme Formu</h2>
+                                    <h2 className="text-[11px] font-bold text-gray-600">Tedavi Planı ve Bilgilendirme Formu</h2>
                                   </div>
                                   <div className="text-right text-[10px] font-semibold text-gray-600">
                                     <p>Tarih: {new Date().toLocaleDateString("tr-TR")}</p>
                                     <p>Hekim: {globalData.doctorProfiles?.[currentUser]?.name || currentUser}</p>
                                   </div>
                                 </div>
-                                <div className="bg-gray-50 border border-gray-300 p-2 rounded-lg flex justify-between items-center text-[10px]">
+                                <div className="bg-gray-50 border border-gray-300 p-1.5 rounded-lg flex justify-between items-center text-[10px]">
                                   <div>
                                     <span className="font-black text-gray-500 uppercase text-[8px] block">Hasta Adı</span>
-                                    <span className="font-bold text-xs text-black">{patientForm.name}</span>
+                                    <span className="font-bold text-[11px] text-black">{patientForm.name}</span>
                                   </div>
                                   <div>
                                     <span className="font-black text-gray-500 uppercase text-[8px] block">İletişim / TC</span>
-                                    <span className="font-bold text-xs text-black">{patientForm.phone || "-"} {patientForm.tc ? ` / ${patientForm.tc}` : ""}</span>
+                                    <span className="font-bold text-[11px] text-black">{patientForm.phone || "-"} {patientForm.tc ? ` / ${patientForm.tc}` : ""}</span>
                                   </div>
                                   <div>
                                     <span className="font-black text-gray-500 uppercase text-[8px] block">Uyarı / Anamnez</span>
-                                    <span className="font-bold text-xs text-red-600">{patientForm.anamnesis || "Yok"}</span>
+                                    <span className="font-bold text-[11px] text-red-600">{patientForm.anamnesis || "Yok"}</span>
                                   </div>
                                 </div>
                               </div>
@@ -9744,68 +9709,68 @@ useEffect(() => {
                               />
 
                               {/* --- YAZDIRMA İŞLEM TABLOSU (Gizli, Sadece Baskıda) --- */}
-                              <div className="hidden print-only mt-4">
-                                <h3 className="text-xs font-black border-b border-black pb-1 mb-1.5 uppercase tracking-wider text-black">
+                              <div className="hidden print-only mt-2">
+                                <h3 className="text-[11px] font-black border-b border-black pb-0.5 mb-1 uppercase tracking-wider text-black">
                                   Planlanan Tedavi Detayları
                                 </h3>
                                 <table className="w-full text-left border-collapse" style={{ fontSize: "9px" }}>
                                   <thead>
                                     <tr className="bg-gray-100">
-                                      <th className="border border-gray-400 py-1 px-1.5 w-1/2 text-black font-bold">İşlem Adı</th>
-                                      <th className="border border-gray-400 py-1 px-1.5 w-1/4 text-center text-black font-bold">Uygulanacak Dişler</th>
-                                      <th className="border border-gray-400 py-1 px-1.5 w-1/4 text-right text-black font-bold">Toplam Tutar</th>
+                                      <th className="border border-gray-400 py-0.5 px-1 w-1/2 text-black font-bold">İşlem Adı</th>
+                                      <th className="border border-gray-400 py-0.5 px-1 w-1/4 text-center text-black font-bold">Uygulanacak Dişler</th>
+                                      <th className="border border-gray-400 py-0.5 px-1 w-1/4 text-right text-black font-bold">Toplam Tutar</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {Object.keys(groupedTreatments).length > 0 ? (
                                       Object.entries(groupedTreatments).map(([txName, data]) => (
                                         <tr key={txName}>
-                                          <td className="border border-gray-400 py-1 px-1.5 font-semibold text-black">{txName}</td>
-                                          <td className="border border-gray-400 py-1 px-1.5 font-semibold text-center text-black">{data.teeth.join(", ")}</td>
-                                          <td className="border border-gray-400 py-1 px-1.5 text-right font-bold text-black">{data.totalPrice.toLocaleString("tr-TR")} ₺</td>
+                                          <td className="border border-gray-400 py-0.5 px-1 font-semibold text-black">{txName}</td>
+                                          <td className="border border-gray-400 py-0.5 px-1 font-semibold text-center text-black">{data.teeth.join(", ")}</td>
+                                          <td className="border border-gray-400 py-0.5 px-1 text-right font-bold text-black">{data.totalPrice.toLocaleString("tr-TR")} ₺</td>
                                         </tr>
                                       ))
                                     ) : (
-                                      <tr><td colSpan="3" className="border border-gray-400 py-2 px-1.5 text-center italic text-gray-500">Planlanmış işlem bulunmamaktadır.</td></tr>
+                                      <tr><td colSpan="3" className="border border-gray-400 py-1.5 px-1 text-center italic text-gray-500">Planlanmış işlem bulunmamaktadır.</td></tr>
                                     )}
                                   </tbody>
                                   <tfoot>
                                     <tr>
-                                      <td colSpan="2" className="border border-gray-400 py-1.5 px-1.5 text-right font-black uppercase text-[10px] text-black">Genel Toplam:</td>
-                                      <td className="border border-gray-400 py-1.5 px-1.5 text-right font-black text-xs text-black">{grandTotal.toLocaleString("tr-TR")} ₺</td>
+                                      <td colSpan="2" className="border border-gray-400 py-1 px-1 text-right font-black uppercase text-[10px] text-black">Genel Toplam:</td>
+                                      <td className="border border-gray-400 py-1 px-1 text-right font-black text-[11px] text-black">{grandTotal.toLocaleString("tr-TR")} ₺</td>
                                     </tr>
                                   </tfoot>
                                 </table>
                               </div>
 
                               {/* --- İŞLEM SEÇİM MENÜSÜ --- */}
-                              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print shrink-0">
-                                <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-700 pb-3 gap-3">
-                                  <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">1</span>
+                              <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print shrink-0">
+                                <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 gap-1.5">
+                                  <h3 className="text-[13px] font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1">
+                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-5 h-5 rounded-md flex items-center justify-center text-[11px]">1</span>
                                     İşlem Türü Seçin
                                   </h3>
                                   {activePlanTreatment && (
-                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm items-center gap-2">
+                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-sm items-center gap-1">
                                       <i className="fa-solid fa-check-circle"></i> Seçili İşlem: {activePlanTreatment}
                                     </div>
                                   )}
                                   <button
                                     type="button"
                                     onClick={handleWholeJawTreatment}
-                                    className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition border border-indigo-100 dark:border-indigo-800 flex items-center gap-2 shadow-sm"
+                                    className="text-[11px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2.5 py-1.5 rounded-xl font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition border border-indigo-100 dark:border-indigo-800 flex items-center gap-1 shadow-sm"
                                   >
                                     <i className="fa-solid fa-teeth-open"></i> Tüm Çeneye Uygula
                                   </button>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-h-[250px] overflow-y-auto custom-scrollbar p-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar p-0.5">
                                   {Object.entries(PRICING_CATEGORIES).map(([catName, data]) => (
-                                    <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
-                                      <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2.5 flex items-center gap-1.5 ${data.color}`}>
+                                    <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-1.5 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
+                                      <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2 flex items-center gap-1 ${data.color}`}>
                                         <i className={`fa-solid ${data.icon}`}></i> {catName}
                                       </h4>
-                                      <div className="flex flex-col gap-1.5 flex-1">
+                                      <div className="flex flex-col gap-1 flex-1">
                                         {data.items.map((tx) => {
                                           const txPrice = userPricing[tx] !== undefined ? parseFloat(userPricing[tx]) : DEFAULT_PRICING[tx] || 0;
                                           const isSelected = activePlanTreatment === tx;
@@ -9814,11 +9779,11 @@ useEffect(() => {
                                               key={tx}
                                               type="button"
                                               onClick={(e) => { e.preventDefault(); setActivePlanTreatment(tx); }}
-                                              className={`text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex justify-between items-center w-full ${
+                                              className={`text-left px-2.5 py-2 rounded-lg text-[11px] font-bold transition-all flex justify-between items-center w-full ${
                                                 isSelected ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 border border-slate-200 dark:border-slate-700"
                                               }`}
                                             >
-                                              <span className="truncate pr-2">{tx}</span>
+                                              <span className="truncate pr-1.5">{tx}</span>
                                               <span className={`shrink-0 ${isSelected ? "text-indigo-200" : "text-emerald-600 dark:text-emerald-400"}`}>{txPrice} ₺</span>
                                             </button>
                                           );
@@ -9830,59 +9795,59 @@ useEffect(() => {
                               </div>
 
                               {/* --- PLANLANAN TEDAVİ DETAYLARI TABLOSU --- */}
-                              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col shrink-0 no-print">
-                                <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
-                                  <h4 className="font-black text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-6 h-6 rounded-md flex items-center justify-center text-xs">2</span>
+                              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col shrink-0 no-print">
+                                <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                                  <h4 className="font-black text-[13px] uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-5 h-5 rounded-md flex items-center justify-center text-[11px]">2</span>
                                     Planlanan Tedavi Tablosu
                                   </h4>
-                                  <div className="text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-1.5 rounded-lg shadow-sm">
+                                  <div className="text-[11px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2.5 py-1 rounded-lg shadow-sm">
                                     Toplam: {patientForm.plannedTreatments?.reduce((sum, tx) => sum + (parseFloat(tx.price) || 0), 0).toLocaleString("tr-TR")} ₺
                                   </div>
                                 </div>
 
-                                <div className="overflow-x-auto w-full max-h-[300px] overflow-y-auto custom-scrollbar">
-                                  <table className="w-full text-left text-sm">
+                                <div className="overflow-x-auto w-full max-h-[260px] overflow-y-auto custom-scrollbar">
+                                  <table className="w-full text-left text-[13px]">
                                     <thead className="text-[10px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700 sticky top-0 z-10">
                                       <tr>
-                                        <th className="px-5 py-3">Tarih</th>
-                                        <th className="px-5 py-3">Diş/Bölge</th>
-                                        <th className="px-5 py-3">İşlem Türü</th>
-                                        <th className="px-5 py-3 text-right">Ücret</th>
-                                        <th className="px-5 py-3 text-center">Sil</th>
+                                        <th className="px-2.5 py-1.5">Tarih</th>
+                                        <th className="px-2.5 py-1.5">Diş/Bölge</th>
+                                        <th className="px-2.5 py-1.5">İşlem Türü</th>
+                                        <th className="px-2.5 py-1.5 text-right">Ücret</th>
+                                        <th className="px-2.5 py-1.5 text-center">Sil</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {(patientForm.plannedTreatments || []).length > 0 ? (
                                         patientForm.plannedTreatments.map((tx) => (
                                           <tr key={tx.id} className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
-                                            <td className="px-5 py-3 font-bold text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
+                                            <td className="px-2.5 py-1.5 font-bold text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">
                                               {new Date(tx.date).toLocaleDateString("tr-TR")}
                                             </td>
-                                            <td className="px-5 py-3 whitespace-nowrap">
-                                              <span className="font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-2.5 py-1 rounded-md text-xs border border-indigo-100 dark:border-indigo-800/50">
+                                            <td className="px-2.5 py-1.5 whitespace-nowrap">
+                                              <span className="font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-md text-[11px] border border-indigo-100 dark:border-indigo-800/50">
                                                 {tx.tooth === "Tüm Çene" ? "Tüm Çene" : `Diş ${tx.tooth}`}
                                               </span>
                                             </td>
-                                            <td className="px-5 py-3 font-bold text-slate-700 dark:text-slate-300">
+                                            <td className="px-2.5 py-1.5 font-bold text-slate-700 dark:text-slate-300">
                                               {tx.treatment}
                                             </td>
-                                            <td className="px-5 py-3 text-right whitespace-nowrap">
+                                            <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
                                               {editingTxId === tx.id ? (
-                                                <div className="flex items-center justify-end gap-2">
+                                                <div className="flex items-center justify-end gap-1">
                                                   <input
                                                     type="number"
                                                     value={editingTxPrice}
                                                     onChange={(e) => setEditingTxPrice(e.target.value)}
-                                                    className="w-20 p-1.5 border border-slate-300 rounded-lg text-right text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-600 dark:text-white"
+                                                    className="w-16 p-1 border border-slate-300 rounded-lg text-right text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-600 dark:text-white"
                                                     autoFocus
                                                   />
-                                                  <button onClick={() => handleUpdateTxPrice(tx.id, editingTxPrice, true, tx.docId)} className="bg-emerald-500 text-white w-7 h-7 rounded-lg flex items-center justify-center hover:bg-emerald-600 shadow-sm">
-                                                    <i className="fa-solid fa-check text-[10px]"></i>
+                                                  <button onClick={() => handleUpdateTxPrice(tx.id, editingTxPrice, true, tx.docId)} className="bg-emerald-500 text-white w-6 h-6 rounded-lg flex items-center justify-center hover:bg-emerald-600 shadow-sm">
+                                                    <i className="fa-solid fa-check text-[9px]"></i>
                                                   </button>
                                                 </div>
                                               ) : (
-                                                <div className="font-black text-slate-800 dark:text-white flex items-center justify-end gap-3">
+                                                <div className="font-black text-slate-800 dark:text-white flex items-center justify-end gap-1.5">
                                                   {renderMoney(tx.price)} ₺
                                                   <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
                                                     <i className="fa-solid fa-pen text-[11px]"></i>
@@ -9890,7 +9855,7 @@ useEffect(() => {
                                                 </div>
                                               )}
                                             </td>
-                                            <td className="px-5 py-3 text-center">
+                                            <td className="px-2.5 py-1.5 text-center">
                                               <button
                                                 onClick={() => {
                                                   showConfirm("Silmek istediğinize emin misiniz?", () => {
@@ -9901,18 +9866,18 @@ useEffect(() => {
                                                     showNotification("İşlem silindi.", "error");
                                                   });
                                                 }}
-                                                className="w-8 h-8 rounded-xl bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center mx-auto shadow-sm"
+                                                className="w-7 h-7 rounded-xl bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center mx-auto shadow-sm"
                                                 title="Sil"
                                               >
-                                                <i className="fa-solid fa-trash-can text-xs"></i>
+                                                <i className="fa-solid fa-trash-can text-[11px]"></i>
                                               </button>
                                             </td>
                                           </tr>
                                         ))
                                       ) : (
                                         <tr>
-                                          <td colSpan="5" className="text-center py-10 text-slate-400 text-sm font-medium">
-                                            <i className="fa-solid fa-tooth text-3xl mb-3 block opacity-50"></i>
+                                          <td colSpan="5" className="text-center py-8 text-slate-400 text-[13px] font-medium">
+                                            <i className="fa-solid fa-tooth text-lg mb-2 block opacity-50"></i>
                                             Henüz planlanmış bir işlem bulunmuyor.
                                           </td>
                                         </tr>
@@ -9927,13 +9892,13 @@ useEffect(() => {
                         })()}
 {/* --- 7. KLİNİK GEÇMİŞ (EPİKRİZ) EKRANI --- */}
                       {patientModalTab === "history" && (
-                        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-slate-50 flex flex-col gap-6 relative dark:bg-slate-900/50 print:bg-white print:p-0">
+                        <div className="flex-1 overflow-y-auto p-2.5 lg:p-2.5 bg-slate-50 flex flex-col gap-2 relative dark:bg-slate-900/50 print:bg-white print:p-0">
                           
                           {/* Print Alanı (Sadece Çıktıda Görünür) */}
                           <div className="hidden print-only w-full">
-                            <div className="border-b-2 border-black pb-2 mb-4">
-                              <h1 className="text-xl font-black uppercase text-black">KLİNİK GEÇMİŞ / EPİKRİZ RAPORU</h1>
-                              <div className="text-xs font-bold text-gray-700 mt-2 grid grid-cols-2 gap-2">
+                            <div className="border-b-2 border-black pb-1.5 mb-2">
+                              <h1 className="text-base font-black uppercase text-black">KLİNİK GEÇMİŞ / EPİKRİZ RAPORU</h1>
+                              <div className="text-[11px] font-bold text-gray-700 mt-1.5 grid grid-cols-2 gap-1">
                                 <div>Hasta: {patientForm.name}</div>
                                 <div className="text-right">Rapor Tarihi: {new Date().toLocaleDateString("tr-TR")}</div>
                                 <div>İletişim: {patientForm.phone || "-"}</div>
@@ -9943,17 +9908,17 @@ useEffect(() => {
                             <table className="w-full text-left border-collapse" style={{ fontSize: "10px" }}>
                               <thead>
                                 <tr className="bg-gray-100 text-black">
-                                  <th className="border border-gray-400 py-1 px-1.5 w-24">Tarih / Saat</th>
-                                  <th className="border border-gray-400 py-1 px-1.5 w-32">Hekim</th>
-                                  <th className="border border-gray-400 py-1 px-1.5">İşlem / Tanı / Notlar</th>
+                                  <th className="border border-gray-400 py-0.5 px-1 w-20">Tarih / Saat</th>
+                                  <th className="border border-gray-400 py-0.5 px-1 w-28">Hekim</th>
+                                  <th className="border border-gray-400 py-0.5 px-1">İşlem / Tanı / Notlar</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {(patientForm.clinicalHistory || []).map((h, i) => (
                                   <tr key={h.id || i}>
-                                    <td className="border border-gray-400 py-1.5 px-1.5 font-bold align-top">{h.date} - {h.time}</td>
-                                    <td className="border border-gray-400 py-1.5 px-1.5 font-semibold align-top">{h.doctorName}</td>
-                                    <td className="border border-gray-400 py-1.5 px-1.5 align-top">
+                                    <td className="border border-gray-400 py-1 px-1 font-bold align-top">{h.date} - {h.time}</td>
+                                    <td className="border border-gray-400 py-1 px-1 font-semibold align-top">{h.doctorName}</td>
+                                    <td className="border border-gray-400 py-1 px-1 align-top">
                                       <div className="font-bold">{h.treatment} {h.selectedTeeth?.length > 0 && `(Diş: ${h.selectedTeeth.join(", ")})`}</div>
                                       {h.complaint && <div className="mt-0.5 text-gray-600"><b>Şikayet:</b> {h.complaint}</div>}
                                       {h.diagnosis && <div className="mt-0.5 text-gray-600"><b>Tanı:</b> {h.diagnosis}</div>}
@@ -9965,14 +9930,14 @@ useEffect(() => {
                             </table>
                           </div>
 
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-4 shrink-0">
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1.5 shrink-0">
                             <div>
-                              <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2 text-lg">
+                              <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-1 text-base">
                                 <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i>
                                 Klinik Geçmiş (Epikriz)
                               </h3>
                             </div>
-                            <div className="flex gap-2 w-full sm:w-auto">
+                            <div className="flex gap-1 w-full sm:w-auto">
                               <button
                                 type="button"
                                 onClick={() => {
@@ -9981,14 +9946,14 @@ useEffect(() => {
                                   window.print();
                                   setTimeout(() => document.title = originalTitle, 2000);
                                 }}
-                                className="flex-1 sm:flex-none bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-slate-200 transition-all flex items-center gap-2 justify-center"
+                                className="flex-1 sm:flex-none bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 px-2.5 py-2 rounded-xl font-bold shadow-sm hover:bg-slate-200 transition-all flex items-center gap-1 justify-center"
                               >
                                 <i className="fa-solid fa-print"></i> Yazdır
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setIsAddHistoryModalOpen(true)}
-                                className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 justify-center"
+                                className="flex-1 sm:flex-none bg-indigo-600 text-white px-2.5 py-2 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-1 justify-center"
                               >
                                 <i className="fa-solid fa-plus"></i> Yeni Kayıt
                               </button>
@@ -9996,21 +9961,21 @@ useEffect(() => {
                           </div>
 
                           {/* Filtre ve Arama Alanı */}
-                          <div className="flex gap-2 flex-wrap no-print">
-                            <div className="relative flex-1 min-w-[200px]">
-                              <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                          <div className="flex gap-1 flex-wrap no-print">
+                            <div className="relative flex-1 min-w-[160px]">
+                              <i className="fa-solid fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
                               <input
                                 type="text"
                                 placeholder="İşlem, Diş, Tanı ara..."
                                 value={historySearchQuery}
                                 onChange={(e) => setHistorySearchQuery(e.target.value)}
-                                className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
+                                className="w-full pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
                               />
                             </div>
                             <select
                               value={historyFilterDoc}
                               onChange={(e) => setHistoryFilterDoc(e.target.value)}
-                              className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none shadow-sm dark:text-white"
+                              className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none shadow-sm dark:text-white"
                             >
                               <option value="all">Tüm Hekimler</option>
                               {allDoctors.map(doc => (
@@ -10020,7 +9985,7 @@ useEffect(() => {
                           </div>
 
                           {/* Timeline Görünümü */}
-                          <div className="flex-1 overflow-y-auto no-print pr-2 relative mt-2 custom-scrollbar">
+                          <div className="flex-1 overflow-y-auto no-print pr-1.5 relative mt-1.5 custom-scrollbar">
                             {(() => {
                               let historyData = patientForm.clinicalHistory || [];
                               if (historyFilterDoc !== "all") historyData = historyData.filter(h => h.doctorId === historyFilterDoc);
@@ -10035,42 +10000,42 @@ useEffect(() => {
                               }
 
                               if (historyData.length === 0) return (
-                                <div className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                  <i className="fa-solid fa-notes-medical text-3xl mb-3 text-slate-300 dark:text-slate-600 block"></i>
+                                <div className="text-center py-8 text-slate-400 text-[13px] font-medium bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700">
+                                  <i className="fa-solid fa-notes-medical text-lg mb-2 text-slate-300 dark:text-slate-600 block"></i>
                                   Kayıtlı klinik geçmiş bulunmuyor.
                                 </div>
                               );
 
                               return (
-                                <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-indigo-500 before:via-purple-500 before:to-transparent">
+                                <div className="relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-500 before:via-purple-500 before:to-transparent">
                                   {historyData.map((h, index) => (
-                                    <div key={h.id || index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active mb-8">
-                                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 dark:border-slate-900 bg-indigo-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 absolute left-0 md:left-1/2 -translate-x-0 cursor-pointer hover:scale-110 transition-transform"
+                                    <div key={h.id || index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active mb-2">
+                                      <div className="flex items-center justify-center w-8 h-7 rounded-full border-4 border-slate-50 dark:border-slate-900 bg-indigo-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 absolute left-0 md:left-1/2 -translate-x-0 cursor-pointer hover:scale-110 transition-transform"
                                            onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
-                                        <i className="fa-solid fa-stethoscope text-xs"></i>
+                                        <i className="fa-solid fa-stethoscope text-[11px]"></i>
                                       </div>
-                                      <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] ml-auto md:ml-0 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1"
+                                      <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-2rem)] ml-auto md:ml-0 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-0.5"
                                            onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
-                                        <div className="flex justify-between items-center mb-2">
-                                          <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                          <span className="font-black text-indigo-600 dark:text-indigo-400 text-[11px] bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md">
                                             {h.date} • {h.time}
                                           </span>
-                                          <span className="text-[10px] font-bold text-slate-500 border border-slate-200 dark:border-slate-600 px-2 py-0.5 rounded-md">
+                                          <span className="text-[10px] font-bold text-slate-500 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded-md">
                                             {h.visitType}
                                           </span>
                                         </div>
-                                        <h4 className="font-black text-sm text-slate-800 dark:text-white mb-2">{h.treatment}</h4>
-                                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-col gap-1">
-                                          <div className="flex items-center gap-2 font-bold text-slate-600 dark:text-slate-300">
+                                        <h4 className="font-black text-[13px] text-slate-800 dark:text-white mb-1.5">{h.treatment}</h4>
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300">
                                             <i className="fa-solid fa-user-doctor w-3 text-center"></i> {h.doctorName}
                                           </div>
                                           {h.selectedTeeth?.length > 0 && (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1">
                                               <i className="fa-solid fa-tooth w-3 text-center"></i> Dişler: {h.selectedTeeth.join(" • ")}
                                             </div>
                                           )}
                                           {h.diagnosis && (
-                                            <div className="flex items-start gap-2 mt-1 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-start gap-1 mt-0.5 bg-slate-50 dark:bg-slate-900 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
                                               <i className="fa-solid fa-notes-medical w-3 text-center text-rose-400 mt-0.5"></i> <span className="line-clamp-2 italic">{h.diagnosis}</span>
                                             </div>
                                           )}
@@ -10087,83 +10052,83 @@ useEffect(() => {
 
                       {/* Modal: Yeni Klinik Kayıt (Epikriz) Ekleme */}
                       {isAddHistoryModalOpen && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
-                          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-pop">
-                            <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0">
-                              <h3 className="font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2">
+                          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-pop">
+                            <div className="px-3 py-2 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0">
+                              <h3 className="font-black text-[13px] uppercase tracking-wider flex items-center gap-1">
                                 <i className="fa-solid fa-file-medical text-indigo-400"></i> Yeni Klinik Geçmiş Ekle
                               </h3>
                               <button onClick={() => setIsAddHistoryModalOpen(false)} className="text-slate-400 hover:text-white transition">
-                                <i className="fa-solid fa-xmark text-lg"></i>
+                                <i className="fa-solid fa-xmark text-base"></i>
                               </button>
                             </div>
-                            <form onSubmit={handleSaveManualHistory} className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <form onSubmit={handleSaveManualHistory} className="p-2.5 overflow-y-auto custom-scrollbar flex-1 space-y-1.5">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                                 <div className="col-span-2 sm:col-span-1 relative z-10">
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tarih *</label>
-                                  <input type="date" lang="tr-TR" required value={newHistoryForm.date || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, date: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Tarih *</label>
+                                  <input type="date" lang="tr-TR" required value={newHistoryForm.date || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, date: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                                 </div>
                                 <div className="col-span-2 sm:col-span-1 relative z-10">
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Saat *</label>
-                                  <input type="time" lang="tr-TR" required value={newHistoryForm.time || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, time: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Saat *</label>
+                                  <input type="time" lang="tr-TR" required value={newHistoryForm.time || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, time: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                                 </div>
                                 <div className="col-span-2 sm:col-span-2 relative z-10">
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlgili Hekim *</label>
-                                  <select required value={newHistoryForm.doctorId || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, doctorId: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">İlgili Hekim *</label>
+                                  <select required value={newHistoryForm.doctorId || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, doctorId: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700">
                                     <option value="" disabled>Seçiniz</option>
                                     {allDoctors.map(doc => (<option key={doc} value={doc}>{globalData.doctorProfiles?.[doc]?.name || doc}</option>))}
                                   </select>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ziyaret Türü</label>
-                                  <select value={newHistoryForm.visitType} onChange={e => setNewHistoryForm({...newHistoryForm, visitType: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none dark:bg-slate-900 dark:text-white dark:border-slate-700">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Ziyaret Türü</label>
+                                  <select value={newHistoryForm.visitType} onChange={e => setNewHistoryForm({...newHistoryForm, visitType: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none dark:bg-slate-900 dark:text-white dark:border-slate-700">
                                     <option>İlk Muayene</option><option>Tedavi / İşlem</option><option>Kontrol</option><option>Cerrahi</option><option>Diğer</option>
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlgili Dişler (Virgülle ayırın, Örn: 46, 36)</label>
-                                  <input type="text" placeholder="Tüm Çene veya diş numaraları" value={newHistoryForm.selectedTeeth} onChange={e => setNewHistoryForm({...newHistoryForm, selectedTeeth: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">İlgili Dişler (Virgülle ayırın, Örn: 46, 36)</label>
+                                  <input type="text" placeholder="Tüm Çene veya diş numaraları" value={newHistoryForm.selectedTeeth} onChange={e => setNewHistoryForm({...newHistoryForm, selectedTeeth: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                                 </div>
                               </div>
                               <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Yapılan İşlem / Tedavi *</label>
-                                <input type="text" required placeholder="Örn: Kanal Tedavisi, Kompozit Dolgu..." value={newHistoryForm.treatment} onChange={e => setNewHistoryForm({...newHistoryForm, treatment: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Yapılan İşlem / Tedavi *</label>
+                                <input type="text" required placeholder="Örn: Kanal Tedavisi, Kompozit Dolgu..." value={newHistoryForm.treatment} onChange={e => setNewHistoryForm({...newHistoryForm, treatment: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                               </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Başvuru Şikayeti</label>
-                                  <textarea rows="2" value={newHistoryForm.complaint} onChange={e => setNewHistoryForm({...newHistoryForm, complaint: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Başvuru Şikayeti</label>
+                                  <textarea rows="2" value={newHistoryForm.complaint} onChange={e => setNewHistoryForm({...newHistoryForm, complaint: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Klinik Bulgular & Tanı</label>
-                                  <textarea rows="2" value={newHistoryForm.diagnosis} onChange={e => setNewHistoryForm({...newHistoryForm, diagnosis: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Anestezi / Materyal Bilgisi</label>
-                                  <textarea rows="2" value={newHistoryForm.anesthesia} onChange={e => setNewHistoryForm({...newHistoryForm, anesthesia: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
-                                </div>
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hekim Notu / Prosedür Notu</label>
-                                  <textarea rows="2" value={newHistoryForm.procedureNotes} onChange={e => setNewHistoryForm({...newHistoryForm, procedureNotes: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Klinik Bulgular & Tanı</label>
+                                  <textarea rows="2" value={newHistoryForm.diagnosis} onChange={e => setNewHistoryForm({...newHistoryForm, diagnosis: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Anestezi / Materyal Bilgisi</label>
+                                  <textarea rows="2" value={newHistoryForm.anesthesia} onChange={e => setNewHistoryForm({...newHistoryForm, anesthesia: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Hekim Notu / Prosedür Notu</label>
+                                  <textarea rows="2" value={newHistoryForm.procedureNotes} onChange={e => setNewHistoryForm({...newHistoryForm, procedureNotes: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                 <div className="relative z-10">
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlaç / Reçete / Öneri</label>
-                                  <textarea rows="2" value={newHistoryForm.prescription || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, prescription: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">İlaç / Reçete / Öneri</label>
+                                  <textarea rows="2" value={newHistoryForm.prescription || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, prescription: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
                                 </div>
                                 <div className="relative z-10">
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sonraki Kontrol Tarihi</label>
-                                  <input type="date" lang="tr-TR" value={newHistoryForm.nextAppointmentDate || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, nextAppointmentDate: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Sonraki Kontrol Tarihi</label>
+                                  <input type="date" lang="tr-TR" value={newHistoryForm.nextAppointmentDate || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, nextAppointmentDate: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
                                 </div>
                               </div>
-                              <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsAddHistoryModalOpen(false)} className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-300">İptal</button>
-                                <button type="submit" className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-lg hover:bg-indigo-700 transition">Kaydet</button>
+                              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-1.5">
+                                <button type="button" onClick={() => setIsAddHistoryModalOpen(false)} className="px-2.5 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-[13px] hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-300">İptal</button>
+                                <button type="submit" className="px-2.5 py-2 bg-indigo-600 text-white rounded-xl font-black text-[13px] shadow-lg hover:bg-indigo-700 transition">Kaydet</button>
                               </div>
                             </form>
                           </div>
@@ -10172,35 +10137,35 @@ useEffect(() => {
 
                       {/* Modal: Klinik Ziyaret Detayı (Görüntüleme) */}
                       {isHistoryDetailModalOpen && selectedHistoryRecord && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={() => setIsHistoryDetailModalOpen(false)}>
-                          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
-                            <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0">
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2" onClick={() => setIsHistoryDetailModalOpen(false)}>
+                          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
+                            <div className="px-3 py-2 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0">
                               <div>
-                                <h3 className="font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                                <h3 className="font-black text-[13px] uppercase tracking-wider flex items-center gap-1">
                                   <i className="fa-solid fa-notes-medical text-indigo-400"></i> Klinik Ziyaret Detayı
                                 </h3>
                                 <div className="text-[10px] text-slate-400 mt-0.5">{selectedHistoryRecord.date} • {selectedHistoryRecord.time}</div>
                               </div>
-                              <button onClick={() => setIsHistoryDetailModalOpen(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center">
-                                <i className="fa-solid fa-xmark text-sm"></i>
+                              <button onClick={() => setIsHistoryDetailModalOpen(false)} className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center">
+                                <i className="fa-solid fa-xmark text-[13px]"></i>
                               </button>
                             </div>
-                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
-                              <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
-                                <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i className="fa-solid fa-user-doctor"></i></div>
+                            <div className="p-2.5 overflow-y-auto custom-scrollbar flex-1 space-y-1.5">
+                              <div className="flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-700 pb-3">
+                                <div className="w-10 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-base shrink-0"><i className="fa-solid fa-user-doctor"></i></div>
                                 <div>
                                   <div className="text-[10px] font-bold text-slate-400 uppercase">İlgili Hekim</div>
                                   <div className="font-black text-slate-800 dark:text-white">{selectedHistoryRecord.doctorName}</div>
-                                  <div className="text-[10px] mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded inline-block font-bold">{selectedHistoryRecord.visitType}</div>
+                                  <div className="text-[10px] mt-0.5 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded inline-block font-bold">{selectedHistoryRecord.visitType}</div>
                                 </div>
                               </div>
 
                               <div>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Yapılan İşlem / Tedavi</div>
-                                <div className="font-black text-base text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Yapılan İşlem / Tedavi</div>
+                                <div className="font-black text-base text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 p-1.5 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
                                   {selectedHistoryRecord.treatment}
                                   {selectedHistoryRecord.selectedTeeth?.length > 0 && (
-                                    <div className="text-xs font-bold text-indigo-500 dark:text-indigo-300 mt-1">
+                                    <div className="text-[11px] font-bold text-indigo-500 dark:text-indigo-300 mt-0.5">
                                       <i className="fa-solid fa-tooth mr-1"></i> İlgili Dişler: {selectedHistoryRecord.selectedTeeth.join(", ")}
                                     </div>
                                   )}
@@ -10209,8 +10174,8 @@ useEffect(() => {
 
                               {selectedHistoryRecord.complaint && (
                                 <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Başvuru Şikayeti</div>
-                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Başvuru Şikayeti</div>
+                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
                                     {selectedHistoryRecord.complaint}
                                   </div>
                                 </div>
@@ -10218,8 +10183,8 @@ useEffect(() => {
 
                               {(selectedHistoryRecord.clinicalFindings || selectedHistoryRecord.diagnosis) && (
                                 <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Bulgu ve Tanı</div>
-                                  <div className="text-sm font-semibold text-rose-700 dark:text-rose-400 p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/50 italic">
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Bulgu ve Tanı</div>
+                                  <div className="text-[13px] font-semibold text-rose-700 dark:text-rose-400 p-1.5 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/50 italic">
                                     {selectedHistoryRecord.diagnosis || selectedHistoryRecord.clinicalFindings}
                                   </div>
                                 </div>
@@ -10227,8 +10192,8 @@ useEffect(() => {
 
                               {selectedHistoryRecord.procedureNotes && (
                                 <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Hekim Notu</div>
-                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Hekim Notu</div>
+                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
                                     {selectedHistoryRecord.procedureNotes}
                                   </div>
                                 </div>
@@ -10236,8 +10201,8 @@ useEffect(() => {
 
                               {(selectedHistoryRecord.anesthesia || selectedHistoryRecord.materials) && (
                                 <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Anestezi / Materyal</div>
-                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Anestezi / Materyal</div>
+                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
                                     {selectedHistoryRecord.anesthesia || selectedHistoryRecord.materials}
                                   </div>
                                 </div>
@@ -10245,27 +10210,27 @@ useEffect(() => {
 
                               {selectedHistoryRecord.prescription && (
                                 <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Reçete / Öneri</div>
-                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Reçete / Öneri</div>
+                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
                                     {selectedHistoryRecord.prescription}
                                   </div>
                                 </div>
                               )}
 
                               {selectedHistoryRecord.nextAppointment?.date && (
-                                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-800/50 flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-xl border border-emerald-100 dark:border-emerald-800/50 flex items-center gap-1.5">
+                                  <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                                     <i className="fa-regular fa-calendar-check"></i>
                                   </div>
                                   <div>
                                     <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase">Planlanan Sonraki Kontrol</div>
-                                    <div className="font-black text-sm text-emerald-700 dark:text-emerald-400">{selectedHistoryRecord.nextAppointment.date}</div>
+                                    <div className="font-black text-[13px] text-emerald-700 dark:text-emerald-400">{selectedHistoryRecord.nextAppointment.date}</div>
                                   </div>
                                 </div>
                               )}
                             </div>
-                            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shrink-0">
-                              <button onClick={() => setIsHistoryDetailModalOpen(false)} className="w-full py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                            <div className="px-2.5 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shrink-0">
+                              <button onClick={() => setIsHistoryDetailModalOpen(false)} className="w-full py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                                 Kapat
                               </button>
                             </div>
@@ -10273,16 +10238,16 @@ useEffect(() => {
                         </div>
                       )}
                       {/* DOSYAYI GÜNCELLE VE KAPAT BUTONLARI BURADA KORUNUYOR */}
-                      <div className="px-6 py-4 bg-white border-t flex justify-between items-center rounded-b-[2rem] shrink-0 no-print z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] dark:bg-[#0f172a] dark:border-slate-700">
-                        <div className="text-xs text-slate-400 font-bold hidden sm:block">
+                      <div className="px-2.5 py-2 bg-white border-t flex justify-between items-center rounded-b-[2rem] shrink-0 no-print z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] dark:bg-[#0f172a] dark:border-slate-700">
+                        <div className="text-[11px] text-slate-400 font-bold hidden sm:block">
                           *Değişiklikleri kaydetmek için lütfen güncelleyin.
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex gap-1.5">
                           <button
                             type="button"
                             onClick={() => setIsPatientModalOpen(false)}
-                            className="px-6 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-300"
+                            className="px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-[13px] hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-300"
                           >
                             Kapat
                           </button>
@@ -10290,9 +10255,9 @@ useEffect(() => {
                           <button
                             type="button"
                             onClick={(e) => handleSavePatient(e)}
-                            className="px-8 py-3 bg-[#0f172a] text-white rounded-xl font-black text-sm shadow-xl hover:bg-slate-800 transition dark:bg-indigo-600 dark:hover:bg-indigo-700"
+                            className="px-2.5 py-1.5 bg-[#0f172a] text-white rounded-xl font-black text-[13px] shadow-xl hover:bg-slate-800 transition dark:bg-indigo-600 dark:hover:bg-indigo-700"
                           >
-                            <i className="fa-solid fa-save mr-2"></i> Dosyayı
+                            <i className="fa-solid fa-save mr-1.5"></i> Dosyayı
                             Güncelle
                           </button>
                         </div>
@@ -10302,34 +10267,34 @@ useEffect(() => {
                 );
               })()}
             {avatarModalInfo.isOpen && (
-  <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn">
+  <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[150] p-2 animate-fadeIn">
     <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col animate-pop">
       
       {/* Modern Header */}
-      <div className="px-6 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center relative overflow-hidden">
+      <div className="px-2.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center relative overflow-hidden">
         <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
-        <div className="flex items-center gap-2.5 relative z-10">
-          <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm shadow-inner">
+        <div className="flex items-center gap-1.5 relative z-10">
+          <div className="w-7 h-7 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-[13px] shadow-inner">
             <i className="fa-solid fa-circle-user"></i>
           </div>
           <div>
-            <h3 className="font-black text-sm tracking-wide">Profil Fotoğrafını Düzenle</h3>
+            <h3 className="font-black text-[13px] tracking-wide">Profil Fotoğrafını Düzenle</h3>
             <p className="text-[10px] text-indigo-100 font-semibold">Sürükleyin ve Hizalayın</p>
           </div>
         </div>
         <button
           onClick={() => setAvatarModalInfo({ ...avatarModalInfo, isOpen: false })}
-          className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition backdrop-blur-md relative z-10"
+          className="w-7 h-7 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition backdrop-blur-md relative z-10"
         >
-          <i className="fa-solid fa-xmark text-sm"></i>
+          <i className="fa-solid fa-xmark text-[13px]"></i>
         </button>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-2.5 space-y-2.5">
         {/* İnteraktif Sürükle-Bırak / Kaydırma Alanı */}
         <div className="flex flex-col items-center justify-center">
           <div 
-            className="w-44 h-44 rounded-full border-4 border-indigo-500/30 shadow-2xl overflow-hidden relative bg-slate-900 flex items-center justify-center ring-8 ring-indigo-500/10 cursor-grab active:cursor-grabbing select-none group"
+            className="w-36 h-36 rounded-full border-4 border-indigo-500/30 shadow-2xl overflow-hidden relative bg-slate-900 flex items-center justify-center ring-8 ring-indigo-500/10 cursor-grab active:cursor-grabbing select-none group"
             onMouseDown={(e) => {
               const startX = e.clientX;
               const startY = e.clientY;
@@ -10391,15 +10356,15 @@ useEffect(() => {
                 className="w-full h-full object-cover pointer-events-none transition-transform duration-75"
               />
             ) : (
-              <div className="flex flex-col items-center justify-center text-slate-400 gap-1.5">
-                <i className="fa-solid fa-camera text-3xl"></i>
+              <div className="flex flex-col items-center justify-center text-slate-400 gap-1">
+                <i className="fa-solid fa-camera text-lg"></i>
                 <span className="text-[10px] font-bold">Görsel Yok</span>
               </div>
             )}
             
             {/* Sürükleme İpucu Overlay */}
             <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <span className="text-white text-[10px] font-black bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-md shadow-lg flex items-center gap-1.5">
+              <span className="text-white text-[10px] font-black bg-black/60 px-2.5 py-1 rounded-full backdrop-blur-md shadow-lg flex items-center gap-1">
                 <i className="fa-solid fa-hand-pointer"></i> Kaydırmak için sürükleyin
               </span>
             </div>
@@ -10408,29 +10373,29 @@ useEffect(() => {
           <button
             type="button"
             onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: 1, x: 50, y: 50 })}
-            className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline mt-3.5 flex items-center gap-1.5"
+            className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline mt-3 flex items-center gap-1"
           >
             <i className="fa-solid fa-rotate-left"></i> Konumu ve Zoomu Sıfırla
           </button>
         </div>
 
         {/* Akıllı Slider Kontrol Paneli */}
-        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+        <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5">
           <div className="flex justify-between items-center text-[11px] font-black text-slate-600 dark:text-slate-300">
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1">
               <i className="fa-solid fa-magnifying-glass text-indigo-500"></i> Yakınlaştırma Seviyesi
             </span>
-            <span className="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md font-mono">
+            <span className="bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-md font-mono">
               {avatarModalInfo.zoom.toFixed(1)}x
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.max(1, parseFloat((avatarModalInfo.zoom - 0.2).toFixed(1))) })}
-              className="w-8 h-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-indigo-50 transition shadow-sm"
+              className="w-7 h-7 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-indigo-50 transition shadow-sm"
             >
-              <i className="fa-solid fa-minus text-xs"></i>
+              <i className="fa-solid fa-minus text-[11px]"></i>
             </button>
             <input
               type="range"
@@ -10439,22 +10404,22 @@ useEffect(() => {
               step="0.05"
               value={avatarModalInfo.zoom}
               onChange={(e) => setAvatarModalInfo({ ...avatarModalInfo, zoom: parseFloat(e.target.value) })}
-              className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
             />
             <button
               type="button"
               onClick={() => setAvatarModalInfo({ ...avatarModalInfo, zoom: Math.min(3, parseFloat((avatarModalInfo.zoom + 0.2).toFixed(1))) })}
-              className="w-8 h-8 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-indigo-50 transition shadow-sm"
+              className="w-7 h-7 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold flex items-center justify-center hover:bg-indigo-50 transition shadow-sm"
             >
-              <i className="fa-solid fa-plus text-xs"></i>
+              <i className="fa-solid fa-plus text-[11px]"></i>
             </button>
           </div>
         </div>
 
         {/* Alt Aksiyon Butonları */}
-        <div className="space-y-2.5">
-          <div className="flex gap-2">
-            <label className="flex-1 py-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition rounded-xl font-black text-xs text-center cursor-pointer border border-indigo-100 dark:border-indigo-800/50 shadow-sm flex items-center justify-center gap-2">
+        <div className="space-y-2">
+          <div className="flex gap-1">
+            <label className="flex-1 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition rounded-xl font-black text-[11px] text-center cursor-pointer border border-indigo-100 dark:border-indigo-800/50 shadow-sm flex items-center justify-center gap-1">
               <i className="fa-solid fa-cloud-arrow-up"></i> Fotoğraf Değiştir
               <input
                 type="file"
@@ -10473,7 +10438,7 @@ useEffect(() => {
             <button
               type="button"
               onClick={() => setAvatarModalInfo({ ...avatarModalInfo, tempAvatar: null, zoom: 1, x: 50, y: 50 })}
-              className="px-4 py-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition rounded-xl font-bold text-xs border border-rose-100 dark:border-rose-800/50 shadow-sm flex items-center justify-center gap-1.5"
+              className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition rounded-xl font-bold text-[11px] border border-rose-100 dark:border-rose-800/50 shadow-sm flex items-center justify-center gap-1"
               title="Fotoğrafı Kaldır"
             >
               <i className="fa-solid fa-trash-can"></i>
@@ -10493,7 +10458,7 @@ useEffect(() => {
               setAvatarModalInfo({ ...avatarModalInfo, isOpen: false });
               showNotification("Profil fotoğrafı güncellendi.");
             }}
-            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-black text-xs shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2"
+            className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-black text-[11px] shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-1"
           >
             <i className="fa-solid fa-check"></i> Değişiklikleri Kaydet
           </button>
