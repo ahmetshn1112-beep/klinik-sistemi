@@ -245,8 +245,59 @@ const useFirebase = () => {
         showNotification,
         globalData,
         currentUser,
+        saveGlobalData // YENİ EKLENDİ
       }) => {
         const [isPediatric, setIsPediatric] = useState(false);
+
+        // --- YENİ EKLENEN: DİŞ DETAY MODALI STATE'LERİ ---
+        const [detailToothModal, setDetailToothModal] = useState(null);
+        const [detailTab, setDetailTab] = useState("genel");
+        const [tempToothData, setTempToothData] = useState({ status: "Sağlıklı", diagnoses: [], notes: "" });
+        const [newDiagnosis, setNewDiagnosis] = useState("");
+
+        const TOOTH_STATUS_OPTIONS = ["Sağlıklı", "Şüpheli", "Çürük", "Enfeksiyon", "Dolgulu", "Kanal Tedavili", "Eksik", "İmplant", "Kron", "Diğer"];
+        const DEFAULT_DIAGNOSES = ["Çürük", "Pulpa Problemi", "Periapikal Lezyon", "Periodontal Problem", "Fraktür", "Gömülü"];
+
+        const openDetailModal = (tNo) => {
+          const tKey = tNo.toString();
+          const existingData = patientForm.toothRecords?.[tKey] || { status: "Sağlıklı", diagnoses: [], notes: "" };
+          setTempToothData({
+            status: existingData.status || "Sağlıklı",
+            diagnoses: existingData.diagnoses || [],
+            notes: existingData.notes || ""
+          });
+          setDetailToothModal(tKey);
+          setDetailTab("genel");
+        };
+
+        const saveToothDetails = () => {
+          const tKey = detailToothModal;
+          const updatedRecords = {
+            ...(patientForm.toothRecords || {}),
+            [tKey]: tempToothData
+          };
+          const updatedPatient = { ...patientForm, toothRecords: updatedRecords };
+          setPatientForm(updatedPatient);
+          
+          if(saveGlobalData) {
+            saveGlobalData({
+              ...globalData,
+              patientsDb: { ...globalData.patientsDb, [updatedPatient.id]: updatedPatient }
+            });
+            showNotification(`${tKey} Numaralı diş detayları kaydedildi.`);
+          }
+        };
+
+        const toggleDiagnosis = (diag) => {
+          setTempToothData(prev => {
+            const has = prev.diagnoses.includes(diag);
+            return {
+              ...prev,
+              diagnoses: has ? prev.diagnoses.filter(d => d !== diag) : [...prev.diagnoses, diag]
+            };
+          });
+        };
+        // -------------------------------------------------
 
         // Doğru pedodontik (FDI) diş numaralandırması
         const topRight = isPediatric
@@ -550,8 +601,15 @@ const useFirebase = () => {
               )}
 
               {isUpper && (
-                <div className="text-[10px] font-black text-slate-500 dark:text-slate-400 mb-1 pointer-events-none transition-colors group-hover:text-indigo-500">
-                  {toothNo}
+                <div className="relative text-[10px] font-black text-slate-500 dark:text-slate-400 mb-1 transition-colors group-hover:text-indigo-500 flex items-center justify-center">
+                  <span className="pointer-events-none">{toothNo}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
+                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
+                    title="Diş Detayları"
+                  >
+                    <i className="fa-solid fa-info"></i>
+                  </button>
                 </div>
               )}
 
@@ -763,8 +821,15 @@ const useFirebase = () => {
               </svg>
 
               {!isUpper && (
-                <div className="text-[10px] font-black text-slate-500 dark:text-slate-400 mt-1 pointer-events-none">
-                  {toothNo}
+                <div className="relative text-[10px] font-black text-slate-500 dark:text-slate-400 mt-1 transition-colors group-hover:text-indigo-500 flex items-center justify-center">
+                  <span className="pointer-events-none">{toothNo}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
+                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
+                    title="Diş Detayları"
+                  >
+                    <i className="fa-solid fa-info"></i>
+                  </button>
                 </div>
               )}
             </div>
@@ -836,6 +901,249 @@ const useFirebase = () => {
                 {botLeft.map((t) => renderTooth(t, false))}
               </div>
             </div>
+
+            {/* YENİ EKLENEN: DİŞ DETAY MODALI */}
+            {detailToothModal && (
+              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[300] p-4 transition-all" onClick={() => setDetailToothModal(null)}>
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
+                  
+                  {/* Modal Header */}
+                  <div className="px-6 py-4 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                        <i className="fa-solid fa-tooth text-lg"></i>
+                      </div>
+                      <div>
+                        <h3 className="font-black text-lg uppercase tracking-wider">{detailToothModal} Numaralı Diş</h3>
+                        <div className="text-[10px] text-slate-400 font-bold">Hasta: {patientForm.name}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => {
+                        const originalTitle = document.title;
+                        document.title = `${patientForm.name} - Dis ${detailToothModal} Raporu`;
+                        window.print();
+                        setTimeout(() => document.title = originalTitle, 2000);
+                      }} className="w-8 h-8 flex justify-center items-center rounded-lg bg-white/10 hover:bg-white/20 transition" title="Yazdır">
+                        <i className="fa-solid fa-print text-sm"></i>
+                      </button>
+                      <button onClick={() => setDetailToothModal(null)} className="w-8 h-8 flex justify-center items-center rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition">
+                        <i className="fa-solid fa-xmark text-lg"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tabs */}
+                  <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-2 gap-1 overflow-x-auto custom-scrollbar shrink-0">
+                    {["genel", "gecmis", "planlanan", "randevular"].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setDetailTab(tab)}
+                        className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider whitespace-nowrap transition-all ${
+                          detailTab === tab ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 shadow-sm" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        {tab === "genel" ? <><i className="fa-solid fa-notes-medical mr-1"></i> Genel Durum & Tanı</> :
+                         tab === "gecmis" ? <><i className="fa-solid fa-clock-rotate-left mr-1"></i> Tedavi Geçmişi</> :
+                         tab === "planlanan" ? <><i className="fa-solid fa-list-check mr-1"></i> Planlananlar</> :
+                         <><i className="fa-regular fa-calendar-check mr-1"></i> İlgili Randevular</>}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Tab Contents */}
+                  <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-slate-800" id="print-tooth-detail">
+                    
+                    {/* YAZDIRMA İÇİN GİZLİ BAŞLIK */}
+                    <div className="hidden print-only mb-6 border-b-2 border-black pb-2">
+                      <h1 className="text-xl font-black uppercase text-black">{detailToothModal} NUMARALI DİŞ KLİNİK RAPORU</h1>
+                      <div className="text-sm font-bold text-gray-700 mt-2 grid grid-cols-2">
+                        <div>Hasta: {patientForm.name}</div>
+                        <div className="text-right">Tarih: {new Date().toLocaleDateString("tr-TR")}</div>
+                      </div>
+                    </div>
+
+                    {detailTab === "genel" && (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Dişin Güncel Durumu</label>
+                            <div className="flex flex-wrap gap-2">
+                              {TOOTH_STATUS_OPTIONS.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => setTempToothData({...tempToothData, status: opt})}
+                                  className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                                    tempToothData.status === opt 
+                                      ? "bg-indigo-500 text-white border-indigo-600 shadow-md" 
+                                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300"
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Tanılar / Semptomlar</label>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {DEFAULT_DIAGNOSES.map(diag => (
+                                <button
+                                  key={diag}
+                                  onClick={() => toggleDiagnosis(diag)}
+                                  className={`px-2.5 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+                                    tempToothData.diagnoses.includes(diag)
+                                      ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400"
+                                      : "bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  <i className={`fa-solid ${tempToothData.diagnoses.includes(diag) ? "fa-check" : "fa-plus opacity-50"}`}></i>
+                                  {diag}
+                                </button>
+                              ))}
+                              {tempToothData.diagnoses.filter(d => !DEFAULT_DIAGNOSES.includes(d)).map(diag => (
+                                <button key={diag} onClick={() => toggleDiagnosis(diag)} className="px-2.5 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1.5 bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400">
+                                  <i className="fa-solid fa-check"></i> {diag}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                value={newDiagnosis} 
+                                onChange={(e) => setNewDiagnosis(e.target.value)} 
+                                placeholder="Özel tanı ekle..." 
+                                className="flex-1 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                                onKeyDown={(e) => {
+                                  if(e.key === 'Enter' && newDiagnosis.trim()) {
+                                    e.preventDefault();
+                                    if(!tempToothData.diagnoses.includes(newDiagnosis.trim())) {
+                                      toggleDiagnosis(newDiagnosis.trim());
+                                    }
+                                    setNewDiagnosis("");
+                                  }
+                                }}
+                              />
+                              <button 
+                                onClick={() => {
+                                  if(newDiagnosis.trim() && !tempToothData.diagnoses.includes(newDiagnosis.trim())) {
+                                    toggleDiagnosis(newDiagnosis.trim());
+                                    setNewDiagnosis("");
+                                  }
+                                }}
+                                className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 px-3 py-2 rounded-lg font-bold hover:bg-indigo-200 transition text-xs"
+                              >
+                                Ekle
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Bu Dişe Özel Klinik Notlar</label>
+                          <textarea 
+                            rows="4" 
+                            value={tempToothData.notes}
+                            onChange={e => setTempToothData({...tempToothData, notes: e.target.value})}
+                            placeholder="Diş ile ilgili detaylı notlar, kanal boyu, kullanılan materyaller vb..."
+                            className="w-full p-3 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-amber-400 resize-none"
+                          ></textarea>
+                        </div>
+                      </div>
+                    )}
+
+                    {detailTab === "gecmis" && (() => {
+                      const history = (patientForm.clinicalHistory || []).filter(h => h.selectedTeeth?.includes(detailToothModal) || h.selectedTeeth?.includes("Tüm Çene"));
+                      return (
+                        <div className="space-y-4">
+                          {history.length > 0 ? (
+                            <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
+                              {history.map((h, i) => (
+                                <div key={i} className="relative flex items-start group mb-6 pl-12">
+                                  <div className="absolute left-1.5 flex items-center justify-center w-8 h-8 rounded-full border-4 border-white dark:border-slate-800 bg-indigo-500 text-white z-10">
+                                    <i className="fa-solid fa-check text-[10px]"></i>
+                                  </div>
+                                  <div className="w-full p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 shadow-sm relative before:absolute before:top-4 before:right-full before:w-3 before:h-0.5 before:bg-slate-200 dark:before:bg-slate-700">
+                                    <div className="flex justify-between items-center mb-1 border-b border-slate-200 dark:border-slate-700 pb-2">
+                                      <span className="font-bold text-xs text-slate-500">{h.date} • {h.time}</span>
+                                      <span className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-bold">{h.doctorName}</span>
+                                    </div>
+                                    <div className="font-black text-indigo-700 dark:text-indigo-400 text-sm mt-2">{h.treatment}</div>
+                                    {h.procedureNotes && <div className="text-xs text-slate-600 dark:text-slate-300 mt-1 italic">"{h.procedureNotes}"</div>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-10 text-slate-400 text-sm font-medium">Bu diş için kayıtlı klinik geçmiş bulunmuyor.</div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {detailTab === "planlanan" && (() => {
+                      const planned = (patientForm.plannedTreatments || []).filter(t => t.tooth === detailToothModal || t.tooth === "Tüm Çene");
+                      return (
+                        <div className="space-y-3">
+                          {planned.length > 0 ? planned.map((tx, i) => (
+                            <div key={i} className="flex justify-between items-center p-3.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                              <div>
+                                <div className="font-black text-sm text-slate-800 dark:text-white">{tx.treatment}</div>
+                                <div className="text-[10px] text-slate-400 font-bold mt-0.5">{new Date(tx.date).toLocaleDateString("tr-TR")}</div>
+                              </div>
+                              <div className="font-black text-emerald-600 dark:text-emerald-400">{parseFloat(tx.price).toLocaleString("tr-TR")} ₺</div>
+                            </div>
+                          )) : <div className="text-center py-10 text-slate-400 text-sm font-medium">Bu diş için planlanmış bir tedavi bulunmuyor.</div>}
+                        </div>
+                      );
+                    })()}
+
+                    {detailTab === "randevular" && (() => {
+                      const apts = [];
+                      if (globalData.appointments) {
+                        Object.values(globalData.appointments).forEach(docApts => {
+                          Object.entries(docApts).forEach(([key, apt]) => {
+                            if (apt.patientName === patientForm.name && (apt.selectedTeeth?.includes(detailToothModal) || apt.selectedTeeth?.includes("Tüm Çene"))) {
+                              const [y, m, d] = key.split("-").map(Number);
+                              apts.push({ ...apt, dateStr: `${d}/${m}/${y}`, timeStr: key.split("-")[3] });
+                            }
+                          });
+                        });
+                      }
+                      return (
+                        <div className="space-y-3">
+                          {apts.length > 0 ? apts.map((a, i) => (
+                            <div key={i} className="flex justify-between items-center p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm border-l-4 border-l-indigo-500">
+                              <div>
+                                <div className="font-black text-sm text-indigo-700 dark:text-indigo-400">{a.treatment || "Genel İşlem"}</div>
+                                <div className="text-xs text-slate-500 font-bold mt-1"><i className="fa-regular fa-calendar mr-1"></i> {a.dateStr} - {a.timeStr}</div>
+                              </div>
+                              <div className="text-[10px] font-bold px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{a.status}</div>
+                            </div>
+                          )) : <div className="text-center py-10 text-slate-400 text-sm font-medium">Bu dişi içeren bir randevu bulunmuyor.</div>}
+                        </div>
+                      );
+                    })()}
+
+                  </div>
+                  
+                  {/* Modal Footer (Sadece Genel sekmesinde Kaydet butonu aktif) */}
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 shrink-0 no-print">
+                    <button onClick={() => setDetailToothModal(null)} className="px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-sm">
+                      Kapat
+                    </button>
+                    {detailTab === "genel" && (
+                      <button onClick={saveToothDetails} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/30">
+                        Durum ve Notları Kaydet
+                      </button>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            )}
+            {/* DİŞ DETAY MODALI BİTİŞ */}
 
           </div>
         );
@@ -6990,6 +7298,21 @@ useEffect(() => {
                       onClick={() => {
                         setPatientForm(contextMenu.data);
                         setPatientModalTab("plan");
+                        <button
+    onClick={() => setPatientModalTab("history")}
+    className={`flex-1 ${
+      isSplitMode
+        ? "min-w-[120px] py-2 px-2 text-xs"
+        : "min-w-[180px] py-2.5 px-4 text-sm"
+    } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
+      patientModalTab === "history"
+        ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+    }`}
+  >
+    <i className="fa-solid fa-notes-medical mr-1.5"></i>
+    Klinik Geçmiş
+  </button>
                         setIsPatientModalOpen(true);
                       }}
                       className="w-full text-left px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition"
@@ -8405,49 +8728,53 @@ useEffect(() => {
                           <button
                             onClick={() => setPatientModalTab("info")}
                             className={`flex-1 ${
-                              isSplitMode
-                                ? "min-w-[120px] py-2 px-2 text-xs"
-                                : "min-w-[180px] py-2.5 px-4 text-sm"
+                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "info"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             }`}
                           >
-                            <i className="fa-regular fa-address-card mr-1.5"></i>
-                            Kimlik & Randevu
+                            <i className="fa-regular fa-address-card mr-1.5"></i> Kimlik & Randevu
                           </button>
 
                           <button
                             onClick={() => setPatientModalTab("finance")}
                             className={`flex-1 ${
-                              isSplitMode
-                                ? "min-w-[120px] py-2 px-2 text-xs"
-                                : "min-w-[180px] py-2.5 px-4 text-sm"
+                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "finance"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             }`}
                           >
-                            <i className="fa-solid fa-money-bill-wave mr-1.5"></i>
-                            Hesap Özeti
+                            <i className="fa-solid fa-money-bill-wave mr-1.5"></i> Hesap Özeti
                           </button>
 
                           <button
                             onClick={() => setPatientModalTab("plan")}
                             className={`flex-1 ${
-                              isSplitMode
-                                ? "min-w-[120px] py-2 px-2 text-xs"
-                                : "min-w-[180px] py-2.5 px-4 text-sm"
+                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "plan"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                             }`}
                           >
-                            <i className="fa-solid fa-tooth mr-1.5"></i>
-                            Planlama
+                            <i className="fa-solid fa-tooth mr-1.5"></i> Planlama
+                          </button>
+
+                          <button
+                            onClick={() => setPatientModalTab("history")}
+                            className={`flex-1 ${
+                              isSplitMode ? "min-w-[120px] py-2 px-2 text-xs" : "min-w-[150px] py-2.5 px-4 text-sm"
+                            } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
+                              patientModalTab === "history"
+                                ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            }`}
+                          >
+                            <i className="fa-solid fa-notes-medical mr-1.5"></i> Klinik Geçmiş
                           </button>
                         </div>
                       </div>
@@ -9403,6 +9730,7 @@ useEffect(() => {
                                 showNotification={showNotification}
                                 globalData={globalData}
                                 currentUser={currentUser}
+                                saveGlobalData={saveGlobalData} 
                               />
 
                               {/* --- YAZDIRMA İŞLEM TABLOSU (Gizli, Sadece Baskıda) --- */}
