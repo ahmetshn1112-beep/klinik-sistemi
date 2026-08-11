@@ -1045,6 +1045,74 @@ useEffect(() => {
 
         const [paymentInput, setPaymentInput] = useState("");
         const [paymentMethod, setPaymentMethod] = useState("Nakit");
+        // YENİ: KLİNİK GEÇMİŞ (EPİKRİZ) STATE'LERİ VE FONKSİYONLARI
+        const [isHistoryDetailModalOpen, setIsHistoryDetailModalOpen] = useState(false);
+        const [selectedHistoryRecord, setSelectedHistoryRecord] = useState(null);
+        const [isAddHistoryModalOpen, setIsAddHistoryModalOpen] = useState(false);
+        const [historySearchQuery, setHistorySearchQuery] = useState("");
+        const [historyFilterDoc, setHistoryFilterDoc] = useState("all");
+        const [newHistoryForm, setNewHistoryForm] = useState({
+          date: (() => {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          })(),
+          time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+          doctorId: currentUser || "",
+          visitType: "Tedavi",
+          treatment: "",
+          selectedTeeth: "",
+          complaint: "",
+          clinicalFindings: "",
+          diagnosis: "",
+          procedureNotes: "",
+          materials: "",
+          anesthesia: "",
+          prescription: "",
+          recommendations: "",
+          nextAppointmentDate: "",
+        });
+
+        const handleSaveManualHistory = (e) => {
+          e.preventDefault();
+          const newHistory = {
+            id: "hist_" + Date.now(),
+            appointmentId: null, // Manuel eklenenlerin randevu ID'si yoktur
+            date: newHistoryForm.date,
+            time: newHistoryForm.time,
+            timestamp: Date.now(),
+            doctorId: newHistoryForm.doctorId,
+            doctorName: globalData.doctorProfiles?.[newHistoryForm.doctorId]?.name || newHistoryForm.doctorId,
+            appointmentStatus: "Geldi",
+            visitType: newHistoryForm.visitType,
+            treatment: newHistoryForm.treatment,
+            selectedTeeth: newHistoryForm.selectedTeeth ? newHistoryForm.selectedTeeth.split(",").map(s => s.trim()) : [],
+            complaint: newHistoryForm.complaint,
+            clinicalFindings: newHistoryForm.clinicalFindings,
+            diagnosis: newHistoryForm.diagnosis,
+            procedureNotes: newHistoryForm.procedureNotes,
+            materials: newHistoryForm.materials,
+            anesthesia: newHistoryForm.anesthesia,
+            prescription: newHistoryForm.prescription,
+            recommendations: newHistoryForm.recommendations,
+            nextAppointment: newHistoryForm.nextAppointmentDate ? { date: newHistoryForm.nextAppointmentDate, time: "", reason: "" } : null,
+            createdAt: Date.now(),
+            createdBy: currentUser
+          };
+
+          const updatedPatient = {
+            ...patientForm,
+            clinicalHistory: [newHistory, ...(patientForm.clinicalHistory || [])]
+          };
+
+          setPatientForm(updatedPatient);
+          saveGlobalData({
+            ...globalData,
+            patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient }
+          });
+          setIsAddHistoryModalOpen(false);
+          setNewHistoryForm({ ...newHistoryForm, treatment: "", selectedTeeth: "", complaint: "", clinicalFindings: "", diagnosis: "", procedureNotes: "", materials: "", anesthesia: "", prescription: "", recommendations: "", nextAppointmentDate: "" });
+          showNotification("Klinik geçmiş kaydı başarıyla eklendi.");
+        };
 
         const [patientModalTab, setPatientModalTab] = useState("info");
 
@@ -1585,6 +1653,35 @@ useEffect(() => {
 
           if (updatedPatientsDb[pId]) {
             updatedPatientsDb[pId].lastStatus = newStatus;
+            
+            // YENİ: Otomatik Epikriz (Klinik Geçmiş) Oluşturma Modülü
+            if (newStatus === "Geldi") {
+              const historyArray = updatedPatientsDb[pId].clinicalHistory || [];
+              const historyExists = historyArray.some((h) => h.appointmentId === aptKey);
+              
+              if (!historyExists) {
+                const [y, m, d, ...timeArr] = aptKey.split("-");
+                const timeStr = timeArr.join(":");
+                const newHistory = {
+                  id: "hist_" + Date.now(),
+                  appointmentId: aptKey,
+                  date: `${y}-${m}-${d}`,
+                  time: timeStr,
+                  timestamp: Date.now(),
+                  doctorId: docId,
+                  doctorName: globalData.doctorProfiles?.[docId]?.name || docId,
+                  appointmentStatus: "Geldi",
+                  visitType: "Tedavi / İşlem",
+                  treatment: aptData.treatment || "Belirtilmedi",
+                  selectedTeeth: aptData.selectedTeeth || [],
+                  complaint: aptData.notes || "",
+                  createdAt: Date.now(),
+                  createdBy: currentUser
+                };
+                // En yeni kayıt en üste gelecek şekilde ekliyoruz
+                updatedPatientsDb[pId].clinicalHistory = [newHistory, ...historyArray];
+              }
+            }
           }
 
           saveGlobalData({
@@ -2317,37 +2414,65 @@ useEffect(() => {
           if (!existingPatient) {
             updatedPatientsDb[patientId] = {
               id: patientId,
-
               name: formData.patientName.trim(),
-
               phone: formData.phone || "",
-
               tc: "",
-
               age: "",
-
               gender: "Belirtilmemiş",
-
               anamnesis: formData.anamnesis || "",
-
               payments: [],
-
               plannedTreatments: [],
-
               lastStatus: formData.status,
               lastTreatment: treatmentStr,
               addedBy: currentUser,
+              // Yeni hasta oluşturulurken Geldi işaretlenirse geçmişe at
+              clinicalHistory: formData.status === "Geldi" ? [{
+                id: "hist_" + Date.now(),
+                appointmentId: key,
+                date: formatDateKey(activeSlotDate),
+                time: selectedSlot,
+                timestamp: Date.now(),
+                doctorId: activeSlotDoctor,
+                doctorName: globalData.doctorProfiles?.[activeSlotDoctor]?.name || activeSlotDoctor,
+                appointmentStatus: "Geldi",
+                visitType: "İlk Muayene",
+                treatment: treatmentStr || "Belirtilmedi",
+                selectedTeeth: formData.selectedTeeth || [],
+                complaint: formData.notes || "",
+                createdAt: Date.now(),
+                createdBy: currentUser
+              }] : []
             };
           } else {
-            if (formData.phone)
-              updatedPatientsDb[patientId].phone = formData.phone;
-
-            if (formData.anamnesis)
-              updatedPatientsDb[patientId].anamnesis = formData.anamnesis;
-
+            if (formData.phone) updatedPatientsDb[patientId].phone = formData.phone;
+            if (formData.anamnesis) updatedPatientsDb[patientId].anamnesis = formData.anamnesis;
             updatedPatientsDb[patientId].lastStatus = formData.status;
-
             updatedPatientsDb[patientId].lastTreatment = treatmentStr;
+            
+            // Var olan hasta için Randevu "Geldi" ise geçmişe at
+            if (formData.status === "Geldi") {
+              const historyArray = updatedPatientsDb[patientId].clinicalHistory || [];
+              const historyExists = historyArray.some((h) => h.appointmentId === key);
+              if (!historyExists) {
+                const newHistory = {
+                  id: "hist_" + Date.now(),
+                  appointmentId: key,
+                  date: formatDateKey(activeSlotDate),
+                  time: selectedSlot,
+                  timestamp: Date.now(),
+                  doctorId: activeSlotDoctor,
+                  doctorName: globalData.doctorProfiles?.[activeSlotDoctor]?.name || activeSlotDoctor,
+                  appointmentStatus: "Geldi",
+                  visitType: "Tedavi / İşlem",
+                  treatment: treatmentStr || "Belirtilmedi",
+                  selectedTeeth: formData.selectedTeeth || [],
+                  complaint: formData.notes || "",
+                  createdAt: Date.now(),
+                  createdBy: currentUser
+                };
+                updatedPatientsDb[patientId].clinicalHistory = [newHistory, ...historyArray];
+              }
+            }
           }
 
           saveGlobalData({
@@ -9424,6 +9549,21 @@ useEffect(() => {
                                                   <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
                                                     <i className="fa-solid fa-pen text-[11px]"></i>
                                                   </button>
+                                                  <button
+                            onClick={() => setPatientModalTab("history")}
+                            className={`flex-1 ${
+                              isSplitMode
+                                ? "min-w-[120px] py-2 px-2 text-xs"
+                                : "min-w-[180px] py-2.5 px-4 text-sm"
+                            } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
+                              patientModalTab === "history"
+                                ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            }`}
+                          >
+                            <i className="fa-solid fa-notes-medical mr-1.5"></i>
+                            Klinik Geçmiş
+                          </button>
                                                 </div>
                                               )}
                                             </td>
@@ -9462,7 +9602,353 @@ useEffect(() => {
                             </div>
                           );
                         })()}
+{/* --- 7. KLİNİK GEÇMİŞ (EPİKRİZ) EKRANI --- */}
+                      {patientModalTab === "history" && (
+                        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-slate-50 flex flex-col gap-6 relative dark:bg-slate-900/50 print:bg-white print:p-0">
+                          
+                          {/* Print Alanı (Sadece Çıktıda Görünür) */}
+                          <div className="hidden print-only w-full">
+                            <div className="border-b-2 border-black pb-2 mb-4">
+                              <h1 className="text-xl font-black uppercase text-black">KLİNİK GEÇMİŞ / EPİKRİZ RAPORU</h1>
+                              <div className="text-xs font-bold text-gray-700 mt-2 grid grid-cols-2 gap-2">
+                                <div>Hasta: {patientForm.name}</div>
+                                <div className="text-right">Rapor Tarihi: {new Date().toLocaleDateString("tr-TR")}</div>
+                                <div>İletişim: {patientForm.phone || "-"}</div>
+                                <div className="text-right">Raporlayan Hekim: {globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
+                              </div>
+                            </div>
+                            <table className="w-full text-left border-collapse" style={{ fontSize: "10px" }}>
+                              <thead>
+                                <tr className="bg-gray-100 text-black">
+                                  <th className="border border-gray-400 py-1 px-1.5 w-24">Tarih / Saat</th>
+                                  <th className="border border-gray-400 py-1 px-1.5 w-32">Hekim</th>
+                                  <th className="border border-gray-400 py-1 px-1.5">İşlem / Tanı / Notlar</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(patientForm.clinicalHistory || []).map((h, i) => (
+                                  <tr key={h.id || i}>
+                                    <td className="border border-gray-400 py-1.5 px-1.5 font-bold align-top">{h.date} - {h.time}</td>
+                                    <td className="border border-gray-400 py-1.5 px-1.5 font-semibold align-top">{h.doctorName}</td>
+                                    <td className="border border-gray-400 py-1.5 px-1.5 align-top">
+                                      <div className="font-bold">{h.treatment} {h.selectedTeeth?.length > 0 && `(Diş: ${h.selectedTeeth.join(", ")})`}</div>
+                                      {h.complaint && <div className="mt-0.5 text-gray-600"><b>Şikayet:</b> {h.complaint}</div>}
+                                      {h.diagnosis && <div className="mt-0.5 text-gray-600"><b>Tanı:</b> {h.diagnosis}</div>}
+                                      {h.procedureNotes && <div className="mt-0.5 text-gray-600"><b>Not:</b> {h.procedureNotes}</div>}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
 
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-4 shrink-0">
+                            <div>
+                              <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-2 text-lg">
+                                <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i>
+                                Klinik Geçmiş (Epikriz)
+                              </h3>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const originalTitle = document.title;
+                                  document.title = `${patientForm.name} - Epikriz Raporu`;
+                                  window.print();
+                                  setTimeout(() => document.title = originalTitle, 2000);
+                                }}
+                                className="flex-1 sm:flex-none bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 px-4 py-2.5 rounded-xl font-bold shadow-sm hover:bg-slate-200 transition-all flex items-center gap-2 justify-center"
+                              >
+                                <i className="fa-solid fa-print"></i> Yazdır
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsAddHistoryModalOpen(true)}
+                                className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 justify-center"
+                              >
+                                <i className="fa-solid fa-plus"></i> Yeni Kayıt
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Filtre ve Arama Alanı */}
+                          <div className="flex gap-2 flex-wrap no-print">
+                            <div className="relative flex-1 min-w-[200px]">
+                              <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                              <input
+                                type="text"
+                                placeholder="İşlem, Diş, Tanı ara..."
+                                value={historySearchQuery}
+                                onChange={(e) => setHistorySearchQuery(e.target.value)}
+                                className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
+                              />
+                            </div>
+                            <select
+                              value={historyFilterDoc}
+                              onChange={(e) => setHistoryFilterDoc(e.target.value)}
+                              className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none shadow-sm dark:text-white"
+                            >
+                              <option value="all">Tüm Hekimler</option>
+                              {allDoctors.map(doc => (
+                                <option key={doc} value={doc}>{globalData.doctorProfiles?.[doc]?.name || doc}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Timeline Görünümü */}
+                          <div className="flex-1 overflow-y-auto no-print pr-2 relative mt-2 custom-scrollbar">
+                            {(() => {
+                              let historyData = patientForm.clinicalHistory || [];
+                              if (historyFilterDoc !== "all") historyData = historyData.filter(h => h.doctorId === historyFilterDoc);
+                              if (historySearchQuery) {
+                                const q = historySearchQuery.toLowerCase();
+                                historyData = historyData.filter(h => 
+                                  (h.treatment && h.treatment.toLowerCase().includes(q)) || 
+                                  (h.diagnosis && h.diagnosis.toLowerCase().includes(q)) ||
+                                  (h.selectedTeeth && h.selectedTeeth.some(t => t.includes(q))) ||
+                                  (h.complaint && h.complaint.toLowerCase().includes(q))
+                                );
+                              }
+
+                              if (historyData.length === 0) return (
+                                <div className="text-center py-10 text-slate-400 text-sm font-medium bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-200 dark:border-slate-700">
+                                  <i className="fa-solid fa-notes-medical text-3xl mb-3 text-slate-300 dark:text-slate-600 block"></i>
+                                  Kayıtlı klinik geçmiş bulunmuyor.
+                                </div>
+                              );
+
+                              return (
+                                <div className="relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-indigo-500 before:via-purple-500 before:to-transparent">
+                                  {historyData.map((h, index) => (
+                                    <div key={h.id || index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active mb-8">
+                                      <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 dark:border-slate-900 bg-indigo-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 absolute left-0 md:left-1/2 -translate-x-0 cursor-pointer hover:scale-110 transition-transform"
+                                           onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
+                                        <i className="fa-solid fa-stethoscope text-xs"></i>
+                                      </div>
+                                      <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] ml-auto md:ml-0 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-1"
+                                           onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
+                                        <div className="flex justify-between items-center mb-2">
+                                          <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md">
+                                            {h.date} • {h.time}
+                                          </span>
+                                          <span className="text-[10px] font-bold text-slate-500 border border-slate-200 dark:border-slate-600 px-2 py-0.5 rounded-md">
+                                            {h.visitType}
+                                          </span>
+                                        </div>
+                                        <h4 className="font-black text-sm text-slate-800 dark:text-white mb-2">{h.treatment}</h4>
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-col gap-1">
+                                          <div className="flex items-center gap-2 font-bold text-slate-600 dark:text-slate-300">
+                                            <i className="fa-solid fa-user-doctor w-3 text-center"></i> {h.doctorName}
+                                          </div>
+                                          {h.selectedTeeth?.length > 0 && (
+                                            <div className="flex items-center gap-2">
+                                              <i className="fa-solid fa-tooth w-3 text-center"></i> Dişler: {h.selectedTeeth.join(" • ")}
+                                            </div>
+                                          )}
+                                          {h.diagnosis && (
+                                            <div className="flex items-start gap-2 mt-1 bg-slate-50 dark:bg-slate-900 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                              <i className="fa-solid fa-notes-medical w-3 text-center text-rose-400 mt-0.5"></i> <span className="line-clamp-2 italic">{h.diagnosis}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Modal: Yeni Klinik Kayıt (Epikriz) Ekleme */}
+                      {isAddHistoryModalOpen && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4">
+                          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-pop">
+                            <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0">
+                              <h3 className="font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                                <i className="fa-solid fa-file-medical text-indigo-400"></i> Yeni Klinik Geçmiş Ekle
+                              </h3>
+                              <button onClick={() => setIsAddHistoryModalOpen(false)} className="text-slate-400 hover:text-white transition">
+                                <i className="fa-solid fa-xmark text-lg"></i>
+                              </button>
+                            </div>
+                            <form onSubmit={handleSaveManualHistory} className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <div className="col-span-2 sm:col-span-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tarih *</label>
+                                  <input type="date" required value={newHistoryForm.date} onChange={e => setNewHistoryForm({...newHistoryForm, date: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Saat *</label>
+                                  <input type="time" required value={newHistoryForm.time} onChange={e => setNewHistoryForm({...newHistoryForm, time: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                </div>
+                                <div className="col-span-2 sm:col-span-2">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlgili Hekim *</label>
+                                  <select required value={newHistoryForm.doctorId} onChange={e => setNewHistoryForm({...newHistoryForm, doctorId: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700">
+                                    <option value="" disabled>Seçiniz</option>
+                                    {allDoctors.map(doc => (<option key={doc} value={doc}>{globalData.doctorProfiles?.[doc]?.name || doc}</option>))}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ziyaret Türü</label>
+                                  <select value={newHistoryForm.visitType} onChange={e => setNewHistoryForm({...newHistoryForm, visitType: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none dark:bg-slate-900 dark:text-white dark:border-slate-700">
+                                    <option>İlk Muayene</option><option>Tedavi / İşlem</option><option>Kontrol</option><option>Cerrahi</option><option>Diğer</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlgili Dişler (Virgülle ayırın, Örn: 46, 36)</label>
+                                  <input type="text" placeholder="Tüm Çene veya diş numaraları" value={newHistoryForm.selectedTeeth} onChange={e => setNewHistoryForm({...newHistoryForm, selectedTeeth: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Yapılan İşlem / Tedavi *</label>
+                                <input type="text" required placeholder="Örn: Kanal Tedavisi, Kompozit Dolgu..." value={newHistoryForm.treatment} onChange={e => setNewHistoryForm({...newHistoryForm, treatment: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Başvuru Şikayeti</label>
+                                  <textarea rows="2" value={newHistoryForm.complaint} onChange={e => setNewHistoryForm({...newHistoryForm, complaint: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Klinik Bulgular & Tanı</label>
+                                  <textarea rows="2" value={newHistoryForm.diagnosis} onChange={e => setNewHistoryForm({...newHistoryForm, diagnosis: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Anestezi / Materyal Bilgisi</label>
+                                  <textarea rows="2" value={newHistoryForm.anesthesia} onChange={e => setNewHistoryForm({...newHistoryForm, anesthesia: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hekim Notu / Prosedür Notu</label>
+                                  <textarea rows="2" value={newHistoryForm.procedureNotes} onChange={e => setNewHistoryForm({...newHistoryForm, procedureNotes: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İlaç / Reçete / Öneri</label>
+                                  <textarea rows="2" value={newHistoryForm.prescription} onChange={e => setNewHistoryForm({...newHistoryForm, prescription: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sonraki Kontrol Tarihi</label>
+                                  <input type="date" value={newHistoryForm.nextAppointmentDate} onChange={e => setNewHistoryForm({...newHistoryForm, nextAppointmentDate: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                </div>
+                              </div>
+                              <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
+                                <button type="button" onClick={() => setIsAddHistoryModalOpen(false)} className="px-5 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-300">İptal</button>
+                                <button type="submit" className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-sm shadow-lg hover:bg-indigo-700 transition">Kaydet</button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Modal: Klinik Ziyaret Detayı (Görüntüleme) */}
+                      {isHistoryDetailModalOpen && selectedHistoryRecord && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4" onClick={() => setIsHistoryDetailModalOpen(false)}>
+                          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
+                            <div className="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0">
+                              <div>
+                                <h3 className="font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                                  <i className="fa-solid fa-notes-medical text-indigo-400"></i> Klinik Ziyaret Detayı
+                                </h3>
+                                <div className="text-[10px] text-slate-400 mt-0.5">{selectedHistoryRecord.date} • {selectedHistoryRecord.time}</div>
+                              </div>
+                              <button onClick={() => setIsHistoryDetailModalOpen(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition flex items-center justify-center">
+                                <i className="fa-solid fa-xmark text-sm"></i>
+                              </button>
+                            </div>
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+                              <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-700 pb-4">
+                                <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i className="fa-solid fa-user-doctor"></i></div>
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase">İlgili Hekim</div>
+                                  <div className="font-black text-slate-800 dark:text-white">{selectedHistoryRecord.doctorName}</div>
+                                  <div className="text-[10px] mt-0.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded inline-block font-bold">{selectedHistoryRecord.visitType}</div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Yapılan İşlem / Tedavi</div>
+                                <div className="font-black text-base text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
+                                  {selectedHistoryRecord.treatment}
+                                  {selectedHistoryRecord.selectedTeeth?.length > 0 && (
+                                    <div className="text-xs font-bold text-indigo-500 dark:text-indigo-300 mt-1">
+                                      <i className="fa-solid fa-tooth mr-1"></i> İlgili Dişler: {selectedHistoryRecord.selectedTeeth.join(", ")}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {selectedHistoryRecord.complaint && (
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Başvuru Şikayeti</div>
+                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    {selectedHistoryRecord.complaint}
+                                  </div>
+                                </div>
+                              )}
+
+                              {(selectedHistoryRecord.clinicalFindings || selectedHistoryRecord.diagnosis) && (
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Bulgu ve Tanı</div>
+                                  <div className="text-sm font-semibold text-rose-700 dark:text-rose-400 p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/50 italic">
+                                    {selectedHistoryRecord.diagnosis || selectedHistoryRecord.clinicalFindings}
+                                  </div>
+                                </div>
+                              )}
+
+                              {selectedHistoryRecord.procedureNotes && (
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Hekim Notu</div>
+                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    {selectedHistoryRecord.procedureNotes}
+                                  </div>
+                                </div>
+                              )}
+
+                              {(selectedHistoryRecord.anesthesia || selectedHistoryRecord.materials) && (
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Anestezi / Materyal</div>
+                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    {selectedHistoryRecord.anesthesia || selectedHistoryRecord.materials}
+                                  </div>
+                                </div>
+                              )}
+
+                              {selectedHistoryRecord.prescription && (
+                                <div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Reçete / Öneri</div>
+                                  <div className="text-sm font-semibold text-slate-700 dark:text-slate-300 p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    {selectedHistoryRecord.prescription}
+                                  </div>
+                                </div>
+                              )}
+
+                              {selectedHistoryRecord.nextAppointment?.date && (
+                                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-800/50 flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                    <i className="fa-regular fa-calendar-check"></i>
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase">Planlanan Sonraki Kontrol</div>
+                                    <div className="font-black text-sm text-emerald-700 dark:text-emerald-400">{selectedHistoryRecord.nextAppointment.date}</div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shrink-0">
+                              <button onClick={() => setIsHistoryDetailModalOpen(false)} className="w-full py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                Kapat
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {/* DOSYAYI GÜNCELLE VE KAPAT BUTONLARI BURADA KORUNUYOR */}
                       <div className="px-6 py-4 bg-white border-t flex justify-between items-center rounded-b-[2rem] shrink-0 no-print z-50 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] dark:bg-[#0f172a] dark:border-slate-700">
                         <div className="text-xs text-slate-400 font-bold hidden sm:block">
