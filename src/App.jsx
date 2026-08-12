@@ -1506,6 +1506,10 @@ useEffect(() => {
         const [isHeaderVisible, setIsHeaderVisible] = useState(true);
         const [showAttendanceDetails, setShowAttendanceDetails] =
           useState(false);
+          // --- KLİNİK DOSYA MASASI STATE'LERİ ---
+        const [activeFolderId, setActiveFolderId] = useState(null);
+        const [folderSearch, setFolderSearch] = useState("");
+        // --------------------------------------
         const [dashboardPeriod, setDashboardPeriod] = useState("month");
         const [expandedTx, setExpandedTx] = useState(null); // Ana sayfa detayları için
 
@@ -3825,402 +3829,224 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* YENİ: İşlevsel Performans Analitiği, Tablolu Hacim ve Diş Detayları */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-2.5 flex flex-col shrink-0 mt-1">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-3 mb-2.5 gap-1.5">
-                  <h3 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1.5">
-                    <i className="fa-solid fa-chart-pie text-indigo-500"></i>{" "}
-                    Analitik ve İşlem Hacmi Tablosu
-                  </h3>
+              {/* ========================================================= */}
+              {/* YENİ MODÜL: KLİNİK DOSYA MASASI (VERİYE BAĞLANDI) */}
+              {/* ========================================================= */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-3 flex flex-col shrink-0 mt-2 animate-pop min-h-[400px]">
+                {(() => {
+                  const allPats = Object.values(globalData.patientsDb || {}).filter(
+                    (p) => p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser
+                  );
 
-                  <div className="relative">
-                    <select
-                      value={dashboardPeriod}
-                      onChange={(e) => setDashboardPeriod(e.target.value)}
-                      className="text-[11px] font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none cursor-pointer dark:bg-slate-900 dark:text-slate-300 dark:border-slate-700 shadow-sm appearance-none pr-7 transition-colors hover:bg-slate-200 dark:hover:bg-slate-800"
-                    >
-                      <option value="today">Bugün</option>
-                      <option value="week">Bu Hafta</option>
-                      <option value="month">Bu Ay</option>
-                      <option value="year">Bu Yıl</option>
-                      <option value="all">Tüm Zamanlar</option>
-                    </select>
-                    <i className="fa-solid fa-calendar-day absolute right-2.5 top-2 text-[11px] text-indigo-500 pointer-events-none"></i>
-                  </div>
-                </div>
+                  // ARTIK HASTA KARTINDA SEÇTİĞİN DROPDOWN ETİKETLERİNE GÖRE ÇALIŞIYOR:
+                  const fAcil = allPats.filter(p => p.folder_acil && p.folder_acil !== "");
+                  const fLab = allPats.filter(p => p.folder_lab && p.folder_lab !== "");
+                  const fEvrak = allPats.filter(p => p.folder_evrak && p.folder_evrak !== "");
+                  
+                  const fKontrol = allPats.filter(p => p.clinicalHistory?.some(h => h.nextAppointmentDate));
+                  const fTedavi = allPats.filter(p => p.plannedTreatments && p.plannedTreatments.length > 0);
+                  const fYeni = allPats.filter(p => p.clinicalHistory?.some(h => h.visitType === "İlk Muayene" && (Date.now() - h.timestamp) < 7 * 24 * 60 * 60 * 1000) || p.lastStatus === "Yeni Kayıt");
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
-                  {(() => {
-                    let totalApts = 0,
-                      arrived = 0,
-                      noShow = 0,
-                      canceled = 0,
-                      treatments = {};
-                    let earnedRev = 0;
-                    let uniquePatients = new Set();
+                  const folders = [
+                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.length, data: fAcil, desc: "Aktif acil & ağrı" },
+                    { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol.length, data: fKontrol, desc: "Yaklaşan kontroller" },
+                    { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTedavi.length, data: fTedavi, desc: "İşlem bekleyenler" },
+                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.length, data: fLab, desc: "Laboratuvar süreçleri" },
+                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.length, data: fEvrak, desc: "Eksik belgeler" },
+                    { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 günde eklenenler" }
+                  ];
 
-                    const now = new Date();
-                    const todayStr = formatDateKey(now);
-                    const currentDay = now.getDay();
-                    const diff =
-                      now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
-                    const monday = new Date(now.setDate(diff));
-                    monday.setHours(0, 0, 0, 0);
+                  const activeFolderData = activeFolderId ? folders.find(f => f.id === activeFolderId) : null;
 
-                    if (
-                      globalData.appointments &&
-                      globalData.appointments[currentUser]
-                    ) {
-                      Object.entries(
-                        globalData.appointments[currentUser]
-                      ).forEach(([key, apt]) => {
-                        const aptDateStr = key.split("-").slice(0, 3).join("-");
-                        const aptDate = new Date(aptDateStr);
+                  const displayedData = activeFolderData 
+                    ? activeFolderData.data.filter(p => 
+                        p.name.toLowerCase().includes(folderSearch.toLowerCase()) || 
+                        (p.phone && p.phone.includes(folderSearch)) || 
+                        (p.tc && p.tc.includes(folderSearch)))
+                    : [];
 
-                        // İşlevsel Tarih Filtrelemesi
-                        let inRange = true;
-                        if (
-                          dashboardPeriod === "today" &&
-                          aptDateStr !== todayStr
-                        )
-                          inRange = false;
-                        if (dashboardPeriod === "week" && aptDate < monday)
-                          inRange = false;
-                        if (
-                          dashboardPeriod === "month" &&
-                          (aptDate.getMonth() !== new Date().getMonth() ||
-                            aptDate.getFullYear() !== new Date().getFullYear())
-                        )
-                          inRange = false;
-                        if (
-                          dashboardPeriod === "year" &&
-                          aptDate.getFullYear() !== new Date().getFullYear()
-                        )
-                          inRange = false;
+                  return (
+                    <>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 dark:border-slate-700 pb-3 mb-3 gap-2">
+                        <div>
+                          <h3 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                            <i className="fa-solid fa-folder-open text-indigo-500"></i>
+                            {activeFolderData ? "Klasör Görüntüleniyor" : "Klinik Dosya Masası"}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                            {activeFolderData ? "Hasta dosyalarını aşağıdan inceleyebilirsiniz." : "Kliniğinizde takip edilmesi gereken hastaları ve işlemleri hızlıca yönetin."}
+                          </p>
+                        </div>
+                        <div className="relative w-full sm:w-64">
+                          <i className="fa-solid fa-search absolute left-2.5 top-2.5 text-slate-400 text-[11px]"></i>
+                          <input
+                            type="text"
+                            placeholder={activeFolderData ? "Bu klasörde ara..." : "Masada dosya ara..."}
+                            value={folderSearch}
+                            onChange={(e) => setFolderSearch(e.target.value)}
+                            className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[12px] font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
+                          />
+                        </div>
+                      </div>
 
-                        if (inRange) {
-                          totalApts++;
-                          uniquePatients.add(apt.patientName);
-
-                          if (apt.status === "Geldi") arrived++;
-                          if (apt.status === "Gelmedi") noShow++;
-                          if (apt.status === "İptal") canceled++;
-
-                          let aptPrice = parseFloat(apt.price) || 0;
-                          if (!aptPrice && apt.treatment) {
-                            const docPricing =
-                              globalData.pricingDb?.[currentUser] ||
-                              (typeof globalData.pricingDb === "object" &&
-                              globalData.pricingDb["Genel Muayene"]
-                                ? globalData.pricingDb
-                                : DEFAULT_PRICING);
-                            const matchedTx = Object.keys(DEFAULT_PRICING).find(
-                              (t) => apt.treatment.includes(t)
-                            );
-                            if (matchedTx && docPricing[matchedTx])
-                              aptPrice = parseFloat(docPricing[matchedTx]);
-                          }
-
-                          if (apt.status === "Geldi") earnedRev += aptPrice;
-
-                          // Tedavi Dağılımları ve Diş Haritalaması
-                          if (apt.treatment) {
-                            if (!treatments[apt.treatment]) {
-                              treatments[apt.treatment] = {
-                                count: 0,
-                                teeth: {},
-                                revenue: 0,
-                              };
-                            }
-                            treatments[apt.treatment].count++;
-                            if (apt.status === "Geldi")
-                              treatments[apt.treatment].revenue += aptPrice;
-
-                            if (
-                              apt.selectedTeeth &&
-                              apt.selectedTeeth.length > 0
-                            ) {
-                              apt.selectedTeeth.forEach((t) => {
-                                treatments[apt.treatment].teeth[t] =
-                                  (treatments[apt.treatment].teeth[t] || 0) + 1;
-                              });
-                            } else {
-                              treatments[apt.treatment].teeth["Belirtilmedi"] =
-                                (treatments[apt.treatment].teeth[
-                                  "Belirtilmedi"
-                                ] || 0) + 1;
-                            }
-                          }
-                        }
-                      });
-                    }
-
-                    const arrivalRate =
-                      totalApts > 0
-                        ? Math.round((arrived / totalApts) * 100)
-                        : 0;
-                    const sortedTreatments = Object.entries(treatments).sort(
-                      (a, b) => b[1].count - a[1].count
-                    );
-
-                    return (
-                      <>
-                        {/* SOL TARAF: Devamlılık ve Sık İşlemler (5 Kolon) */}
-                        <div className="lg:col-span-5 flex flex-col gap-2">
-                          {/* Profesyonel Devamlılık Oranı */}
-                          <div
-                            onClick={() =>
-                              setShowAttendanceDetails(!showAttendanceDetails)
-                            }
-                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-xl shadow-sm cursor-pointer hover:border-emerald-300 transition-all relative group"
-                          >
-                            <div className="flex justify-between items-center mb-2">
-                              <div>
-                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                                  <i className="fa-solid fa-users-viewfinder text-emerald-500"></i>{" "}
-                                  Hasta Devamlılık
-                                  <i
-                                    className={`fa-solid fa-chevron-${
-                                      showAttendanceDetails ? "up" : "down"
-                                    } text-[9px] ml-1 opacity-50`}
-                                  ></i>
+                      {!activeFolderData ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {folders.map(folder => (
+                            <div 
+                              key={folder.id} 
+                              onClick={() => { setActiveFolderId(folder.id); setFolderSearch(""); }}
+                              className="group border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 hover:shadow-md cursor-pointer transition-all hover:-translate-y-0.5 overflow-hidden flex flex-col"
+                            >
+                              <div className={`p-2.5 flex items-center justify-between border-b ${folder.colorClass}`}>
+                                <h4 className="font-black text-[12px] flex items-center gap-1.5">
+                                  <i className={`fa-solid ${folder.icon} text-sm opacity-80`}></i>
+                                  {folder.title}
                                 </h4>
                               </div>
-                              <div className="text-lg font-black text-slate-800 dark:text-white">
-                                %{arrivalRate}
+                              <div className="p-3 flex flex-col flex-1 justify-between">
+                                <div className="flex justify-between items-end mb-2">
+                                  <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">
+                                    {folder.count}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                                    {folder.desc}
+                                  </span>
+                                </div>
+                                <button className="w-full py-1.5 mt-2 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 rounded-lg text-[10px] font-black group-hover:bg-indigo-50 group-hover:text-indigo-600 dark:group-hover:bg-indigo-900/30 dark:group-hover:text-indigo-400 transition-colors border border-slate-200 dark:border-slate-700 group-hover:border-indigo-200 dark:group-hover:border-indigo-800">
+                                  DOSYALARI AÇ <i className="fa-solid fa-arrow-right ml-1"></i>
+                                </button>
                               </div>
                             </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col flex-1 animate-pop">
+                          <div className="flex items-center gap-2 mb-3">
+                            <button onClick={() => { setActiveFolderId(null); setFolderSearch(""); }} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-lg font-bold text-[11px] hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+                              <i className="fa-solid fa-arrow-left mr-1"></i> Geri Dön
+                            </button>
+                            <span className={`px-2 py-0.5 rounded font-black text-[11px] border ${activeFolderData.colorClass}`}>
+                              <i className={`fa-solid ${activeFolderData.icon} mr-1`}></i> {activeFolderData.title}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-400">({displayedData.length} Dosya)</span>
+                          </div>
 
-                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-1.5 relative overflow-hidden shadow-inner">
-                              <div
-                                className="bg-emerald-500 h-2 rounded-full transition-all duration-1000"
-                                style={{ width: `${arrivalRate}%` }}
-                              ></div>
-                            </div>
+                          <div className="space-y-2 overflow-y-auto max-h-[450px] custom-scrollbar pr-1.5">
+                            {displayedData.length > 0 ? (
+                              displayedData.map((pt, i) => {
+                                // YENİ: TEK TIKLA DURUM GÜNCELLEME (QUICK STATUS UPDATE)
+                                let specificStatus = null;
+                                let badgeColor = "";
+                                let options = [];
+                                let fieldToUpdate = "";
+                                
+                                if(activeFolderId === "acil") { 
+                                  specificStatus = pt.folder_acil || ""; 
+                                  fieldToUpdate = "folder_acil";
+                                  badgeColor = "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-400 dark:border-rose-800"; 
+                                  options = [
+                                    {val: "", label: "✅ Tamamlandı (Klasörden Çıkar)"},
+                                    {val: "Aktif Acil", label: "🔴 Aktif Acil Durum"},
+                                    {val: "Ağrı Takibi", label: "🟠 Ağrı Takibi"},
+                                    {val: "İlaç Kullanıyor", label: "🟡 İlaç Kullanıyor"}
+                                  ];
+                                }
+                                else if(activeFolderId === "lab") { 
+                                  specificStatus = pt.folder_lab || ""; 
+                                  fieldToUpdate = "folder_lab";
+                                  badgeColor = "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400 dark:border-purple-800"; 
+                                  options = [
+                                    {val: "", label: "✅ Tamamlandı (Klasörden Çıkar)"},
+                                    {val: "Ölçü Alınacak", label: "⏳ Ölçü Alınacak"},
+                                    {val: "Laboratuvarda", label: "🧪 Laboratuvarda"},
+                                    {val: "Klinikte (Provaya Hazır)", label: "🏢 Klinikte (Provaya Hazır)"}
+                                  ];
+                                }
+                                else if(activeFolderId === "evrak") { 
+                                  specificStatus = pt.folder_evrak || ""; 
+                                  fieldToUpdate = "folder_evrak";
+                                  badgeColor = "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"; 
+                                  options = [
+                                    {val: "", label: "✅ Evraklar Tamam (Klasörden Çıkar)"},
+                                    {val: "Onam Formu Eksik", label: "📄 Onam Formu Eksik"},
+                                    {val: "Röntgen Bekliyor", label: "🦴 Röntgen Bekliyor"},
+                                    {val: "Kimlik/Pasaport Eksik", label: "🪪 Kimlik/Pasaport Eksik"}
+                                  ];
+                                }
 
-                            {showAttendanceDetails && (
-                              <div className="mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50 grid grid-cols-3 gap-1 text-center animate-pop">
-                                <div>
-                                  <div className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
-                                    Geldi
+                                return (
+                                <div key={i} className="bg-white dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-2 hover:border-indigo-300 transition-colors">
+                                  <div className="flex items-start gap-2 w-full md:w-auto">
+                                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-600 shrink-0 mt-0.5">
+                                      <i className="fa-regular fa-folder-open text-base"></i>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-black text-[13px] text-slate-800 dark:text-white flex items-center flex-wrap gap-1.5">
+                                        <span className="truncate max-w-[140px] sm:max-w-[200px]">{pt.name}</span>
+                                        {pt.anamnesis && <i className="fa-solid fa-triangle-exclamation text-rose-500" title="Önemli Not"></i>}
+                                        
+                                        {/* DİNAMİK AÇILIR MENÜ (QUICK UPDATE) */}
+                                        {options.length > 0 ? (
+                                            <div className="relative inline-block ml-1 group/select">
+                                              <select 
+                                                value={specificStatus || ""}
+                                                onChange={(e) => {
+                                                  e.stopPropagation();
+                                                  const val = e.target.value;
+                                                  
+                                                  // Veritabanını Tek Tıkla Güncelliyoruz
+                                                  const updatedPatient = { ...pt, [fieldToUpdate]: val };
+                                                  saveGlobalData({
+                                                    ...globalData,
+                                                    patientsDb: { ...globalData.patientsDb, [pt.id]: updatedPatient }
+                                                  });
+                                                  
+                                                  showNotification(val === "" ? "Hasta klasörden başarıyla çıkarıldı 🚀" : "Durum güncellendi!");
+                                                }}
+                                                className={`text-[9px] font-black pl-1.5 pr-4 py-0.5 rounded-md border tracking-wider outline-none cursor-pointer appearance-none shadow-sm hover:ring-2 hover:ring-indigo-400/50 transition-all ${badgeColor}`}
+                                                title="Tıklayarak Durumu Değiştirin"
+                                              >
+                                                <option value={specificStatus || ""} disabled hidden>{specificStatus || "Durum Seç"}</option>
+                                                {options.map(o => <option key={o.val} value={o.val} className="text-slate-800 font-bold">{o.label}</option>)}
+                                              </select>
+                                              <i className="fa-solid fa-chevron-down absolute right-1.5 top-1/2 -translate-y-1/2 text-[7px] pointer-events-none opacity-60 group-hover/select:opacity-100 transition-opacity"></i>
+                                            </div>
+                                        ) : specificStatus && (
+                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md border tracking-wider ml-1 ${badgeColor}`}>
+                                                {specificStatus}
+                                            </span>
+                                        )}
+                                      </h4>
+                                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5">
+                                        <span><i className="fa-solid fa-phone mr-0.5"></i> {pt.phone || "-"}</span>
+                                        <span className="opacity-50 hidden sm:inline">•</span>
+                                        <span className="hidden sm:inline">Son İşlem: <span className="text-indigo-500 dark:text-indigo-400">{pt.lastTreatment || "Yok"}</span></span>
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="text-base font-black text-slate-700 dark:text-slate-200">
-                                    {arrived}
+
+                                  <div className="flex flex-wrap gap-1.5 mt-2 md:mt-0 w-full md:w-auto shrink-0 justify-end">
+                                    <button onClick={() => { setActiveTab("patients"); setPatientForm(pt); setPatientModalTab("info"); setIsPatientModalOpen(true); }} className="flex-1 md:flex-none px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-black text-[10px] hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-sm transition flex items-center justify-center gap-1">
+                                      <i className="fa-solid fa-folder-open"></i> Detay
+                                    </button>
                                   </div>
                                 </div>
-                                <div>
-                                  <div className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">
-                                    Gelmedi
-                                  </div>
-                                  <div className="text-base font-black text-slate-700 dark:text-slate-200">
-                                    {noShow}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-[9px] font-bold text-rose-500 uppercase tracking-wider">
-                                    İptal
-                                  </div>
-                                  <div className="text-base font-black text-slate-700 dark:text-slate-200">
-                                    {canceled}
-                                  </div>
-                                </div>
+                              );
+                            })
+                            ) : (
+                              <div className="flex flex-col items-center justify-center py-10 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                                <i className="fa-regular fa-folder-open text-3xl text-slate-300 mb-2"></i>
+                                <span className="text-[11px] font-bold text-slate-500">Bu klasörde aranan kriterlere uygun dosya bulunmuyor.</span>
                               </div>
                             )}
                           </div>
-
-                          {/* Tıklanabilir En Sık Uygulanan İşlemler */}
-                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2 rounded-xl shadow-sm flex-1">
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                              <i className="fa-solid fa-layer-group text-indigo-500"></i>{" "}
-                              Sık Uygulanan İşlemler (Detaylı)
-                            </h4>
-                            <div className="space-y-1.5">
-                              {sortedTreatments
-                                .slice(0, 5)
-                                .map(([tName, tData], i) => {
-                                  const isExpanded = expandedTx === tName;
-                                  return (
-                                    <div
-                                      key={i}
-                                      className="group border border-slate-100 dark:border-slate-800 rounded-xl p-1.5 hover:border-indigo-200 transition-colors shadow-sm bg-slate-50/50 dark:bg-slate-800/30"
-                                    >
-                                      <div
-                                        className="flex justify-between items-center cursor-pointer"
-                                        onClick={() =>
-                                          setExpandedTx(
-                                            isExpanded ? null : tName
-                                          )
-                                        }
-                                      >
-                                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 group-hover:text-indigo-600 transition-colors">
-                                          <div
-                                            className={`w-4 h-4 rounded-md flex items-center justify-center transition-colors ${
-                                              isExpanded
-                                                ? "bg-indigo-500 text-white"
-                                                : "bg-white border dark:bg-slate-700 text-slate-400"
-                                            }`}
-                                          >
-                                            <i
-                                              className={`fa-solid fa-chevron-${
-                                                isExpanded ? "down" : "right"
-                                              } text-[9px]`}
-                                            ></i>
-                                          </div>
-                                          {tName}
-                                        </span>
-                                        <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-0.5 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                                          {tData.count} Kez
-                                        </span>
-                                      </div>
-
-                                      {/* Tıklanınca açılan detay (Diş Dağılımı) */}
-                                      {isExpanded && (
-                                        <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 animate-pop">
-                                          <div className="text-[9px] text-slate-500 uppercase font-bold mb-1.5 tracking-wider flex items-center gap-1">
-                                            <i className="fa-solid fa-tooth text-indigo-400"></i>{" "}
-                                            Uygulanan Dişler ve Dağılımı
-                                          </div>
-                                          <div className="flex flex-wrap gap-1">
-                                            {Object.entries(tData.teeth)
-                                              .sort((a, b) => b[1] - a[1])
-                                              .map(([tooth, tCount], idx) => (
-                                                <div
-                                                  key={idx}
-                                                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm"
-                                                >
-                                                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">
-                                                    {tooth !== "Belirtilmedi"
-                                                      ? `Diş ${tooth}`
-                                                      : "Genel İşlem"}
-                                                  </span>
-                                                  <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded">
-                                                    {tCount}
-                                                  </span>
-                                                </div>
-                                              ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              {sortedTreatments.length === 0 && (
-                                <div className="text-[11px] text-slate-400 text-center py-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                                  Seçili dönemde veri bulunmuyor.
-                                </div>
-                              )}
-                            </div>
-                          </div>
                         </div>
-
-                        {/* SAĞ TARAF: İşlem Hacmi Tablosu (7 Kolon) */}
-                        <div className="lg:col-span-7 flex flex-col h-full gap-2">
-                          {/* Mini Metrikler (Hacim Özeti) */}
-                          <div className="grid grid-cols-3 gap-1.5 shrink-0">
-                            <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-2 rounded-xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
-                              <i className="fa-solid fa-users absolute -right-3 -bottom-3 text-xl text-white/10"></i>
-                              <div className="text-[9px] font-bold text-indigo-100 uppercase tracking-wider mb-0.5">
-                                Aktif Hasta
-                              </div>
-                              <div className="text-base font-black">
-                                {uniquePatients.size}
-                              </div>
-                            </div>
-                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-2 rounded-xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
-                              <i className="fa-solid fa-calendar-check absolute -right-3 -bottom-3 text-xl text-white/10"></i>
-                              <div className="text-[9px] font-bold text-purple-100 uppercase tracking-wider mb-0.5">
-                                Randevu Hacmi
-                              </div>
-                              <div className="text-base font-black">
-                                {totalApts}
-                              </div>
-                            </div>
-                            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-2 rounded-xl text-white shadow-md relative overflow-hidden hover:-translate-y-1 transition-transform">
-                              <i className="fa-solid fa-wallet absolute -right-3 -bottom-3 text-xl text-white/10"></i>
-                              <div className="text-[9px] font-bold text-emerald-100 uppercase tracking-wider mb-0.5">
-                                Üretilen Ciro
-                              </div>
-                              <div className="text-base font-black">
-                                {earnedRev.toLocaleString("tr-TR")} ₺
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Detaylı Hacim Tablosu */}
-                          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex-1 flex flex-col overflow-hidden shadow-sm">
-                            <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
-                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                                <i className="fa-solid fa-table-list text-purple-500"></i>{" "}
-                                Detaylı İşlem ve Ciro Tablosu
-                              </h4>
-                            </div>
-                            <div className="flex-1 overflow-auto custom-scrollbar">
-                              <table className="w-full text-left text-[11px]">
-                                <thead className="text-[9px] text-slate-400 uppercase bg-white dark:bg-slate-900 font-black sticky top-0 border-b border-slate-100 dark:border-slate-800 z-10 shadow-sm">
-                                  <tr>
-                                    <th className="px-2.5 py-1.5">Tedavi Türü</th>
-                                    <th className="px-2.5 py-1.5 text-center">
-                                      Toplam Adet
-                                    </th>
-                                    <th className="px-2.5 py-1.5 text-center">
-                                      Etki Alanı
-                                    </th>
-                                    <th className="px-2.5 py-1.5 text-right">
-                                      Üretilen Ciro
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {sortedTreatments.map(([tName, tData], i) => (
-                                    <tr
-                                      key={i}
-                                      className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                                    >
-                                      <td className="px-2.5 py-2 font-bold text-slate-700 dark:text-slate-300">
-                                        <div className="flex items-center gap-1">
-                                          <div className="w-1 h-1 rounded-full bg-indigo-400"></div>
-                                          {tName}
-                                        </div>
-                                      </td>
-                                      <td className="px-2.5 py-2 text-center">
-                                        <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-black px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800">
-                                          {tData.count}
-                                        </span>
-                                      </td>
-                                      <td className="px-2.5 py-2 text-center">
-                                        <div className="text-[10px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded inline-block">
-                                          <i className="fa-solid fa-tooth mr-1"></i>
-                                          {Object.keys(tData.teeth).length}{" "}
-                                          Farklı Bölge
-                                        </div>
-                                      </td>
-                                      <td className="px-2.5 py-2 text-right font-black text-emerald-600 dark:text-emerald-400 text-[13px]">
-                                        {tData.revenue.toLocaleString("tr-TR")}{" "}
-                                        ₺
-                                      </td>
-                                    </tr>
-                                  ))}
-                                  {sortedTreatments.length === 0 && (
-                                    <tr>
-                                      <td
-                                        colSpan="4"
-                                        className="text-center py-8 text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-900/30"
-                                      >
-                                        Tabloyu dolduracak işlem verisi
-                                        bulunamadı.
-                                      </td>
-                                    </tr>
-                                  )}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
+              {/* ========================================================= */}
             </div>
           );
         };
@@ -9127,6 +8953,60 @@ useEffect(() => {
                                     </div>
                                   </details>
                                 </div>
+                                {/* YENİ EKLENEN: DOSYA MASAÜSTÜ DURUMLARI */}
+                                  <div className="col-span-1 sm:col-span-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 mt-2">
+                                    <h4 className="font-black text-slate-800 mb-2 border-b border-slate-100 pb-2 text-[12px] uppercase tracking-wider dark:text-white dark:border-slate-700 flex items-center gap-1.5">
+                                      <i className="fa-solid fa-folder-tree text-indigo-500"></i> Dosya Masası Etiketleri
+                                    </h4>
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                      {/* Acil Durumu */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Acil Takip</label>
+                                        <select
+                                          value={patientForm.folder_acil || ""}
+                                          onChange={(e) => setPatientForm({...patientForm, folder_acil: e.target.value})}
+                                          className="w-full p-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold outline-none focus:border-rose-500 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800 cursor-pointer"
+                                        >
+                                          <option value="">Normal (Acil Değil)</option>
+                                          <option value="Aktif Acil">🔴 Aktif Acil Durum</option>
+                                          <option value="Ağrı Takibi">🟠 Ağrı Takibi</option>
+                                          <option value="İlaç Kullanıyor">🟡 İlaç Kullanıyor</option>
+                                        </select>
+                                      </div>
+
+                                      {/* Lab Durumu */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Laboratuvar</label>
+                                        <select
+                                          value={patientForm.folder_lab || ""}
+                                          onChange={(e) => setPatientForm({...patientForm, folder_lab: e.target.value})}
+                                          className="w-full p-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-[11px] font-bold outline-none focus:border-purple-500 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 cursor-pointer"
+                                        >
+                                          <option value="">Lab Süreci Yok</option>
+                                          <option value="Ölçü Alınacak">⏳ Ölçü Alınacak</option>
+                                          <option value="Laboratuvarda">🧪 Laboratuvarda</option>
+                                          <option value="Klinikte (Provaya Hazır)">🏢 Klinikte (Provaya Hazır)</option>
+                                        </select>
+                                      </div>
+
+                                      {/* Evrak Durumu */}
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Evrak / Belge</label>
+                                        <select
+                                          value={patientForm.folder_evrak || ""}
+                                          onChange={(e) => setPatientForm({...patientForm, folder_evrak: e.target.value})}
+                                          className="w-full p-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-slate-500 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 cursor-pointer"
+                                        >
+                                          <option value="">Evraklar Tam</option>
+                                          <option value="Onam Formu Eksik">📄 Onam Formu Eksik</option>
+                                          <option value="Röntgen Bekliyor">🦴 Röntgen Bekliyor</option>
+                                          <option value="Kimlik/Pasaport Eksik">🪪 Kimlik/Pasaport Eksik</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {/* YENİ EKLENEN BİTİŞ */}
                               </form>
                             </div>
                           </div>
