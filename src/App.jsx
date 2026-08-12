@@ -270,19 +270,49 @@ const useFirebase = () => {
           "Hassasiyet (Sıcak/Soğuk)", "Perküsyon Hassasiyeti", "Periodontal Cep"
         ];
 
+        // YENİ: Dişe Göre Anatomik Kanal Önerileri Sistemi
+        const getStandardCanals = (tNo) => {
+          const t = parseInt(tNo);
+          const isUpper = t < 30 || (t >= 50 && t < 70); // Üst çene kontrolü
+          const pos = t % 10; // Dişin numarası (1-8 arası)
+          
+          if (pos >= 6) { // Molarlar
+            if (isUpper) return ["MB1", "MB2", "DB", "P"];
+            else return ["MB", "ML", "D"];
+          } else if (pos === 4 && isUpper) { // Üst 1. Premolarlar
+            return ["Bukkal", "Palatinal"];
+          } else if (pos === 4 || pos === 5) { // Diğer Premolarlar
+            return ["Ana Kanal"];
+          } else { // Kesiciler ve Kaninler
+            return ["Kanal 1"];
+          }
+        };
+
         const openDetailModal = (tNo) => {
           const tKey = tNo.toString();
-          const existingData = patientForm.toothRecords?.[tKey] || { 
-            status: "Sağlıklı", 
-            diagnoses: [], 
-            notes: "",
-            canalLengths: { root1: "", root2: "", root3: "", root4: "" }
-          };
+          const existingData = patientForm.toothRecords?.[tKey] || {};
+          
+          let initialLengths = existingData.canalLengths || {};
+          let initialCanals = existingData.activeCanals || [];
+          
+          // Eğer bu diş daha önce hiç kanal tedavisi için açılmamışsa
+          if (initialCanals.length === 0) {
+            // Eski kayıt (K1, K2) sistemiyle kaydedilmiş verileri kurtarma (Geriye Dönük Uyumluluk)
+            const legacyKeys = ["root1", "root2", "root3", "root4"].filter(k => initialLengths[k]);
+            if (legacyKeys.length > 0) {
+              initialCanals = legacyKeys;
+            } else {
+              // Yepyeni bir dişse anatomik önerileri yükle
+              initialCanals = getStandardCanals(tNo);
+            }
+          }
+
           setTempToothData({
             status: existingData.status || "Sağlıklı",
             diagnoses: existingData.diagnoses || [],
             notes: existingData.notes || "",
-            canalLengths: existingData.canalLengths || { root1: "", root2: "", root3: "", root4: "" }
+            activeCanals: initialCanals,
+            canalLengths: initialLengths
           });
           setIsEditingNotes(false); // Modal açıldığında notlar okuma modunda başlasın
           setDetailToothModal(tKey);
@@ -1066,29 +1096,119 @@ const useFirebase = () => {
 
                         {/* KANAL BOYU ALANI (Şartlı Gösterim) */}
                         {(tempToothData.status === "Kanal Tedavili" || tempToothData.diagnoses.some(d => d.includes("Pulpitis") || d.includes("Apse") || d.includes("Nekroz"))) && (
-                          <div className="p-2 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-800/50 rounded-xl mb-2">
-                            <label className="block text-[11px] font-black text-indigo-700 dark:text-indigo-400 uppercase mb-2 flex items-center gap-1">
-                              <i className="fa-solid fa-ruler-vertical"></i> Kanal / Çalışma Boyu Ölçümleri (mm)
-                            </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                              {[1, 2, 3, 4].map(num => (
-                                <div key={num} className="relative">
-                                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                                    <span className="text-slate-400 text-[10px] font-black">K{num}</span>
-                                  </div>
-                                  <input 
-                                    type="text" 
-                                    placeholder="Örn: 21.5"
-                                    value={tempToothData.canalLengths[`root${num}`]}
-                                    onChange={(e) => setTempToothData({
-                                      ...tempToothData,
-                                      canalLengths: { ...tempToothData.canalLengths, [`root${num}`]: e.target.value }
-                                    })}
-                                    className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:text-white"
-                                  />
+                          <div className="p-2 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-800/50 rounded-xl mb-2 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-indigo-200/50 dark:border-indigo-800/50">
+                              <label className="text-[11px] font-black text-indigo-700 dark:text-indigo-400 uppercase flex items-center gap-1">
+                                <i className="fa-solid fa-ruler-vertical"></i> Kanal Anatomisi ve Boy Ölçümleri
+                              </label>
+                              
+                              {/* Dinamik Kanal Ekleme Menüsü */}
+                              <div className="flex items-center gap-1 relative group z-20">
+                                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                  <i className="fa-solid fa-plus text-indigo-500 text-[10px]"></i>
                                 </div>
-                              ))}
+                                <select 
+                                  className="text-[10px] pl-6 pr-6 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg font-bold shadow-sm outline-none cursor-pointer hover:border-indigo-400 dark:bg-slate-800 dark:text-indigo-300 dark:border-indigo-700 appearance-none"
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if(val === "custom") {
+                                      const customName = window.prompt("Özel kanal adını giriniz:");
+                                      if(customName && customName.trim() && !tempToothData.activeCanals.includes(customName.trim())) {
+                                        setTempToothData({
+                                          ...tempToothData, 
+                                          activeCanals: [...(tempToothData.activeCanals || []), customName.trim().substring(0,10)]
+                                        });
+                                      }
+                                    } else if(val && !tempToothData.activeCanals.includes(val)) {
+                                      setTempToothData({
+                                        ...tempToothData, 
+                                        activeCanals: [...(tempToothData.activeCanals || []), val]
+                                      });
+                                    }
+                                    e.target.value = ""; // Seçimi sıfırla
+                                  }}
+                                >
+                                  <option value="">Kanal Ekle (Varyasyon)</option>
+                                  <optgroup label="Standart Kanallar">
+                                    <option value="MB1">MB1 (Mesiobukkal 1)</option>
+                                    <option value="MB2">MB2 (Mesiobukkal 2)</option>
+                                    <option value="MB3">MB3 (Mesiobukkal 3)</option>
+                                    <option value="DB">DB (Distobukkal)</option>
+                                    <option value="ML">ML (Mesiolingual)</option>
+                                    <option value="MM">MM (Middle Mesial)</option>
+                                    <option value="DL">DL (Distolingual)</option>
+                                    <option value="D">D (Distal)</option>
+                                    <option value="P">P (Palatinal)</option>
+                                  </optgroup>
+                                  <optgroup label="Tek Kök Kanalları">
+                                    <option value="B">Bukkal</option>
+                                    <option value="L">Lingual</option>
+                                    <option value="Palatinal">Palatinal</option>
+                                    <option value="Kanal 1">Kanal 1</option>
+                                    <option value="Kanal 2">Kanal 2</option>
+                                    <option value="Ana Kanal">Ana Kanal</option>
+                                  </optgroup>
+                                  <option value="custom">✎ Kendim Yazacağım...</option>
+                                </select>
+                                <i className="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-indigo-500 text-[8px] pointer-events-none"></i>
+                              </div>
                             </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {(tempToothData.activeCanals || []).map((cName, idx) => {
+                                // Geriye dönük uyumluluk: Eski K1, K2 kayıtlarını şık gösterme
+                                let displayObj = cName;
+                                if(cName === "root1") displayObj = "K1";
+                                if(cName === "root2") displayObj = "K2";
+                                if(cName === "root3") displayObj = "K3";
+                                if(cName === "root4") displayObj = "K4";
+                                
+                                return (
+                                <div key={idx} className="flex items-center gap-1.5 animate-pop">
+                                  <div className="relative flex-1 group/input">
+                                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none border-r border-slate-200 dark:border-slate-700 pr-2">
+                                      <span className="text-indigo-600 dark:text-indigo-400 text-[10px] font-black truncate max-w-[55px]" title={displayObj}>
+                                        {displayObj}
+                                      </span>
+                                    </div>
+                                    <input 
+                                      type="text" 
+                                      placeholder="Boy (mm)"
+                                      value={tempToothData.canalLengths[cName] || ""}
+                                      onChange={(e) => setTempToothData({
+                                        ...tempToothData,
+                                        canalLengths: { ...tempToothData.canalLengths, [cName]: e.target.value }
+                                      })}
+                                      className="w-full pl-[70px] pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 dark:text-white transition-all shadow-sm"
+                                    />
+                                  </div>
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      // Silme işlemi
+                                      const newCanals = tempToothData.activeCanals.filter(c => c !== cName);
+                                      const newLengths = { ...tempToothData.canalLengths };
+                                      delete newLengths[cName];
+                                      setTempToothData({
+                                        ...tempToothData,
+                                        activeCanals: newCanals,
+                                        canalLengths: newLengths
+                                      });
+                                    }}
+                                    className="w-7 h-7 shrink-0 flex items-center justify-center bg-white border border-rose-200 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all dark:bg-slate-800 dark:border-rose-900/50 dark:hover:bg-rose-600 shadow-sm"
+                                    title="Kanalı Kaldır"
+                                  >
+                                    <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                  </button>
+                                </div>
+                              )})}
+                            </div>
+                            
+                            {(tempToothData.activeCanals || []).length === 0 && (
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold italic text-center py-4 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-indigo-200 dark:border-indigo-800/50">
+                                <i className="fa-solid fa-circle-info mr-1"></i> Henüz kanal eklenmedi. Yukarıdaki menüden anatominize uygun kanal ekleyebilirsiniz.
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -1987,12 +2107,18 @@ useEffect(() => {
           updatedDocApts[aptKey] = { ...aptData, status: newStatus };
 
           let updatedPatientsDb = { ...globalData.patientsDb };
-          const pId = aptData.patientName.toLowerCase().replace(/\s+/g, "");
+          
+          // DOĞRU HASTAYI GÜVENLİ ŞEKİLDE BULMA MANTIĞI
+          let pId = aptData.patientId; 
+          if (!pId) {
+            const foundPatient = Object.values(updatedPatientsDb).find(p => p.name === aptData.patientName);
+            if (foundPatient) pId = foundPatient.id;
+          }
 
-          if (updatedPatientsDb[pId]) {
+          if (pId && updatedPatientsDb[pId]) {
             updatedPatientsDb[pId].lastStatus = newStatus;
             
-            // YENİ: Otomatik Epikriz (Klinik Geçmiş) Oluşturma Modülü
+            // OTOMATİK KLİNİK GEÇMİŞ OLUŞTURMA MANTIĞI ("Geldi" durumunda çalışır)
             if (newStatus === "Geldi") {
               const historyArray = updatedPatientsDb[pId].clinicalHistory || [];
               const historyExists = historyArray.some((h) => h.appointmentId === aptKey);
@@ -2003,13 +2129,13 @@ useEffect(() => {
                 const newHistory = {
                   id: "hist_" + Date.now(),
                   appointmentId: aptKey,
-                  date: `${y}-${m}-${d}`,
+                  date: `${d}.${m}.${y}`, // Türkçe okunaklı tarih
                   time: timeStr,
                   timestamp: Date.now(),
                   doctorId: docId,
                   doctorName: globalData.doctorProfiles?.[docId]?.name || docId,
                   appointmentStatus: "Geldi",
-                  visitType: "Tedavi / İşlem",
+                  visitType: "Gerçekleşen Klinik İşlem",
                   treatment: aptData.treatment || "Belirtilmedi",
                   selectedTeeth: aptData.selectedTeeth || [],
                   complaint: aptData.notes || "",
@@ -2020,6 +2146,7 @@ useEffect(() => {
                 updatedPatientsDb[pId].clinicalHistory = [newHistory, ...historyArray];
               }
             }
+            // "Geldi" durumundan "Bekliyor" veya "İptal"e dönülürse geçmiş silinmez, kalıcıdır!
           }
 
           saveGlobalData({
@@ -2378,24 +2505,44 @@ useEffect(() => {
         const handleSavePatient = (e) => {
           if (e) e.preventDefault();
 
-          const existingPat = Object.values(globalData.patientsDb || {}).find(
-            (p) =>
-              p.name.toLowerCase() === patientForm.name.toLowerCase().trim()
-          );
+          const clinicOwner = patientForm.addedBy || currentUser;
+          
+          // TC'yi sadece rakam kalacak şekilde normalize ediyoruz (Veritabanındaki orijinali değişmez)
+          const normalizedTc = (patientForm.tc || "").replace(/\D/g, "");
 
+          // 1. KLİNİK İÇİ TC KOPYA KONTROLÜ
+          if (normalizedTc && normalizedTc.length > 0) {
+            const duplicateByTc = Object.values(globalData.patientsDb || {}).find((p) => {
+              // Klinik izolasyonu: Sadece kendi kliniğimizdeki hastaları kontrol et
+              const isSameClinic = p.addedBy === clinicOwner || p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser;
+              const pTc = (p.tc || "").replace(/\D/g, "");
+              
+              // Aynı kliniğe ait, TC'si aynı olan ve KENDİSİ OLMAYAN bir hasta var mı?
+              return isSameClinic && pTc === normalizedTc && p.id !== patientForm.id;
+            });
+
+            if (duplicateByTc) {
+              showNotification("Bu TC Kimlik No ile kayıtlı başka bir hasta zaten bulunuyor!", "error");
+              return; // Başka hastanın üzerine yazmayı / kopyayı engelle ve işlemi iptal et
+            }
+          }
+
+          // 2. YENİ KİMLİK (ID) OLUŞTURMA VEYA MEVCUTU KORUMA
+          // Eskiden isimle arama yapılıp başka hastanın ID'si çalınıyordu, bu tamamen KALDIRILDI.
+          // Artık kendi ID'si varsa korur (düzenleme), yoksa yepyeni ve benzersiz bir kayıt oluşturur.
           const pId =
             patientForm.id ||
-            (existingPat
-              ? existingPat.id
-              : patientForm.name.toLowerCase().replace(/\s+/g, "") +
-                Date.now());
+            (patientForm.name.toLowerCase().replace(/\s+/g, "") +
+              "_" +
+              Date.now() + 
+              Math.random().toString(36).substr(2, 4));
 
           const updatedPatients = {
             ...globalData.patientsDb,
             [pId]: {
               ...patientForm,
               id: pId,
-              addedBy: patientForm.addedBy || currentUser,
+              addedBy: clinicOwner,
             },
           };
 
@@ -2661,6 +2808,7 @@ useEffect(() => {
         const handlePatientNameChange = (val) => {
           setFormData({
             ...formData,
+            patientId: null, // Yeni isim girildiğinde önceki ID referansını kopar
             patientName: val,
             treatment: "",
             price: "",
@@ -2695,9 +2843,8 @@ useEffect(() => {
         const selectPatientSuggestion = (p) => {
           setFormData({
             ...formData,
-
+            patientId: p.id, // Hastayı açılır listeden seçerse asıl kimliğini (ID) hafızaya al
             patientName: p.name,
-
             phone: p.phone || "",
 
             anamnesis: p.anamnesis || "",
@@ -2735,17 +2882,26 @@ useEffect(() => {
             [key]: finalData,
           };
 
-          const existingPatient = Object.values(
-            globalData.patientsDb || {}
-          ).find(
-            (p) =>
-              p.name.toLowerCase() === formData.patientName.toLowerCase().trim()
-          );
+          // YENİ HASTA EŞLEŞTİRME MANTIĞI:
+          // 1. Kullanıcı dropdown'dan (önerilerden) seçtiyse formData.patientId mevcuttur, onu kullan.
+          // 2. Sadece isim yazdıysa ve sistemde o kliniğe ait aynı isim + AYNI TELEFONA sahip biri varsa onu kullan.
+          // 3. Aksi halde sırf ismi aynı diye başkasının üzerine YAZMA, yeni benzersiz hasta oluştur.
+          const clinicOwner = currentUser;
+          const existingPatient = formData.patientId 
+            ? globalData.patientsDb?.[formData.patientId] 
+            : Object.values(globalData.patientsDb || {}).find(
+              (p) => {
+                const isSameClinic = p.addedBy === clinicOwner || globalData.doctorProfiles?.[p.addedBy]?.addedBy === clinicOwner;
+                return isSameClinic && 
+                       p.name.toLowerCase() === formData.patientName.toLowerCase().trim() && 
+                       p.phone === formData.phone && 
+                       p.phone !== ""; // Sadece isme göre eşleştirme yapılmasını kesinlikle engeller
+              }
+            );
 
           const patientId = existingPatient
             ? existingPatient.id
-            : formData.patientName.toLowerCase().replace(/\s+/g, "") +
-              Date.now();
+            : formData.patientName.toLowerCase().replace(/\s+/g, "") + "_" + Date.now() + Math.random().toString(36).substr(2, 4);
 
           let updatedPatientsDb = { ...(globalData.patientsDb || {}) };
 
@@ -3558,7 +3714,12 @@ useEffect(() => {
             </div>
           );
 
-        const allDoctors = Object.keys(globalData.usersDb || {}).filter(
+        // YENİ: Sisteme giriş yetkisi (usersDb kaydı) olmayan, 
+        // sadece klinikte çalışan hekimlerin de listelenmesi için güncellendi.
+        const allDoctors = Array.from(new Set([
+          ...Object.keys(globalData.usersDb || {}),
+          ...Object.keys(globalData.doctorProfiles || {})
+        ])).filter(
           (doc) =>
             doc === currentUser ||
             globalData.doctorProfiles?.[doc]?.addedBy === currentUser
@@ -3848,11 +4009,11 @@ useEffect(() => {
                   const fYeni = allPats.filter(p => p.clinicalHistory?.some(h => h.visitType === "İlk Muayene" && (Date.now() - h.timestamp) < 7 * 24 * 60 * 60 * 1000) || p.lastStatus === "Yeni Kayıt");
 
                   const folders = [
-                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.length, data: fAcil, desc: "Aktif acil & ağrı" },
+                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.filter(p => p.folder_acil !== "Tamamlandı").length, data: fAcil, desc: "Aktif acil & ağrı" },
                     { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol.length, data: fKontrol, desc: "Yaklaşan kontroller" },
                     { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTedavi.length, data: fTedavi, desc: "İşlem bekleyenler" },
-                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.length, data: fLab, desc: "Laboratuvar süreçleri" },
-                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.length, data: fEvrak, desc: "Eksik belgeler" },
+                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.filter(p => p.folder_lab !== "Tamamlandı").length, data: fLab, desc: "Laboratuvar süreçleri" },
+                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.filter(p => p.folder_evrak !== "Tamamlandı").length, data: fEvrak, desc: "Eksik belgeler" },
                     { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 günde eklenenler" }
                   ];
 
@@ -3943,34 +4104,37 @@ useEffect(() => {
                                 if(activeFolderId === "acil") { 
                                   specificStatus = pt.folder_acil || ""; 
                                   fieldToUpdate = "folder_acil";
-                                  badgeColor = "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-400 dark:border-rose-800"; 
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800" : "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-400 dark:border-rose-800"; 
                                   options = [
-                                    {val: "", label: "✅ Tamamlandı (Klasörden Çıkar)"},
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
                                     {val: "Aktif Acil", label: "🔴 Aktif Acil Durum"},
                                     {val: "Ağrı Takibi", label: "🟠 Ağrı Takibi"},
-                                    {val: "İlaç Kullanıyor", label: "🟡 İlaç Kullanıyor"}
+                                    {val: "İlaç Kullanıyor", label: "🟡 İlaç Kullanıyor"},
+                                    {val: "", label: "🗑️ Klasörden Kaldır"}
                                   ];
                                 }
                                 else if(activeFolderId === "lab") { 
                                   specificStatus = pt.folder_lab || ""; 
                                   fieldToUpdate = "folder_lab";
-                                  badgeColor = "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400 dark:border-purple-800"; 
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800" : "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400 dark:border-purple-800"; 
                                   options = [
-                                    {val: "", label: "✅ Tamamlandı (Klasörden Çıkar)"},
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
                                     {val: "Ölçü Alınacak", label: "⏳ Ölçü Alınacak"},
                                     {val: "Laboratuvarda", label: "🧪 Laboratuvarda"},
-                                    {val: "Klinikte (Provaya Hazır)", label: "🏢 Klinikte (Provaya Hazır)"}
+                                    {val: "Klinikte (Provaya Hazır)", label: "🏢 Klinikte (Provaya Hazır)"},
+                                    {val: "", label: "🗑️ Klasörden Kaldır"}
                                   ];
                                 }
                                 else if(activeFolderId === "evrak") { 
                                   specificStatus = pt.folder_evrak || ""; 
                                   fieldToUpdate = "folder_evrak";
-                                  badgeColor = "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"; 
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800" : "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"; 
                                   options = [
-                                    {val: "", label: "✅ Evraklar Tamam (Klasörden Çıkar)"},
+                                    {val: "Tamamlandı", label: "✅ Evraklar Tamamlandı"},
                                     {val: "Onam Formu Eksik", label: "📄 Onam Formu Eksik"},
                                     {val: "Röntgen Bekliyor", label: "🦴 Röntgen Bekliyor"},
-                                    {val: "Kimlik/Pasaport Eksik", label: "🪪 Kimlik/Pasaport Eksik"}
+                                    {val: "Kimlik/Pasaport Eksik", label: "🪪 Kimlik/Pasaport Eksik"},
+                                    {val: "", label: "🗑️ Klasörden Kaldır"}
                                   ];
                                 }
 
@@ -4001,7 +4165,7 @@ useEffect(() => {
                                                     patientsDb: { ...globalData.patientsDb, [pt.id]: updatedPatient }
                                                   });
                                                   
-                                                  showNotification(val === "" ? "Hasta klasörden başarıyla çıkarıldı 🚀" : "Durum güncellendi!");
+                                                  showNotification(val === "" ? "Hasta klasörden başarıyla çıkarıldı 🚀" : val === "Tamamlandı" ? "Kayıt başarıyla tamamlandı olarak işaretlendi ✅" : "Durum güncellendi!");
                                                 }}
                                                 className={`text-[9px] font-black pl-1.5 pr-4 py-0.5 rounded-md border tracking-wider outline-none cursor-pointer appearance-none shadow-sm hover:ring-2 hover:ring-indigo-400/50 transition-all ${badgeColor}`}
                                                 title="Tıklayarak Durumu Değiştirin"
@@ -4026,12 +4190,12 @@ useEffect(() => {
                                   </div>
 
                                   <div className="flex flex-wrap gap-1.5 mt-2 md:mt-0 w-full md:w-auto shrink-0 justify-end">
-                                    <button onClick={() => { setActiveTab("patients"); setPatientForm(pt); setPatientModalTab("info"); setIsPatientModalOpen(true); }} className="flex-1 md:flex-none px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-black text-[10px] hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-sm transition flex items-center justify-center gap-1">
+                                    <button onClick={() => { setPatientForm(pt); setPatientModalTab("info"); setIsPatientModalOpen(true); }} className="flex-1 md:flex-none px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-black text-[10px] hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-sm transition flex items-center justify-center gap-1">
                                       <i className="fa-solid fa-folder-open"></i> Detay
                                     </button>
                                   </div>
                                 </div>
-                              );
+                                );
                             })
                             ) : (
                               <div className="flex flex-col items-center justify-center py-10 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
@@ -5465,42 +5629,43 @@ useEffect(() => {
           const handleAddDoctor = (e) => {
             e.preventDefault();
 
-            // Arka planda isme göre otomatik kullanıcı adı ve varsayılan şifre (123456) atıyoruz
+            // undefined/null hatalarını önlemek için güvenli tanımlamalar
+            const safeNewName = newDoctorForm.name || "";
+            const normalizedNewName = safeNewName.trim().toLowerCase();
 
-            const autoUsername = newDoctorForm.name
+            // 1. KLİNİK BAZLI İSİM BENZERSİZLİK KONTROLÜ
+            const isDuplicateName = allDoctors.some((docId) => {
+              const docProfile = globalData.doctorProfiles?.[docId];
+              const profileName = docProfile?.name || "";
+              return profileName.trim().toLowerCase() === normalizedNewName;
+            });
 
-              .toLowerCase()
-
-              .replace(/\s+/g, "");
-
-            const autoPassword = "123456";
-
-            if (globalData.usersDb?.[autoUsername]) {
-              showNotification("Bu hekim zaten var!", "error");
-
+            if (isDuplicateName) {
+              showNotification("Bu klinikte bu isimde bir hekim zaten bulunuyor.", "error");
               return;
             }
 
-            const updatedUsers = {
-              ...globalData.usersDb,
-
-              [autoUsername]: autoPassword,
-            };
+            // 2. SADECE HEKİM PROFİLİ İÇİN BENZERSİZ KİMLİK (ID) OLUŞTURMA (usersDb'den bağımsız)
+            let baseId = safeNewName.toLowerCase().replace(/\s+/g, "");
+            let autoDoctorId = baseId;
+            let counter = 1;
+            while (globalData.doctorProfiles?.[autoDoctorId]) {
+              autoDoctorId = baseId + counter;
+              counter++;
+            }
 
             const updatedProfiles = {
               ...globalData.doctorProfiles,
-              [autoUsername]: {
-                name: newDoctorForm.name,
-                title: newDoctorForm.title,
+              [autoDoctorId]: {
+                name: safeNewName.trim(),
+                title: newDoctorForm.title || "",
                 addedBy: currentUser,
               },
             };
 
             saveGlobalData({
               ...globalData,
-
-              usersDb: updatedUsers,
-
+              // DİKKAT: usersDb güncellenmiyor. Yeni hekime sisteme giriş (login) kaydı açılmıyor.
               doctorProfiles: updatedProfiles,
             });
 
@@ -5508,15 +5673,12 @@ useEffect(() => {
 
             setNewDoctorForm({
               username: "",
-
               password: "",
-
               name: "",
-
               title: "",
             });
 
-            showNotification("Yeni hekim başarıyla eklendi.");
+            showNotification("Yeni hekim kaydı başarıyla oluşturuldu.");
           };
 
           const openDoctorDetails = (docUsername) => {
@@ -5544,10 +5706,25 @@ useEffect(() => {
           const handleUpdateDoctor = (e) => {
             e.preventDefault();
 
+            // KLİNİK BAZLI İSİM BENZERSİZLİK KONTROLÜ (DÜZENLEME İÇİN)
+            const normalizedEditName = doctorEditForm.name.trim().toLowerCase();
+            const isDuplicateName = allDoctors.some((docId) => {
+              if (docId === selectedDoctorId) return false; // Kendisini kontrol dışı bırak
+              const docProfile = globalData.doctorProfiles?.[docId];
+              return docProfile?.name?.trim().toLowerCase() === normalizedEditName;
+            });
+
+            if (isDuplicateName) {
+              showNotification("Bu klinikte bu isimde başka bir hekim zaten bulunuyor.", "error");
+              return;
+            }
+
+            // İsim alanındaki gereksiz boşlukları temizleyerek kaydet
+            const finalEditForm = { ...doctorEditForm, name: doctorEditForm.name.trim() };
+
             const updatedProfiles = {
               ...globalData.doctorProfiles,
-
-              [selectedDoctorId]: doctorEditForm,
+              [selectedDoctorId]: finalEditForm,
             };
 
             saveGlobalData({ ...globalData, doctorProfiles: updatedProfiles });
@@ -9916,6 +10093,14 @@ useEffect(() => {
                                             </div>
                                           )}
                                         </div>
+                                        
+                                        {/* YENİ: DÜZENLE BUTONU İBARESİ */}
+                                        <div className="mt-2 text-right">
+                                            <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 dark:text-indigo-300 px-2 py-1 rounded border border-indigo-100 dark:border-indigo-800/50 hover:bg-indigo-100 transition">
+                                                <i className="fa-solid fa-pen mr-1"></i> Düzenle
+                                            </span>
+                                        </div>
+                                        
                                       </div>
                                     </div>
                                   ))}
@@ -9999,7 +10184,20 @@ useEffect(() => {
                                 </div>
                                 <div className="relative z-10">
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Sonraki Kontrol Tarihi</label>
-                                  <input type="date" lang="tr-TR" value={newHistoryForm.nextAppointmentDate || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, nextAppointmentDate: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                                  <input 
+                                    type="text" 
+                                    placeholder="gg.aa.yyyy" 
+                                    maxLength="10"
+                                    value={newHistoryForm.nextAppointmentDate || ""} 
+                                    onChange={e => {
+                                      let digits = e.target.value.replace(/[^0-9]/g, "");
+                                      let formatted = digits;
+                                      if (digits.length > 2) formatted = digits.substring(0, 2) + "." + digits.substring(2);
+                                      if (digits.length > 4) formatted = digits.substring(0, 2) + "." + digits.substring(2, 4) + "." + digits.substring(4, 8);
+                                      setNewHistoryForm({...newHistoryForm, nextAppointmentDate: formatted});
+                                    }} 
+                                    className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" 
+                                  />
                                 </div>
                               </div>
                               <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-1.5">
@@ -10011,14 +10209,14 @@ useEffect(() => {
                         </div>
                       )}
 
-                      {/* Modal: Klinik Ziyaret Detayı (Görüntüleme) */}
+                      {/* Modal: Klinik Ziyaret Detayı (Düzenleme) */}
                       {isHistoryDetailModalOpen && selectedHistoryRecord && (
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2" onClick={() => setIsHistoryDetailModalOpen(false)}>
-                          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
+                          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
                             <div className="px-3 py-2 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0">
                               <div>
                                 <h3 className="font-black text-[13px] uppercase tracking-wider flex items-center gap-1">
-                                  <i className="fa-solid fa-notes-medical text-indigo-400"></i> Klinik Ziyaret Detayı
+                                  <i className="fa-solid fa-pen-to-square text-indigo-400"></i> Klinik Geçmişi Düzenle
                                 </h3>
                                 <div className="text-[10px] text-slate-400 mt-0.5">{selectedHistoryRecord.date} • {selectedHistoryRecord.time}</div>
                               </div>
@@ -10026,90 +10224,98 @@ useEffect(() => {
                                 <i className="fa-solid fa-xmark text-[13px]"></i>
                               </button>
                             </div>
-                            <div className="p-2.5 overflow-y-auto custom-scrollbar flex-1 space-y-1.5">
-                              <div className="flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-700 pb-3">
-                                <div className="w-10 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-base shrink-0"><i className="fa-solid fa-user-doctor"></i></div>
-                                <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase">İlgili Hekim</div>
-                                  <div className="font-black text-slate-800 dark:text-white">{selectedHistoryRecord.doctorName}</div>
-                                  <div className="text-[10px] mt-0.5 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded inline-block font-bold">{selectedHistoryRecord.visitType}</div>
-                                </div>
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                // Klinik geçmiş kaydını güncelleyip kaydetme
+                                const updatedHistory = patientForm.clinicalHistory.map(h => 
+                                  h.id === selectedHistoryRecord.id ? selectedHistoryRecord : h
+                                );
+                                const updatedPatient = { ...patientForm, clinicalHistory: updatedHistory };
+                                setPatientForm(updatedPatient);
+                                saveGlobalData({ ...globalData, patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient } });
+                                setIsHistoryDetailModalOpen(false);
+                                showNotification("Klinik detaylar başarıyla kaydedildi.");
+                            }} className="p-2.5 overflow-y-auto custom-scrollbar flex-1 space-y-1.5">
+                              
+                              {/* Otomatik Bilgiler (Kilitli Alanlar) */}
+                              <div className="grid grid-cols-2 gap-1.5 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2">
+                                  <div className="bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 opacity-80 cursor-not-allowed">
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Hekim</label>
+                                      <div className="font-black text-[12px] text-slate-800 dark:text-white mt-0.5"><i className="fa-solid fa-user-doctor text-indigo-500 mr-1"></i> {selectedHistoryRecord.doctorName}</div>
+                                  </div>
+                                  <div className="bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 opacity-80 cursor-not-allowed">
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Durum / Ziyaret</label>
+                                      <div className="font-black text-[12px] text-emerald-600 dark:text-emerald-400 mt-0.5"><i className="fa-solid fa-check-circle mr-1"></i> {selectedHistoryRecord.appointmentStatus || "Geldi"}</div>
+                                  </div>
                               </div>
-
-                              <div>
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Yapılan İşlem / Tedavi</div>
-                                <div className="font-black text-base text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 p-1.5 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
-                                  {selectedHistoryRecord.treatment}
-                                  {selectedHistoryRecord.selectedTeeth?.length > 0 && (
-                                    <div className="text-[11px] font-bold text-indigo-500 dark:text-indigo-300 mt-0.5">
-                                      <i className="fa-solid fa-tooth mr-1"></i> İlgili Dişler: {selectedHistoryRecord.selectedTeeth.join(", ")}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              {selectedHistoryRecord.complaint && (
-                                <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Başvuru Şikayeti</div>
-                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
-                                    {selectedHistoryRecord.complaint}
-                                  </div>
-                                </div>
-                              )}
-
-                              {(selectedHistoryRecord.clinicalFindings || selectedHistoryRecord.diagnosis) && (
-                                <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Bulgu ve Tanı</div>
-                                  <div className="text-[13px] font-semibold text-rose-700 dark:text-rose-400 p-1.5 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/50 italic">
-                                    {selectedHistoryRecord.diagnosis || selectedHistoryRecord.clinicalFindings}
-                                  </div>
-                                </div>
-                              )}
-
-                              {selectedHistoryRecord.procedureNotes && (
-                                <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Hekim Notu</div>
-                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
-                                    {selectedHistoryRecord.procedureNotes}
-                                  </div>
-                                </div>
-                              )}
-
-                              {(selectedHistoryRecord.anesthesia || selectedHistoryRecord.materials) && (
-                                <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Anestezi / Materyal</div>
-                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
-                                    {selectedHistoryRecord.anesthesia || selectedHistoryRecord.materials}
-                                  </div>
-                                </div>
-                              )}
-
-                              {selectedHistoryRecord.prescription && (
-                                <div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Reçete / Öneri</div>
-                                  <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 p-1.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
-                                    {selectedHistoryRecord.prescription}
-                                  </div>
-                                </div>
-                              )}
-
-                              {selectedHistoryRecord.nextAppointment?.date && (
-                                <div className="bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-xl border border-emerald-100 dark:border-emerald-800/50 flex items-center gap-1.5">
-                                  <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                                    <i className="fa-regular fa-calendar-check"></i>
+                              
+                              {/* Düzenlenebilir Manuel Klinik Bilgiler */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Yapılan İşlem / Tedavi</label>
+                                      <input type="text" value={selectedHistoryRecord.treatment || ""} onChange={e => setSelectedHistoryRecord({...selectedHistoryRecord, treatment: e.target.value})} className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
                                   </div>
                                   <div>
-                                    <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase">Planlanan Sonraki Kontrol</div>
-                                    <div className="font-black text-[13px] text-emerald-700 dark:text-emerald-400">{selectedHistoryRecord.nextAppointment.date}</div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">İlgili Dişler (Virgülle ayırın)</label>
+                                      <input type="text" value={selectedHistoryRecord.selectedTeeth ? (Array.isArray(selectedHistoryRecord.selectedTeeth) ? selectedHistoryRecord.selectedTeeth.join(", ") : selectedHistoryRecord.selectedTeeth) : ""} onChange={e => setSelectedHistoryRecord({...selectedHistoryRecord, selectedTeeth: e.target.value.split(',').map(s=>s.trim())})} className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
                                   </div>
-                                </div>
-                              )}
-                            </div>
-                            <div className="px-2.5 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 shrink-0">
-                              <button onClick={() => setIsHistoryDetailModalOpen(false)} className="w-full py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
-                                Kapat
-                              </button>
-                            </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Başvuru Şikayeti / Randevu Notu</label>
+                                      <textarea rows="2" value={selectedHistoryRecord.complaint || ""} onChange={e => setSelectedHistoryRecord({...selectedHistoryRecord, complaint: e.target.value})} className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-semibold outline-none focus:border-indigo-500 resize-none text-slate-800 dark:text-white"></textarea>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Klinik Bulgular & Tanı</label>
+                                      <textarea rows="2" value={selectedHistoryRecord.diagnosis || selectedHistoryRecord.clinicalFindings || ""} onChange={e => setSelectedHistoryRecord({...selectedHistoryRecord, diagnosis: e.target.value, clinicalFindings: e.target.value})} className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-semibold outline-none focus:border-indigo-500 resize-none text-slate-800 dark:text-white"></textarea>
+                                  </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Hekim Notu / Prosedür Notu</label>
+                                      <textarea rows="2" value={selectedHistoryRecord.procedureNotes || ""} onChange={e => setSelectedHistoryRecord({...selectedHistoryRecord, procedureNotes: e.target.value})} className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-semibold outline-none focus:border-indigo-500 resize-none text-slate-800 dark:text-white"></textarea>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Anestezi / Materyal Bilgisi</label>
+                                      <textarea rows="2" value={selectedHistoryRecord.anesthesia || selectedHistoryRecord.materials || ""} onChange={e => setSelectedHistoryRecord({...selectedHistoryRecord, anesthesia: e.target.value, materials: e.target.value})} className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-semibold outline-none focus:border-indigo-500 resize-none text-slate-800 dark:text-white"></textarea>
+                                  </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">İlaç / Reçete / Öneri</label>
+                                      <textarea rows="2" value={selectedHistoryRecord.prescription || ""} onChange={e => setSelectedHistoryRecord({...selectedHistoryRecord, prescription: e.target.value})} className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-semibold outline-none focus:border-indigo-500 resize-none text-slate-800 dark:text-white"></textarea>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Sonraki Kontrol Tarihi</label>
+                                      <input 
+                                        type="text" 
+                                        placeholder="gg.aa.yyyy" 
+                                        maxLength="10"
+                                        value={selectedHistoryRecord.nextAppointment?.date || selectedHistoryRecord.nextAppointmentDate || ""} 
+                                        onChange={e => {
+                                          let digits = e.target.value.replace(/[^0-9]/g, "");
+                                          let formatted = digits;
+                                          if (digits.length > 2) formatted = digits.substring(0, 2) + "." + digits.substring(2);
+                                          if (digits.length > 4) formatted = digits.substring(0, 2) + "." + digits.substring(2, 4) + "." + digits.substring(4, 8);
+                                          setSelectedHistoryRecord({
+                                            ...selectedHistoryRecord, 
+                                            nextAppointmentDate: formatted, 
+                                            nextAppointment: { date: formatted }
+                                          });
+                                        }} 
+                                        className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white" 
+                                      />
+                                  </div>
+                              </div>
+
+                              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-1.5 mt-1.5">
+                                  <button type="button" onClick={() => setIsHistoryDetailModalOpen(false)} className="px-3 py-2 bg-slate-100 text-slate-600 rounded-xl font-bold text-[13px] hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-300">İptal</button>
+                                  <button type="submit" className="px-3 py-2 bg-indigo-600 text-white rounded-xl font-black text-[13px] shadow-lg hover:bg-indigo-700 transition"><i className="fa-solid fa-save mr-1"></i> Detayları Kaydet</button>
+                              </div>
+                            </form>
                           </div>
                         </div>
                       )}
