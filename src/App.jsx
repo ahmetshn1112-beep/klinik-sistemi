@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, onValue } from 'firebase/database';
+import { getDatabase, ref, set, update, onValue } from 'firebase/database';
 const MONTHS = [
         "Ocak",
 
@@ -1783,27 +1783,72 @@ useEffect(() => {
           return () => unsubscribe();
         }, [isReady, fbUser, db]);
 
-        // ★★★ DÜZELTİLEN SAVE FONKSİYONU (DEĞİŞİKLİK 3) ★★★
-
         const saveGlobalData = async (newData) => {
           if (!db) return;
 
-
           try {
-            // ★★★ DEĞİŞİKLİK 3: Kaydetme yolu sabitlendi ★★★
-
             const dbRef = ref(db, "KlinikAnaVeritabani/Veriler");
 
-            await set(dbRef, newData);
+            // AKILLI GÜNCELLEME (DEEP UPDATE) MANTIĞI
+            // Toptan ezmek yerine sadece değişen/eklenen/silinen noktaları bulur.
+            const updates = {};
+
+            const checkOneLevel = (collectionName) => {
+              const oldCol = globalData[collectionName] || {};
+              const newCol = newData[collectionName] || {};
+
+              // Yenileri veya değişenleri bul
+              Object.keys(newCol).forEach((key) => {
+                if (JSON.stringify(oldCol[key]) !== JSON.stringify(newCol[key])) {
+                  updates[`${collectionName}/${key}`] = newCol[key];
+                }
+              });
+
+              // Silinenleri bul
+              Object.keys(oldCol).forEach((key) => {
+                if (newCol[key] === undefined) {
+                  updates[`${collectionName}/${key}`] = null;
+                }
+              });
+            };
+
+            // Tek katmanlı verileri kontrol et
+            checkOneLevel("usersDb");
+            checkOneLevel("doctorProfiles");
+            checkOneLevel("patientsDb");
+            checkOneLevel("pricingDb");
+
+            // İki katmanlı verileri (Randevular: Doctor -> Appointment) kontrol et
+            const oldApts = globalData.appointments || {};
+            const newApts = newData.appointments || {};
+            const allDocIds = new Set([...Object.keys(oldApts), ...Object.keys(newApts)]);
+
+            allDocIds.forEach((docId) => {
+              const oldDocApts = oldApts[docId] || {};
+              const newDocApts = newApts[docId] || {};
+
+              Object.keys(newDocApts).forEach((aptKey) => {
+                if (JSON.stringify(oldDocApts[aptKey]) !== JSON.stringify(newDocApts[aptKey])) {
+                  updates[`appointments/${docId}/${aptKey}`] = newDocApts[aptKey];
+                }
+              });
+
+              Object.keys(oldDocApts).forEach((aptKey) => {
+                if (newDocApts[aptKey] === undefined) {
+                  updates[`appointments/${docId}/${aptKey}`] = null;
+                }
+              });
+            });
+
+            // Eğer veritabanında değişecek bir şey varsa sadece o yolları (path) güncelle
+            if (Object.keys(updates).length > 0) {
+              await update(dbRef, updates);
+            }
 
             setGlobalData(newData);
           } catch (e) {
-            showNotification(
-              "Veritabanı kayıt hatası! Lütfen sayfayı yenileyin.",
-
-              "error"
-            );
-
+            showNotification("Veritabanı kayıt hatası! Lütfen sayfayı yenileyin.", "error");
+            console.error(e);
             throw e;
           }
         };
@@ -2658,18 +2703,37 @@ useEffect(() => {
 
         const handleDeletePatient = () => {
           showConfirm(
-            `${patientForm.name} adlı hastayı tamamen silmek istediğinize emin misiniz?`,
-
+            `${patientForm.name} adlı hastayı silmek istediğinize emin misiniz? (Geçmiş finans verileri korunacaktır)`,
             () => {
               const updatedPatients = { ...globalData.patientsDb };
+              // YENİ: Hastayı toptan silmek (delete) yerine arşivliyoruz (Soft Delete)
+              updatedPatients[patientForm.id] = { ...updatedPatients[patientForm.id], isDeleted: true };
 
-              delete updatedPatients[patientForm.id];
+              const updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
+              let isAppointmentsChanged = false;
 
-              saveGlobalData({ ...globalData, patientsDb: updatedPatients });
+              Object.keys(updatedAppointments).forEach((docId) => {
+                Object.keys(updatedAppointments[docId]).forEach((aptKey) => {
+                  const apt = updatedAppointments[docId][aptKey];
+                  if (apt.patientId === patientForm.id || apt.patientName === patientForm.name) {
+                    // YENİ: Sadece gerçekleşmemiş (gelecek/bekleyen) randevuları takvimden temizle.
+                    // "Geldi" olan geçmiş randevular, hekimin zaman harcadığı kayıtlar olduğu için silinmez.
+                    if (apt.status !== "Geldi") {
+                      delete updatedAppointments[docId][aptKey];
+                      isAppointmentsChanged = true;
+                    }
+                  }
+                });
+              });
+
+              saveGlobalData({ 
+                ...globalData, 
+                patientsDb: updatedPatients,
+                ...(isAppointmentsChanged ? { appointments: updatedAppointments } : {}) 
+              });
 
               setIsPatientModalOpen(false);
-
-              showNotification("Hasta silindi.", "error");
+              showNotification("Hasta arşivlendi. Geçmiş bilançolar korundu, bekleyen randevuları silindi.", "error");
             }
           );
         };
@@ -2818,26 +2882,26 @@ useEffect(() => {
           });
 
           if (val.trim().length > 0) {
-            const matches = Object.values(globalData.patientsDb || {}).filter(
-              (p) =>
-                (p.addedBy === currentUser ||
-                  globalData.doctorProfiles?.[p.addedBy]?.addedBy ===
-                    currentUser) &&
-                (p.name.toLowerCase().includes(val.toLowerCase()) ||
-                  (p.phone && p.phone.includes(val)) ||
-                  (p.tc && p.tc.includes(val)))
-            );
-            setPatientSuggestions(matches);
-          } else {
-            setPatientSuggestions(
-              Object.values(globalData.patientsDb || {}).filter(
-                (p) =>
-                  p.addedBy === currentUser ||
-                  globalData.doctorProfiles?.[p.addedBy]?.addedBy ===
-                    currentUser
-              )
-            );
-          }
+                const matches = Object.values(globalData.patientsDb || {}).filter(
+                  (p) =>
+                    (p.addedBy === currentUser ||
+                      globalData.doctorProfiles?.[p.addedBy]?.addedBy ===
+                        currentUser) && !p.isDeleted &&
+                    (p.name.toLowerCase().includes(val.toLowerCase()) ||
+                      (p.phone && p.phone.includes(val)) ||
+                      (p.tc && p.tc.includes(val)))
+                );
+                setPatientSuggestions(matches);
+              } else {
+                setPatientSuggestions(
+                  Object.values(globalData.patientsDb || {}).filter(
+                    (p) =>
+                      (p.addedBy === currentUser ||
+                      globalData.doctorProfiles?.[p.addedBy]?.addedBy ===
+                        currentUser) && !p.isDeleted
+                  )
+                );
+              }
         };
 
         const selectPatientSuggestion = (p) => {
@@ -3996,8 +4060,8 @@ useEffect(() => {
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-3 flex flex-col shrink-0 mt-2 animate-pop min-h-[400px]">
                 {(() => {
                   const allPats = Object.values(globalData.patientsDb || {}).filter(
-                    (p) => p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser
-                  );
+                  (p) => (p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser) && !p.isDeleted
+                );
 
                   // ARTIK HASTA KARTINDA SEÇTİĞİN DROPDOWN ETİKETLERİNE GÖRE ÇALIŞIYOR:
                   const fAcil = allPats.filter(p => p.folder_acil && p.folder_acil !== "");
@@ -4005,6 +4069,24 @@ useEffect(() => {
                   const fEvrak = allPats.filter(p => p.folder_evrak && p.folder_evrak !== "");
                   
                   const fKontrol = allPats.filter(p => p.clinicalHistory?.some(h => h.nextAppointmentDate));
+                  
+                  // YENİ DÜZELTME: Dosya masasındaki Kontrol Bekleyenleri rastgele değil,
+                  // Kontrol tarihi "en yakın olan (en acil)" en üstte görünecek şekilde sıraya diziyoruz.
+                  fKontrol.sort((a, b) => {
+                    const getLatestControlDate = (pat) => {
+                      const dates = (pat.clinicalHistory || []).map(h => h.nextAppointmentDate).filter(Boolean);
+                      if (dates.length === 0) return 0;
+                      return Math.max(...dates.map(dStr => {
+                        const parts = dStr.split("."); // gg.aa.yyyy
+                        if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+                        return 0;
+                      }));
+                    };
+                    // Küçük olan (tarihi bugün veya düne en yakın olan) daha acildir, üste gelir.
+                    return getLatestControlDate(a) - getLatestControlDate(b); 
+                  });
+
+                  // YENİ DÜZELTME: Sadece üzerinde aktif / bitmemiş planlanmış tedavisi olanlar listede kalır.
                   const fTedavi = allPats.filter(p => p.plannedTreatments && p.plannedTreatments.length > 0);
                   const fYeni = allPats.filter(p => p.clinicalHistory?.some(h => h.visitType === "İlk Muayene" && (Date.now() - h.timestamp) < 7 * 24 * 60 * 60 * 1000) || p.lastStatus === "Yeni Kayıt");
 
@@ -5256,7 +5338,7 @@ useEffect(() => {
 
         const renderPatients = () => {
           let patientsList = Object.values(globalData.patientsDb || {}).filter(
-            (p) => p.addedBy === currentUser
+            (p) => p.addedBy === currentUser && !p.isDeleted
           );
           if (patientLocalSearch)
             patientsList = patientsList.filter(
@@ -5735,47 +5817,39 @@ useEffect(() => {
           };
 
           const handleDeleteDoctor = () => {
-            if (selectedDoctorId === currentUser) {
-              showNotification(
-                "Şu an aktif olan hesabınızı silemezsiniz!",
-
-                "error"
-              );
-
-              return;
-            }
-
-            showConfirm(
-              `${selectedDoctorId} adlı hekimi silmek istediğinize emin misiniz?`,
-
-              () => {
-                const updatedUsers = { ...globalData.usersDb };
-                delete updatedUsers[selectedDoctorId];
-
-                const updatedProfiles = { ...globalData.doctorProfiles };
-                delete updatedProfiles[selectedDoctorId];
-
-                // EKLENEN KISIM: Silinen hekime ait askıda kalacak randevuları da temizliyoruz
-                const updatedAppointments = {
-                  ...(globalData.appointments || {}),
-                };
-                if (updatedAppointments[selectedDoctorId]) {
-                  delete updatedAppointments[selectedDoctorId];
-                }
-
-                saveGlobalData({
-                  ...globalData,
-                  usersDb: updatedUsers,
-                  doctorProfiles: updatedProfiles,
-                  appointments: updatedAppointments, // Temizlenmiş randevuları da kaydediyoruz
-                });
-
-                showNotification("Hekim silindi.", "error");
-
-                setIsDoctorDetailsModalOpen(false);
-              }
+          if (selectedDoctorId === currentUser) {
+            showNotification(
+              "Şu an aktif olan hesabınızı silemezsiniz!",
+              "error"
             );
-          };
+            return;
+          }
+
+          showConfirm(
+            `${selectedDoctorId} adlı hekimi pasife almak istediğinize emin misiniz? (Geçmiş randevuları ve ciroları korunacaktır)`,
+            () => {
+              const updatedUsers = { ...globalData.usersDb };
+              delete updatedUsers[selectedDoctorId]; // Sisteme giriş yetkisi kaldırılır
+
+              const updatedProfiles = { ...globalData.doctorProfiles };
+              delete updatedProfiles[selectedDoctorId]; // Hekim listeden kaldırılır
+
+              // DİKKAT: updatedAppointments (randevular ve geçmiş cirolar) silinmiyor!
+              // Böylece geçmiş bilanço ve finans raporlarınız asla bozulmaz.
+
+              saveGlobalData({
+                ...globalData,
+                usersDb: updatedUsers,
+                doctorProfiles: updatedProfiles,
+                // appointments objesine dokunulmuyor, geçmiş veriler saklanıyor.
+              });
+
+              showNotification("Hekim pasife alındı. Geçmiş randevu ve ciro kayıtları korundu.", "error");
+
+              setIsDoctorDetailsModalOpen(false);
+            }
+          );
+        };
 
           const getDoctorFilteredStats = (docId) => {
             let stats = {
@@ -5839,20 +5913,21 @@ useEffect(() => {
                   stats.revenue += aptPrice;
 
                 stats.ptList.push({
-                  date: `${String(d).padStart(2, "0")}/${String(m).padStart(
-                    2,
-                    "0"
-                  )}/${y}`,
+                  date: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
                   time: key.split("-")[3],
                   patient: a.patientName,
                   treatment: renderTreatmentText(a),
                   status: a.status,
                   price: aptPrice,
+                  // YENİ: Gerçek zaman damgası (Timestamp) arka planda hesaplanıp saklanıyor
+                  timestamp: new Date(y, m - 1, d, ...(key.split("-")[3] || "00:00").split(":")).getTime() 
                 });
               }
             });
 
-            stats.ptList.sort((a, b) => b.date.localeCompare(a.date));
+            // YENİ DÜZELTME: Metinsel sıralama (localeCompare) iptal edildi. 
+            // Matematiksel timestamp ile hatasız kronolojik sıralama yapılıyor (En yeniden en eskiye).
+            stats.ptList.sort((a, b) => b.timestamp - a.timestamp);
 
             return stats;
           };
@@ -7668,17 +7743,17 @@ useEffect(() => {
 
                       <div className="max-h-56 overflow-y-auto">
                         {Object.values(globalData.patientsDb || {})
-                          .filter(
-                            (p) =>
-                              (p.addedBy === currentUser ||
-                                globalData.doctorProfiles?.[p.addedBy]
-                                  ?.addedBy === currentUser) &&
-                              (p.name
-                                .toLowerCase()
-                                .includes(globalSearch.toLowerCase()) ||
-                                (p.phone && p.phone.includes(globalSearch)) ||
-                                (p.tc && p.tc.includes(globalSearch)))
-                          )
+                            .filter(
+                              (p) =>
+                                (p.addedBy === currentUser ||
+                                  globalData.doctorProfiles?.[p.addedBy]
+                                    ?.addedBy === currentUser) && !p.isDeleted &&
+                                (p.name
+                                  .toLowerCase()
+                                  .includes(globalSearch.toLowerCase()) ||
+                                  (p.phone && p.phone.includes(globalSearch)) ||
+                                  (p.tc && p.tc.includes(globalSearch)))
+                            )
 
                           .slice(0, 8)
 
@@ -9463,41 +9538,36 @@ useEffect(() => {
                                       Ödeme Yöntemi
                                     </label>
                                     <div className="flex gap-1">
-                                      {[
-                                        "Nakit",
-                                        "Kredi Kartı",
-                                        "Havale",
-                                        "İndirim",
-                                      ].map((method) => (
-                                        <button
-                                          type="button"
-                                          key={method}
-                                          onClick={() =>
-                                            setPaymentMethod(method)
-                                          }
-                                          className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl border transition-all ${
-                                            paymentMethod === method
-                                              ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                                              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-                                          }`}
-                                        >
-                                          {method === "Nakit" && (
-                                            <i className="fa-solid fa-money-bill-wave mr-0.5"></i>
-                                          )}
-                                          {method === "Kredi Kartı" && (
-                                            <i className="fa-solid fa-credit-card mr-0.5"></i>
-                                          )}
-                                          {method === "Havale" && (
-                                            <i className="fa-solid fa-building-columns mr-0.5"></i>
-                                          )}
-                                          {/* YENİ: İndirim İkonu */}
-                                          {method === "İndirim" && (
-                                            <i className="fa-solid fa-percent mr-0.5"></i>
-                                          )}
-                                          {method}
-                                        </button>
-                                      ))}
-                                    </div>
+                                    {[
+                                      "Nakit",
+                                      "Kredi Kartı",
+                                      "Havale",
+                                    ].map((method) => (
+                                      <button
+                                        type="button"
+                                        key={method}
+                                        onClick={() =>
+                                          setPaymentMethod(method)
+                                        }
+                                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl border transition-all ${
+                                          paymentMethod === method
+                                            ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                                            : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+                                        }`}
+                                      >
+                                        {method === "Nakit" && (
+                                          <i className="fa-solid fa-money-bill-wave mr-0.5"></i>
+                                        )}
+                                        {method === "Kredi Kartı" && (
+                                          <i className="fa-solid fa-credit-card mr-0.5"></i>
+                                        )}
+                                        {method === "Havale" && (
+                                          <i className="fa-solid fa-building-columns mr-0.5"></i>
+                                        )}
+                                        {method}
+                                      </button>
+                                    ))}
+                                  </div>
                                   </div>
                                 </div>
 
@@ -10040,7 +10110,23 @@ useEffect(() => {
                           {/* Timeline Görünümü */}
                           <div className="flex-1 overflow-y-auto no-print pr-1.5 relative mt-1.5 custom-scrollbar">
                             {(() => {
-                              let historyData = patientForm.clinicalHistory || [];
+                              let historyData = [...(patientForm.clinicalHistory || [])]; // Kopyasını alıyoruz ki state doğrudan mutasyona uğramasın
+                              
+                              // YENİ DÜZELTME: Hekim geçmişe dönük manuel kayıt eklerse (örn: 1 ay öncesi), 
+                              // en üste değil, doğru tarihli aralığa girmesini sağlayan Akıllı Kronolojik Sıralama
+                              historyData.sort((a, b) => {
+                                const parseDate = (dStr, tStr) => {
+                                  if (!dStr) return 0;
+                                  let day = 0, month = 0, year = 0;
+                                  if (dStr.includes(".")) [day, month, year] = dStr.split(".");
+                                  else if (dStr.includes("/")) [day, month, year] = dStr.split("/");
+                                  else if (dStr.includes("-")) [year, month, day] = dStr.split("-");
+                                  const [hr, min] = (tStr || "00:00").split(":");
+                                  return new Date(year, month - 1, day, hr, min).getTime();
+                                };
+                                return parseDate(b.date, b.time) - parseDate(a.date, a.time); // En yeni tarih en üstte
+                              });
+
                               if (historyFilterDoc !== "all") historyData = historyData.filter(h => h.doctorId === historyFilterDoc);
                               if (historySearchQuery) {
                                 const q = historySearchQuery.toLowerCase();
@@ -10504,18 +10590,56 @@ useEffect(() => {
             <label className="flex-1 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition rounded-xl font-black text-[11px] text-center cursor-pointer border border-indigo-100 dark:border-indigo-800/50 shadow-sm flex items-center justify-center gap-1">
               <i className="fa-solid fa-cloud-arrow-up"></i> Fotoğraf Değiştir
               <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => setAvatarModalInfo({ ...avatarModalInfo, tempAvatar: reader.result, zoom: 1, x: 50, y: 50 });
-                    reader.readAsDataURL(file);
-                  }
-                }}
-              />
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          const img = new Image();
+                          img.onload = () => {
+                            // Akıllı Kanvas Sıkıştırma Motoru (Maksimum 300x300 piksel ve %70 kalite optimizasyonu)
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            const maxSize = 300;
+
+                            if (width > height) {
+                              if (width > maxSize) {
+                                height *= maxSize / width;
+                                width = maxSize;
+                              }
+                            } else {
+                              if (height > maxSize) {
+                                width *= maxSize / height;
+                                height = maxSize;
+                              }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            // Boyutu devasa ölçüde küçülten sıkıştırılmış base64 çıktısı (JPEG formatında)
+                            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                            setAvatarModalInfo({ 
+                              ...avatarModalInfo, 
+                              tempAvatar: compressedDataUrl, 
+                              zoom: 1, 
+                              x: 50, 
+                              y: 50 
+                            });
+                          };
+                          img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
             </label>
             <button
               type="button"
