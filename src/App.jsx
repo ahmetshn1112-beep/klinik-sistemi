@@ -606,10 +606,10 @@ const useFirebase = () => {
 
           return (
             <div
-              key={toothNo}
-              onClick={() => handleToothClick(toothNo.toString())}
-              className={`flex flex-col items-center group cursor-pointer hover:scale-110 transition-transform relative z-10 w-[30px] sm:w-[40px] md:w-[45px] ${heatMapClass}`}
-            >
+  key={toothNo}
+  onClick={() => handleToothClick(toothNo.toString())}
+  className={`flex flex-col items-center group cursor-pointer hover:scale-110 transition-transform relative z-10 w-[24px] sm:w-[30px] md:w-[36px] ${heatMapClass}`}
+>
               {/* YENİ EKLENEN KISIM: AKILLI TOOLTIP (BİLGİ KUTUSU) */}
               {treatments.length > 0 && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-slate-900 dark:bg-slate-700 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-300 shadow-xl flex flex-col items-center scale-95 group-hover:scale-100">
@@ -908,29 +908,25 @@ const useFirebase = () => {
               </div>
             </div>
 
-            <div className="flex justify-center gap-0.5 sm:gap-1 mb-2 border-b border-dashed border-slate-200 dark:border-slate-600 pb-4 relative z-10">
-              <div className="flex gap-0 sm:gap-0.5">
-                {topRight.map((t) => renderTooth(t, true))}
-              </div>
+            <div className="flex justify-center gap-0 sm:gap-0.5 mb-1.5 border-b border-dashed border-slate-200 dark:border-slate-600 pb-2 relative z-10">
+  <div className="flex gap-0 sm:gap-0.5">
+    {topRight.map((t) => renderTooth(t, true))}
+  </div>
+  <div className="w-px bg-slate-300 dark:bg-slate-600 mx-0.5 sm:mx-1 h-[100px]"></div>
+  <div className="flex gap-0 sm:gap-0.5">
+    {topLeft.map((t) => renderTooth(t, true))}
+  </div>
+</div>
 
-              <div className="w-px bg-slate-300 dark:bg-slate-600 mx-1 sm:mx-2 h-[100px]"></div>
-
-              <div className="flex gap-0 sm:gap-0.5">
-                {topLeft.map((t) => renderTooth(t, true))}
-              </div>
-            </div>
-
-            <div className="flex justify-center gap-0.5 sm:gap-1 pt-1 relative z-10">
-              <div className="flex gap-0 sm:gap-0.5">
-                {botRight.map((t) => renderTooth(t, false))}
-              </div>
-
-              <div className="w-px bg-slate-300 dark:bg-slate-600 mx-1 sm:mx-2 h-[100px]"></div>
-
-              <div className="flex gap-0 sm:gap-0.5">
-                {botLeft.map((t) => renderTooth(t, false))}
-              </div>
-            </div>
+            <div className="flex justify-center gap-0 sm:gap-0.5 pt-0.5 relative z-10">
+  <div className="flex gap-0 sm:gap-0.5">
+    {botRight.map((t) => renderTooth(t, false))}
+  </div>
+  <div className="w-px bg-slate-300 dark:bg-slate-600 mx-0.5 sm:mx-1 h-[100px]"></div>
+  <div className="flex gap-0 sm:gap-0.5">
+    {botLeft.map((t) => renderTooth(t, false))}
+  </div>
+</div>
 
             {/* YENİ EKLENEN: DİŞ DETAY MODALI */}
             {detailToothModal && (
