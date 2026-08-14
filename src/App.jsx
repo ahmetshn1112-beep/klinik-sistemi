@@ -2801,15 +2801,20 @@ useEffect(() => {
           const existingData = globalData.appointments?.[doctorId]?.[key];
 
           let patientAnamnesis = "";
+          let patientPlans = []; // YENİ: Hastanın planlarını çekmek için hafıza açtık
 
           if (existingData && existingData.patientName) {
             const pat = Object.values(globalData.patientsDb || {}).find(
               (p) =>
+                p && p.name && 
                 p.name.toLowerCase() ===
                 existingData.patientName.toLowerCase().trim()
             );
 
-            if (pat) patientAnamnesis = pat.anamnesis || "";
+            if (pat) {
+              patientAnamnesis = pat.anamnesis || "";
+              patientPlans = pat.plannedTreatments || []; // YENİ: Veritabanından planları çekiyoruz
+            }
           }
 
           if (existingData) {
@@ -2824,7 +2829,7 @@ useEffect(() => {
 
               selectedTreatments: existingData.selectedTreatments || [],
 
-              plannedTreatments: [],
+              plannedTreatments: patientPlans, // DÜZELTME: Eskiden boş [] olan kısmı hastanın gerçek planlarıyla değiştirdik
             });
           } else {
             setAptModalMode("edit");
@@ -4063,40 +4068,72 @@ useEffect(() => {
                   (p) => (p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser) && !p.isDeleted
                 );
 
-                  // ARTIK HASTA KARTINDA SEÇTİĞİN DROPDOWN ETİKETLERİNE GÖRE ÇALIŞIYOR:
-                  const fAcil = allPats.filter(p => p.folder_acil && p.folder_acil !== "");
-                  const fLab = allPats.filter(p => p.folder_lab && p.folder_lab !== "");
-                  const fEvrak = allPats.filter(p => p.folder_evrak && p.folder_evrak !== "");
+                 // YENİ AKILLI MANTIK: Gelecekte randevusu olan hastayı masadan gizleyen fonksiyon
+                  const checkHasFutureAppointment = (pName) => {
+                    if (!pName) return false;
+                    const now = new Date().getTime();
+                    let hasFuture = false;
+                    if (globalData.appointments) {
+                      Object.values(globalData.appointments).forEach(docApts => {
+                        Object.entries(docApts).forEach(([k, apt]) => {
+                          if (apt.patientName.toLowerCase() === pName.toLowerCase()) {
+                            const [y, m, d] = k.split("-");
+                            const timeStr = k.split("-").slice(3).join(":");
+                            const aptTime = new Date(`${y}-${m}-${d}T${timeStr}:00`).getTime();
+                            if (aptTime >= now && apt.status !== "İptal") {
+                              hasFuture = true; // Hastanın gelecekte bir randevusu var!
+                            }
+                          }
+                        });
+                      });
+                    }
+                    return hasFuture;
+                  };
+
+                  // 1. Manuel Etiketli Klasörler (Tamamlandı olanlar Hariç)
+                  const fAcil = allPats.filter(p => p.folder_acil && p.folder_acil !== "Tamamlandı");
+                  const fLab = allPats.filter(p => p.folder_lab && p.folder_lab !== "Tamamlandı");
+                  const fEvrak = allPats.filter(p => p.folder_evrak && p.folder_evrak !== "Tamamlandı");
                   
-                  const fKontrol = allPats.filter(p => p.clinicalHistory?.some(h => h.nextAppointmentDate));
+                  // 2. AKILLI TEDAVİ: Planlanmış işlemi var AMA ileri tarihli randevusu YOK
+                  const fTedavi = allPats.filter(p => {
+                    const hasPlans = p.plannedTreatments && p.plannedTreatments.length > 0;
+                    if (!hasPlans) return false;
+                    return !checkHasFutureAppointment(p.name); // Randevusu Varsa Masadan Gizle
+                  });
+
+                  // 3. AKILLI KONTROL: Geçmişte "Kontrol Tarihi" girilmiş AMA randevusu YOK
+                  const fKontrol = allPats.filter(p => {
+                    const hasControlDate = p.clinicalHistory?.some(h => h.nextAppointmentDate);
+                    if (!hasControlDate) return false;
+                    return !checkHasFutureAppointment(p.name); // Randevusu Varsa Masadan Gizle
+                  });
                   
-                  // YENİ DÜZELTME: Dosya masasındaki Kontrol Bekleyenleri rastgele değil,
-                  // Kontrol tarihi "en yakın olan (en acil)" en üstte görünecek şekilde sıraya diziyoruz.
+                  // Kontrol tarihi en yakın olanı en üste al (Matematiksel Sıralama)
                   fKontrol.sort((a, b) => {
                     const getLatestControlDate = (pat) => {
                       const dates = (pat.clinicalHistory || []).map(h => h.nextAppointmentDate).filter(Boolean);
                       if (dates.length === 0) return 0;
                       return Math.max(...dates.map(dStr => {
-                        const parts = dStr.split("."); // gg.aa.yyyy
+                        const parts = dStr.split(".");
                         if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
                         return 0;
                       }));
                     };
-                    // Küçük olan (tarihi bugün veya düne en yakın olan) daha acildir, üste gelir.
                     return getLatestControlDate(a) - getLatestControlDate(b); 
                   });
 
-                  // YENİ DÜZELTME: Sadece üzerinde aktif / bitmemiş planlanmış tedavisi olanlar listede kalır.
-                  const fTedavi = allPats.filter(p => p.plannedTreatments && p.plannedTreatments.length > 0);
+                  // 4. Yeni Hastalar
                   const fYeni = allPats.filter(p => p.clinicalHistory?.some(h => h.visitType === "İlk Muayene" && (Date.now() - h.timestamp) < 7 * 24 * 60 * 60 * 1000) || p.lastStatus === "Yeni Kayıt");
 
+                  // YENİ: KLASÖRLER VE (i) İKONU BİLGİ METİNLERİ (TOOLTIP INFO)
                   const folders = [
-                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.filter(p => p.folder_acil !== "Tamamlandı").length, data: fAcil, desc: "Aktif acil & ağrı" },
-                    { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol.length, data: fKontrol, desc: "Yaklaşan kontroller" },
-                    { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTedavi.length, data: fTedavi, desc: "İşlem bekleyenler" },
-                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.filter(p => p.folder_lab !== "Tamamlandı").length, data: fLab, desc: "Laboratuvar süreçleri" },
-                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.filter(p => p.folder_evrak !== "Tamamlandı").length, data: fEvrak, desc: "Eksik belgeler" },
-                    { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 günde eklenenler" }
+                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.length, data: fAcil, desc: "Aktif acil & ağrı", info: "Hasta dosyasında durumu 'Aktif Acil', 'Ağrı Takibi' vb. olarak işaretlenmiş hastalar." },
+                    { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol.length, data: fKontrol, desc: "Yaklaşan kontroller", info: "Geçmişte 'Sonraki Kontrol Tarihi' verilmiş, ancak henüz ileri tarihli bir randevu ALMAMIŞ hastalar." },
+                    { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTedavi.length, data: fTedavi, desc: "İşlem bekleyenler", info: "Sistemde planlanmış işlemi bulunan, ancak henüz ileri tarihli bir randevu ALMAMIŞ hastalar." },
+                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.length, data: fLab, desc: "Laboratuvar süreçleri", info: "Ölçü alınacak, laboratuvarda veya provaya hazır olarak işaretlenmiş hastalar." },
+                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.length, data: fEvrak, desc: "Eksik belgeler", info: "Onam formu, röntgen veya kimlik gibi eksik evrakı olan hastalar." },
+                    { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 günde eklenenler", info: "Son 7 gün içinde sisteme eklenmiş veya henüz randevusu oluşturulmamış yeni hastalar." }
                   ];
 
                   const activeFolderData = activeFolderId ? folders.find(f => f.id === activeFolderId) : null;
@@ -4136,15 +4173,28 @@ useEffect(() => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {folders.map(folder => (
                             <div 
-                              key={folder.id} 
-                              onClick={() => { setActiveFolderId(folder.id); setFolderSearch(""); }}
-                              className="group border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 hover:shadow-md cursor-pointer transition-all hover:-translate-y-0.5 overflow-hidden flex flex-col"
-                            >
-                              <div className={`p-2.5 flex items-center justify-between border-b ${folder.colorClass}`}>
+                      key={folder.id} 
+                      onClick={() => { setActiveFolderId(folder.id); setFolderSearch(""); }}
+                      className="group border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 hover:shadow-md cursor-pointer transition-all hover:-translate-y-0.5 flex flex-col"
+                    >
+                      <div className={`p-2.5 flex items-center justify-between border-b rounded-t-[11px] ${folder.colorClass}`}>
                                 <h4 className="font-black text-[12px] flex items-center gap-1.5">
                                   <i className={`fa-solid ${folder.icon} text-sm opacity-80`}></i>
                                   {folder.title}
                                 </h4>
+                                
+                                {/* YENİ: Bilgi İkonu (Tooltip) */}
+                                <div 
+                                  className="relative group/tooltip flex items-center justify-center p-1"
+                                  onClick={(e) => e.stopPropagation()} // Tıklanınca klasörü açmasını engeller
+                                >
+                                  <i className="fa-solid fa-circle-info opacity-50 group-hover/tooltip:opacity-100 hover:text-slate-800 dark:hover:text-white transition-all text-sm cursor-help"></i>
+                                  <div className="absolute bottom-full right-0 lg:left-1/2 lg:-translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-semibold rounded-lg opacity-0 group-hover/tooltip:opacity-100 pointer-events-none transition-all z-50 whitespace-normal text-left shadow-xl hidden group-hover/tooltip:block leading-relaxed border border-slate-700 dark:border-slate-600">
+                                    {folder.info}
+                                    <div className="absolute top-full right-2 lg:left-1/2 lg:-translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-700"></div>
+                                  </div>
+                                </div>
+
                               </div>
                               <div className="p-3 flex flex-col flex-1 justify-between">
                                 <div className="flex justify-between items-end mb-2">
@@ -4507,7 +4557,7 @@ useEffect(() => {
                           <div className="flex-1 px-2.5 flex justify-between items-center relative">
                             {apt ? (
                               <div className="relative apt-card-wrapper w-full h-full flex items-center group z-40">
-                                <div className="glass-tooltip flex flex-col gap-1 text-left">
+                                <div className="glass-tooltip flex flex-col gap-1 text-left pointer-events-none">
                                   <div className="font-black text-[13px] border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
                                     {apt.patientName}
                                   </div>
@@ -4740,7 +4790,7 @@ useEffect(() => {
                             >
                               {apt && (
                                 <div className="relative apt-card-wrapper w-full h-full flex flex-col justify-center items-start group">
-                                  <div className="glass-tooltip flex flex-col gap-1 text-left">
+                                  <div className="glass-tooltip flex flex-col gap-1 text-left pointer-events-none">
                                     <div className="font-black text-[13px] border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
                                       {apt.patientName}
                                     </div>
@@ -7532,7 +7582,7 @@ useEffect(() => {
 
             <aside
               ref={sidebarRef}
-              className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-40 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full lg:relative lg:h-auto ${
+              className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-40 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full sm:relative sm:h-auto ${
                 isSidebarOpen ? "w-56" : "w-[68px] hidden sm:flex"
               } no-print`}
             >
@@ -8161,27 +8211,24 @@ useEffect(() => {
                               </div>
 
                               {/* YENİ: Otomatik Mesajlı WhatsApp Butonu */}
-                              {formData.phone &&
-                                formData.phone.replace(/\D/g, "").length >=
-                                  10 && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      let num = formData.phone.replace(
-                                        /\D/g,
-                                        ""
-                                      );
-                                      if (!num.startsWith("90"))
-                                        num = "90" + num;
-                                      const msg = `Merhaba Sayın ${formData.patientName}, kliniğimizden aldığınız saat ${selectedSlot} randevunuzu hatırlatmak isteriz. Sağlıklı günler dileriz.`;
-                                      window.open(
-                                        `https://wa.me/${num}?text=${encodeURIComponent(
-                                          msg
-                                        )}`,
-                                        "_blank"
-                                      );
-                                    }}
+                                  {formData.phone &&
+                                    String(formData.phone).replace(/\D/g, "").length >= 10 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          let num = String(formData.phone).replace(/\D/g, "");
+                                          if (!num.startsWith("90")) num = "90" + num;
+                                          
+                                          const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                                          const formattedDate = activeSlotDate ? new Date(activeSlotDate).toLocaleDateString('tr-TR', dateOptions) : "";
+                                          const msg = `Sayın ${formData.patientName},\n\n${formattedDate} tarihi, saat ${selectedSlot}'daki randevunuzu hatırlatırız. Randevunuza gelemeyecek olmanız durumunda lütfen kliniğimize önceden bilgi veriniz.\n\nSağlıklı günler dileriz.`;
+                                          
+                                          window.open(
+                                            `https://wa.me/${num}?text=${encodeURIComponent(msg)}`,
+                                            "_blank"
+                                          );
+                                        }}
                                     className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-lg hover:bg-emerald-200 transition shadow-sm flex items-center gap-1 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border dark:border-emerald-800"
                                   >
                                     <i className="fa-brands fa-whatsapp text-[13px]"></i>{" "}
