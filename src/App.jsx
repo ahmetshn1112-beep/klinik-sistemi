@@ -1902,22 +1902,32 @@ Tarih: ...../...../202...
 
         // AYARLARI KAYDETME: Hibrit Motor (Hem Local Hem Bulut)
         const saveSettings = () => {
-          if (!settingsDraft) return;
+          if (!settingsDraft && Object.keys(pricingEditValues).length === 0) return;
           
+          const finalSettings = settingsDraft || settings;
+
           const updatedSettingsDb = {
             ...(globalData.settingsDb || {}),
-            [currentUser]: settingsDraft
+            [currentUser]: finalSettings
           };
 
-          // 1. Aşama: Anında cihaza (LocalStorage) kaydet ki çıkıp girince silinmesin
-          localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(settingsDraft));
-          setSettings(settingsDraft); // Ekranı anında güncelle
+          // YENİ: Tedavi Fiyatlarındaki değişiklikleri tespit et ve Firebase'e hazırla
+          let updatedPricingDb = globalData.pricingDb || {};
+          if (Object.keys(pricingEditValues).length > 0) {
+            const currentUserPricing = { ...(updatedPricingDb[currentUser] || DEFAULT_PRICING), ...pricingEditValues };
+            updatedPricingDb = { ...updatedPricingDb, [currentUser]: currentUserPricing };
+          }
 
-          // 2. Aşama: Buluta (Firebase) yedekle
-          saveGlobalData({ ...globalData, settingsDb: updatedSettingsDb })
+          // 1. Aşama: Cihaza kaydet
+          localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(finalSettings));
+          setSettings(finalSettings); 
+
+          // 2. Aşama: Ayarları ve Fiyatları Buluta (Firebase) Yolla
+          saveGlobalData({ ...globalData, settingsDb: updatedSettingsDb, pricingDb: updatedPricingDb })
             .then(() => {
               setSettingsDraft(null);
-              showNotification("Ayarlar cihaza ve Buluta başarıyla kaydedildi.", "success");
+              setPricingEditValues({}); // Kayıt sonrası fiyat değişiklik havuzunu temizle
+              showNotification("Ayarlar ve Tedavi Kataloğu başarıyla Buluta kaydedildi.", "success");
             })
             .catch(err => {
               showNotification("Buluta kaydedilirken hata oluştu ancak cihazınıza kaydedildi.", "error");
@@ -4384,49 +4394,79 @@ Tarih: ...../...../202...
                   };
 
                   // 1. Manuel Etiketli Klasörler (Tamamlandı olanlar Hariç)
-                  const fAcil = allPats.filter(p => p.folder_acil && p.folder_acil !== "Tamamlandı");
-                  const fLab = allPats.filter(p => p.folder_lab && p.folder_lab !== "Tamamlandı");
-                  const fEvrak = allPats.filter(p => p.folder_evrak && p.folder_evrak !== "Tamamlandı");
-                  
-                  // 2. AKILLI TEDAVİ: Planlanmış işlemi var AMA ileri tarihli randevusu YOK
-                  const fTedavi = allPats.filter(p => {
-                    const hasPlans = p.plannedTreatments && p.plannedTreatments.length > 0;
-                    if (!hasPlans) return false;
-                    return !checkHasFutureAppointment(p.name); // Randevusu Varsa Masadan Gizle
-                  });
+                  // 1. Sadece kullanıcının kendi hastalarını al
+                  const myPatientsForHome = Object.values(globalData.patientsDb || {}).filter(p => 
+                    (p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser) && !p.isDeleted
+                  );
 
-                  // 3. AKILLI KONTROL: Geçmişte "Kontrol Tarihi" girilmiş AMA randevusu YOK
-                  const fKontrol = allPats.filter(p => {
-                    const hasControlDate = p.clinicalHistory?.some(h => h.nextAppointmentDate);
-                    if (!hasControlDate) return false;
-                    return !checkHasFutureAppointment(p.name); // Randevusu Varsa Masadan Gizle
+                  // 2. Tarih ve Randevu Kontrolleri İçin Hazırlık (Son 7 Gün Algılayıcı)
+                  const now = new Date();
+                  const sevenDaysAgo = new Date();
+                  sevenDaysAgo.setDate(now.getDate() - 7);
+
+                  // 3. Çok daha akıllı (İçinde geçen kelimeye göre arayan) Klasörleme Sistemi
+                  const fAcil = myPatientsForHome.filter(p => {
+                     const status = (p.lastStatus || "").toLowerCase();
+                     return status.includes("acil") || status.includes("ağrı") || status.includes("kanama");
                   });
                   
-                  // Kontrol tarihi en yakın olanı en üste al (Matematiksel Sıralama)
-                  fKontrol.sort((a, b) => {
-                    const getLatestControlDate = (pat) => {
-                      const dates = (pat.clinicalHistory || []).map(h => h.nextAppointmentDate).filter(Boolean);
-                      if (dates.length === 0) return 0;
-                      return Math.max(...dates.map(dStr => {
-                        const parts = dStr.split(".");
-                        if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
-                        return 0;
-                      }));
-                    };
-                    return getLatestControlDate(a) - getLatestControlDate(b); 
+                  const fKontrol = myPatientsForHome.filter(p => {
+                     const status = (p.lastStatus || "").toLowerCase();
+                     return status.includes("kontrol") || status.includes("takip") || status.includes("sonraki");
                   });
 
-                  // 4. Yeni Hastalar
-                  const fYeni = allPats.filter(p => p.clinicalHistory?.some(h => h.visitType === "İlk Muayene" && (Date.now() - h.timestamp) < 7 * 24 * 60 * 60 * 1000) || p.lastStatus === "Yeni Kayıt");
+                  const fTedavi = myPatientsForHome.filter(p => {
+                     const status = (p.lastStatus || "").toLowerCase();
+                     return status.includes("tedavi") || status.includes("planlandı") || status.includes("devam") || status.includes("kanal") || status.includes("dolgu") || status.includes("çekim");
+                  });
 
-                  // YENİ: KLASÖRLER VE (i) İKONU BİLGİ METİNLERİ (TOOLTIP INFO)
+                  const fLab = myPatientsForHome.filter(p => {
+                     const status = (p.lastStatus || "").toLowerCase();
+                     return status.includes("lab") || status.includes("ölçü") || status.includes("prova") || status.includes("protez");
+                  });
+
+                  const fEvrak = myPatientsForHome.filter(p => {
+                     const status = (p.lastStatus || "").toLowerCase();
+                     return status.includes("evrak") || status.includes("onam") || status.includes("röntgen") || status.includes("kimlik");
+                  });
+
+                  // YENİ HASTALAR KLASÖRÜ (MÜKEMMELLEŞTİRİLDİ)
+                  const fYeni = myPatientsForHome.filter(p => {
+                     // Kural 1: Durumunda "Yeni" yazıyorsa direkt al
+                     if((p.lastStatus || "").toLowerCase().includes("yeni")) return true;
+                     
+                     // Kural 2: Sisteme son 7 gün içinde eklenmişse otomatik olarak al
+                     if(p.date) {
+                         let pDate;
+                         if (p.date.includes(".")) {
+                           const [d, m, y] = p.date.split(".");
+                           pDate = new Date(y, m - 1, d);
+                         } else {
+                           pDate = new Date(p.date);
+                         }
+                         if(pDate >= sevenDaysAgo && pDate <= now) return true;
+                     }
+
+                     // Kural 3: Geçmişte veya gelecekte hiç randevusu YAZILMAMIŞSA (sadece kaydedilip bırakıldıysa) "Yeni" klasörüne düşsün
+                     let hasApt = false;
+                     if(globalData.appointments) {
+                       Object.values(globalData.appointments).forEach(apts => {
+                         Object.values(apts).forEach(apt => {
+                           if(apt.patientId === p.id || apt.patientName === p.name) hasApt = true;
+                         });
+                       });
+                     }
+                     return !hasApt;
+                  });
+
+                  // 4. Dosya Masası (Folders) Dizisi ve Kullanıcı Ayarlarına Göre Gizleme/Gösterme
                   const folders = [
-                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.length, data: fAcil, desc: "Aktif acil & ağrı", info: "Hasta dosyasında durumu 'Aktif Acil', 'Ağrı Takibi' vb. olarak işaretlenmiş hastalar." },
-                    { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol.length, data: fKontrol, desc: "Yaklaşan kontroller", info: "Geçmişte 'Sonraki Kontrol Tarihi' verilmiş, ancak henüz ileri tarihli bir randevu ALMAMIŞ hastalar." },
-                    { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTedavi.length, data: fTedavi, desc: "İşlem bekleyenler", info: "Sistemde planlanmış işlemi bulunan, ancak henüz ileri tarihli bir randevu ALMAMIŞ hastalar." },
-                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.length, data: fLab, desc: "Laboratuvar süreçleri", info: "Ölçü alınacak, laboratuvarda veya provaya hazır olarak işaretlenmiş hastalar." },
-                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.length, data: fEvrak, desc: "Eksik belgeler", info: "Onam formu, röntgen veya kimlik gibi eksik evrakı olan hastalar." },
-                    { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 günde eklenenler", info: "Son 7 gün içinde sisteme eklenmiş veya henüz randevusu oluşturulmamış yeni hastalar." }
+                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.length, data: fAcil, desc: "Aktif acil & ağrı", info: "Hasta dosyasında 'Acil', 'Ağrı', 'Kanama' kelimeleri geçenler." },
+                    { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol.length, data: fKontrol, desc: "Yaklaşan kontroller", info: "Son durumunda 'Kontrol' veya 'Takip' geçen hastalar." },
+                    { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTedavi.length, data: fTedavi, desc: "İşlem bekleyenler", info: "Tedavisi süren, planlanmış işlemi olan hastalar." },
+                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.length, data: fLab, desc: "Laboratuvar süreçleri", info: "Ölçü alınmış, provası olan veya laba iş gönderilen hastalar." },
+                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.length, data: fEvrak, desc: "Eksik belgeler", info: "Onam formu, röntgen veya eksik evrakı olan hastalar." },
+                    { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 gün ve randevusuzlar", info: "Sisteme son 7 günde eklenen veya henüz hiç randevusu olmayan hastalar." }
                   ].filter(f => settings?.dosya?.[f.id] !== false);
 
                   const activeFolderData = activeFolderId ? folders.find(f => f.id === activeFolderId) : null;
@@ -7276,15 +7316,18 @@ const renderSettings = () => {
                 )}
 
                 {settingsTab === "tedavi" && (() => {
-                  const userPricing = globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                  const basePricing = globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                  // Değişiklikleri anlık tabloya yansıtmak için:
+                  const userPricing = { ...basePricing, ...pricingEditValues };
                   const allTreatments = Object.keys(userPricing);
+
                   return (
                   <div className="animate-pop max-w-5xl space-y-4">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Tedavi ve Ücret Kataloğu</h3>
                        <button onClick={() => setIsAddTreatmentModalOpen(true)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm hover:bg-indigo-700 transition"><i className="fa-solid fa-plus mr-1"></i> Yeni Tedavi Ekle</button>
                      </div>
-                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Tüm uygulamada geçerli olan aktif işlemlerinizin listesi.</p>
+                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Tüm uygulamada geçerli olan aktif işlemlerinizin listesi. Fiyatları doğrudan hücrelerden güncelleyebilirsiniz.</p>
                      <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-x-auto max-h-[400px] custom-scrollbar relative">
                         <table className="w-full text-left text-[12px] min-w-[500px]">
                            <thead className="bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-b dark:border-slate-700 sticky top-0 z-10 shadow-sm">
@@ -7295,7 +7338,21 @@ const renderSettings = () => {
                                <tr key={tx} className="border-b last:border-0 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition">
                                  <td className="p-2.5 font-bold text-slate-800 dark:text-white">{tx}</td>
                                  <td className="p-2.5 text-slate-500"><span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 shadow-sm text-[10px] font-bold">Klinik İşlem</span></td>
-                                 <td className="p-2.5 font-black text-indigo-600 dark:text-indigo-400">{userPricing[tx]} ₺</td>
+                                 <td className="p-2.5">
+                                   <div className="flex items-center gap-1.5">
+                                      <input 
+                                        type="number" 
+                                        value={userPricing[tx] === 0 ? 0 : (userPricing[tx] || "")} 
+                                        onChange={(e) => {
+                                          setPricingEditValues(prev => ({ ...prev, [tx]: parseFloat(e.target.value) || 0 }));
+                                          // Fiyat değiştiğinde alttaki "Kaydet" çubuğunun çıkması için tetikleyici:
+                                          if(!settingsDraft) setSettingsDraft(settings);
+                                        }}
+                                        className="w-20 p-1.5 bg-white border border-slate-200 rounded-lg text-[13px] font-black text-indigo-600 outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-indigo-400 dark:border-slate-600 transition-colors shadow-sm"
+                                      />
+                                      <span className="text-[11px] font-black text-slate-400">₺</span>
+                                   </div>
+                                 </td>
                                  <td className="p-2.5 text-center"><span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded-md text-[10px] font-bold">Aktif</span></td>
                                </tr>
                              ))}
