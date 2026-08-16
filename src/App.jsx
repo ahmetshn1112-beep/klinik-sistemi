@@ -1646,17 +1646,26 @@ useEffect(() => {
 
         const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
-        // Hangi hesaba girildiyse sadece O HESABIN ayarlarını getir
+        // AYARLARI OKUMA: Hibrit Motor (Önce Local, Sonra Bulut)
         useEffect(() => {
           if (currentUser) {
-            const saved = localStorage.getItem(`klinikSettings_${currentUser}`);
-            if (saved) {
-              setSettings(JSON.parse(saved));
+            // 1. Aşama: Sisteme girer girmez cihaz hafızasından anında çek (Silinmeyi / Sıfırlanmayı engeller)
+            const localSaved = localStorage.getItem(`klinikSettings_${currentUser}`);
+            if (localSaved) {
+              setSettings(JSON.parse(localSaved));
             } else {
               setSettings(DEFAULT_SETTINGS);
             }
+
+            // 2. Aşama: Firebase (Bulut) verisi internetten inince, en güncel haliyle kontrol et
+            if (globalData && globalData.settingsDb && globalData.settingsDb[currentUser]) {
+              const cloudSettings = globalData.settingsDb[currentUser];
+              setSettings(cloudSettings);
+              // LocalStorage'ı buluttaki en güncel veriyle senkronize et
+              localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(cloudSettings));
+            }
           }
-        }, [currentUser]);
+        }, [currentUser, globalData.settingsDb]);
 
         const [settingsDraft, setSettingsDraft] = useState(null);
         const [settingsTab, setSettingsTab] = useState("ozet");
@@ -1891,7 +1900,7 @@ Tarih: ...../...../202...
           });
         };
 
-        // YENİ: Ayarları Firebase'e Kaydet
+        // AYARLARI KAYDETME: Hibrit Motor (Hem Local Hem Bulut)
         const saveSettings = () => {
           if (!settingsDraft) return;
           
@@ -1900,14 +1909,18 @@ Tarih: ...../...../202...
             [currentUser]: settingsDraft
           };
 
+          // 1. Aşama: Anında cihaza (LocalStorage) kaydet ki çıkıp girince silinmesin
+          localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(settingsDraft));
+          setSettings(settingsDraft); // Ekranı anında güncelle
+
+          // 2. Aşama: Buluta (Firebase) yedekle
           saveGlobalData({ ...globalData, settingsDb: updatedSettingsDb })
             .then(() => {
-              setSettings(settingsDraft);
               setSettingsDraft(null);
-              showNotification("Klinik ayarları başarıyla Buluta (Firebase) kaydedildi.", "success");
+              showNotification("Ayarlar cihaza ve Buluta başarıyla kaydedildi.", "success");
             })
             .catch(err => {
-              showNotification("Ayarlar kaydedilirken ağ hatası oluştu!", "error");
+              showNotification("Buluta kaydedilirken hata oluştu ancak cihazınıza kaydedildi.", "error");
               console.error(err);
             });
         };
