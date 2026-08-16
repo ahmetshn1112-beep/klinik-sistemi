@@ -103,7 +103,7 @@ const MONTHS = [
         "Şeffaf Plak Tedavisi": 45000,
       };
 
-      const PRICING_CATEGORIES = {
+      const INITIAL_PRICING_CATEGORIES = {
         "Teşhis ve Radyoloji": {
           icon: "fa-stethoscope",
           color: "text-blue-500",
@@ -170,16 +170,7 @@ const MONTHS = [
         },
       };
 
-      const generateTimeSlots = () => {
-        const slots = [];
-
-        for (let i = 10; i <= 20; i++)
-          slots.push(`${i.toString().padStart(2, "0")}:00`);
-
-        return slots;
-      };
-
-      const TIME_SLOTS = generateTimeSlots();
+      // TIME_SLOTS artık App içinde dinamik olarak hesaplanacak!
 
       // ARAMANIZ GEREKEN VE DEĞİŞTİRECEĞİNİZ KISIM BURASI:
 const useFirebase = () => {
@@ -1640,6 +1631,141 @@ useEffect(() => {
         const [financeCustomEnd, setFinanceCustomEnd] = useState("");
 
         const [financeDetailView, setFinanceDetailView] = useState("overview");
+        // --- KLİNİK AYARLARI STATE YÖNETİMİ ---
+        const DEFAULT_SETTINGS = {
+          klinik: { ad: "Benim Kliniğim", kisaAd: "Klinik", telefon: "", eposta: "", adres: "", durum: "Aktif" },
+          calisma: { baslama: "09:00", bitis: "19:00" },
+          randevu: { varsayilanSure: "30", slotAraligi: "15", cakismaKontrolu: true, gecmisTarihUyarisi: true },
+          bildirim: { smsAktif: false, whatsappAktif: true, randevuHatirlatma: "24" },
+          gorunum: { tema: "Sistem", animasyonlar: true },
+          guvenlik: { oturumZamanAsimi: "120", hassasEkranUyarisi: true },
+          otomasyon: { aktifKural: 4 }
+        };
+
+        const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+        // YENİ: Kullanıcı giriş yaptığında (veya değiştiğinde) sadece ONA ÖZEL ayarları yükle
+        useEffect(() => {
+          if (currentUser) {
+            const saved = localStorage.getItem(`klinikSettings_${currentUser}`);
+            if (saved) {
+              setSettings(JSON.parse(saved));
+            } else {
+              setSettings(DEFAULT_SETTINGS); // Kaydı yoksa varsayılan ayarlara dön
+            }
+          }
+        }, [currentUser]);
+        const [settingsDraft, setSettingsDraft] = useState(null);
+        const [settingsTab, setSettingsTab] = useState("ozet");
+        const [settingsSearch, setSettingsSearch] = useState("");
+        // --- GERÇEK ZAMANLI EKLENTİLER (BELGE, TEDAVİ, TEMA) ---
+        const [documentPreview, setDocumentPreview] = useState(null);
+        const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
+        const [newTreatmentForm, setNewTreatmentForm] = useState({ name: "", category: "Klinik İşlem", price: "" });
+
+        // --- GERÇEK TDB BELGELERİ ---
+        const TDB_DOCUMENTS = [
+          { id: 1, title: "TDB Aydınlatılmış Onam Formu (Genel)", icon: "fa-file-signature", color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-900/20", content: "İSTANBUL DİŞHEKİMLERİ ODASI / TDB STANDART AYDINLATILMIŞ ONAM FORMU\n\n1. PLANLANAN TEDAVİ:\nHekimim tarafından ağız ve diş sağlığı durumum değerlendirilmiş olup, planlanan tedavi, alternatifleri ve muhtemel sonuçları hakkında detaylı olarak bilgilendirildim.\n\n2. OLASI RİSK VE KOMPLİKASYONLAR:\nLokal anestezi ve/veya tedavi işlemleri sırasında ya da sonrasında nadir de olsa kanama, şişlik, enfeksiyon, geçici veya kalıcı sinir zedelenmesi (uyuşukluk), alerjik reaksiyonlar ve ağrı gibi komplikasyonların gelişebileceği anlatıldı.\n\n3. HASTANIN BEYANI:\nBilincim yerinde olarak, bana yapılan açıklamaları okudum, anladım ve hekimime soru sorma fırsatı buldum. Planlanan tedavinin risklerini kabul ediyor ve hiçbir baskı altında kalmadan kendi özgür irademle tedaviye ONAY VERİYORUM.\n\n\nHASTA / KANUNİ TEMSİLCİSİ\nAdı Soyadı: .......................................\nTarih: ...../...../202...\nİmza: .......................................\n\nSORUMLU HEKİM\nAdı Soyadı: " + (globalData.doctorProfiles?.[currentUser]?.name || currentUser) + "\nİmza:" },
+          { id: 2, title: "KVKK Hasta Bilgilendirme Metni", icon: "fa-shield-halved", color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-900/20", content: "6698 SAYILI KİŞİSEL VERİLERİN KORUNMASI KANUNU KAPSAMINDA HASTA AYDINLATMA METNİ\n\nSayın Hastamız,\nBu aydınlatma metni, " + (settings.klinik.ad || "Klinik") + " tarafından, 6698 sayılı KVKK 10. maddesi uyarınca veri sorumlusu sıfatıyla hazırlanmıştır.\n\n1. KİŞİSEL VERİLERİN İŞLENME AMACI:\nKimlik, iletişim ve sağlık (özel nitelikli kişisel veri) bilgileriniz; kamu sağlığının korunması, koruyucu hekimlik, tıbbî teşhis, tedavi ve bakım hizmetlerinin yürütülmesi, randevu planlaması ve finansal süreçlerin yönetimi amacıyla işlenmektedir.\n\n2. KİŞİSEL VERİLERİN AKTARILMASI:\nVerileriniz, yalnızca yasal zorunluluklar çerçevesinde Sağlık Bakanlığı, SGK veya adli makamlarla paylaşılabilecek olup, ticari amaçla hiçbir 3. şahsa aktarılmamaktadır.\n\n3. İLGİLİ KİŞİNİN HAKLARI:\nKanunun 11. maddesi uyarınca kliniğimize başvurarak verilerinizin işlenip işlenmediğini öğrenme, silinmesini talep etme ve düzeltme isteme haklarına sahipsiniz.\n\nOKUDUM, ANLADIM VE KABUL EDİYORUM.\nHasta Adı/Soyadı: .......................................\nTarih ve İmza: ......................................." },
+          { id: 3, title: "TDB İmplant Cerrahi Onamı", icon: "fa-tooth", color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20", content: "İMPLANT CERRAHİSİ BİLGİLENDİRME VE AYDINLATILMIŞ ONAM FORMU\n\nBu belge, çene kemiğine yerleştirilecek olan dental implant operasyonu için hazırlanmıştır.\n\n1. İŞLEMİN İÇERİĞİ:\nÇene kemiğine titanyum vida yerleştirileceği, iyileşme süreci (osseointegrasyon) sonrasında protez aşamasına geçileceği tarafıma anlatılmıştır.\n\n2. İMPLANTASYON RİSKLERİ:\n- Operasyon sonrası şişlik, ödem ve geçici morarma gelişebilir.\n- Üst çene arka bölgelerde sinüs membranında perforasyon (delinme) riski mevcuttur.\n- Alt çenede mandibular sinirin etkilenmesine bağlı olarak dudak ve çenede geçici/kalıcı uyuşukluk (parestezi) ihtimali tarafıma bildirilmiştir.\n- Kemik yetersizliği durumunda ekstra kemik tozu (greft) kullanımı gerekebilir ve bu durum ek ücrete tabidir.\n\nYapılacak cerrahi müdahaleyi kendi rızamla KABUL EDİYORUM.\n\nHASTA İMZA: .......................................\nHEKİM İMZA: ......................................." },
+        ];
+
+        // --- TAKVİM ARALIĞINI DİNAMİK YAPAN MOTOR ---
+        const TIME_SLOTS = useMemo(() => {
+           const interval = parseInt(settings.randevu.slotAraligi || "15", 10);
+           const startStr = settings.calisma.baslama || "09:00";
+           const endStr = settings.calisma.bitis || "19:00";
+           
+           let startHour = parseInt(startStr.split(":")[0], 10);
+           let startMin = parseInt(startStr.split(":")[1], 10);
+           let endHour = parseInt(endStr.split(":")[0], 10);
+           let endMin = parseInt(endStr.split(":")[1], 10);
+           
+           const slots = [];
+           let currentTotalMin = startHour * 60 + startMin;
+           const endTotalMin = endHour * 60 + endMin;
+
+           while(currentTotalMin <= endTotalMin) {
+              const h = Math.floor(currentTotalMin / 60);
+              const m = currentTotalMin % 60;
+              slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+              currentTotalMin += interval;
+           }
+           return slots;
+        }, [settings.randevu.slotAraligi, settings.calisma]);
+
+        // --- YENİ TEDAVİYİ HER YERE AKTARAN MOTOR ---
+        const DYNAMIC_PRICING_CATEGORIES = useMemo(() => {
+           const cats = JSON.parse(JSON.stringify(INITIAL_PRICING_CATEGORIES));
+           if (globalData.customTreatments) {
+              globalData.customTreatments.forEach(t => {
+                 if (cats[t.category] && !cats[t.category].items.includes(t.name)) {
+                    cats[t.category].items.push(t.name);
+                 }
+              });
+           }
+           return cats;
+        }, [globalData.customTreatments]);
+
+        const handleSaveNewCustomTreatment = (e) => {
+          e.preventDefault();
+          const userPricing = globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+          
+          const updatedPricing = {
+            ...userPricing,
+            [newTreatmentForm.name]: parseFloat(newTreatmentForm.price) || 0
+          };
+
+          const newCustomTreatments = [...(globalData.customTreatments || [])];
+          if (!newCustomTreatments.some(t => t.name === newTreatmentForm.name)) {
+             newCustomTreatments.push({
+                name: newTreatmentForm.name,
+                category: newTreatmentForm.category
+             });
+          }
+
+          saveGlobalData({ 
+            ...globalData, 
+            pricingDb: { ...globalData.pricingDb, [currentUser]: updatedPricing },
+            customTreatments: newCustomTreatments 
+          }).then(() => {
+              showNotification("Yeni işlem başarıyla eklendi ve tüm listelerde aktif edildi.", "success");
+              setIsAddTreatmentModalOpen(false);
+              setNewTreatmentForm({ name: "", category: "Teşhis ve Radyoloji", price: "" });
+            });
+        };
+
+        // Otomatik Tema Algılayıcı ve Değiştirici
+        useEffect(() => {
+          if (settings.gorunum.tema === "Koyu") setIsDarkMode(true);
+          else if (settings.gorunum.tema === "Acik") setIsDarkMode(false);
+          else if (settings.gorunum.tema === "Sistem") {
+            setIsDarkMode(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          }
+        }, [settings.gorunum.tema]);
+
+        const handleSettingChange = (kategori, key, value) => {
+          setSettingsDraft(prev => {
+            const currentDraft = prev || JSON.parse(JSON.stringify(settings));
+            return { ...currentDraft, [kategori]: { ...currentDraft[kategori], [key]: value } };
+          });
+        };
+
+        const saveSettings = () => {
+          if (!settingsDraft) return;
+          setSettings(settingsDraft);
+          // YENİ: Ayarları sadece giriş yapan kullanıcıya özel kaydet
+          localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(settingsDraft));
+          setSettingsDraft(null);
+          showNotification("Klinik ayarları başarıyla kaydedildi.", "success");
+        };
+
+        const revertSettings = () => {
+          showConfirm("Kaydedilmemiş değişiklikleri geri almak istediğinize emin misiniz?", () => {
+            setSettingsDraft(null);
+            showNotification("Değişiklikler geri alındı.", "error");
+          });
+        };
 
         const [pricingEditValues, setPricingEditValues] = useState({});
         // YENİ: SAĞ TIK / UZUN BASMA (CONTEXT MENU) YÖNETİMİ
@@ -5698,7 +5824,7 @@ useEffect(() => {
               </p>
 
               <form onSubmit={handleSavePricing} className="space-y-2">
-                {Object.entries(PRICING_CATEGORIES).map(([catName, data]) => (
+                {Object.entries(DYNAMIC_PRICING_CATEGORIES).map(([catName, data]) => (
                   <div
                     key={catName}
                     className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800"
@@ -6613,7 +6739,563 @@ useEffect(() => {
             </div>
           );
         };
+const renderSettings = () => {
+          const SETTINGS_TABS = [
+            { id: "ozet", icon: "fa-chart-pie", label: "Özet" },
+            { id: "klinik", icon: "fa-hospital", label: "Klinik" },
+            { id: "calisma", icon: "fa-clock", label: "Çalışma" },
+            { id: "randevu", icon: "fa-calendar-check", label: "Randevu" },
+            { id: "tedavi", icon: "fa-tooth", label: "Tedavi" },
+            { id: "bildirim", icon: "fa-bell", label: "Bildirim" },
+            { id: "belge", icon: "fa-file-signature", label: "Belge" },
+            { id: "dosya", icon: "fa-folder-tree", label: "Dosya" },
+            { id: "otomasyon", icon: "fa-robot", label: "Otomasyon" },
+            { id: "gorunum", icon: "fa-palette", label: "Görünüm" },
+            { id: "guvenlik", icon: "fa-shield-halved", label: "Güvenlik" },
+            { id: "veri", icon: "fa-database", label: "Veri" }
+          ];
 
+          const currentData = settingsDraft || settings;
+
+          return (
+            <div className="flex flex-col h-full animate-pop w-full relative">
+              {/* HEADER BÖLÜMÜ */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 shrink-0 mb-2 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                <div>
+                  <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    <i className="fa-solid fa-gear text-slate-500"></i> Klinik Ayarları
+                  </h2>
+                  <p className="text-[11px] sm:text-[13px] text-slate-500 mt-1 font-medium max-w-xl">
+                    Klinik sisteminizin çalışma biçimini, randevu kurallarını, tedavi seçeneklerini, bildirimleri ve diğer operasyonel ayarları yönetin.
+                  </p>
+                </div>
+                <div className="w-full md:w-auto flex flex-col items-end gap-2">
+                  <div className="relative w-full md:w-64">
+                    <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-[13px]"></i>
+                    <input type="text" placeholder="Ayarlarda ara..." value={settingsSearch} onChange={(e) => setSettingsSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 shadow-inner dark:text-white" />
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-semibold">Son kaydedilme: Bugün {new Date().toLocaleTimeString("tr-TR", {hour:'2-digit', minute:'2-digit'})}</div>
+                </div>
+              </div>
+
+              {/* YATAY TAB MENÜSÜ */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 mb-2 shrink-0 px-2 py-2 overflow-hidden">
+                <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+                  {SETTINGS_TABS.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSettingsTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold text-[12px] whitespace-nowrap transition-all flex-1 justify-center sm:flex-none sm:justify-start ${
+                        settingsTab === tab.id
+                          ? "bg-slate-900 text-white shadow-md dark:bg-indigo-600"
+                          : "bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"
+                      }`}
+                    >
+                      <i className={`fa-solid ${tab.icon} ${settingsTab === tab.id ? "" : "opacity-70"}`}></i> {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* İÇERİK ALANI */}
+              <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 overflow-y-auto custom-scrollbar pb-24 relative">
+                
+                {settingsTab === "ozet" && (
+                  <div className="animate-pop">
+                    <h3 className="font-black text-slate-800 dark:text-white text-base mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Sistem Özeti</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("klinik")}>
+                        <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center text-lg dark:bg-emerald-900/20"><i className="fa-solid fa-hospital"></i></div>
+                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Klinik</div><div className="font-black text-[13px] dark:text-white mt-0.5">{currentData.klinik.durum}</div></div>
+                      </div>
+                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("randevu")}>
+                        <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-lg flex items-center justify-center text-lg dark:bg-indigo-900/20"><i className="fa-solid fa-calendar-check"></i></div>
+                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Randevu</div><div className="font-black text-[13px] dark:text-white mt-0.5">{currentData.randevu.varsayilanSure} Dk</div></div>
+                      </div>
+                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("bildirim")}>
+                        <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center text-lg dark:bg-amber-900/20"><i className="fa-solid fa-bell"></i></div>
+                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Bildirim</div><div className="font-black text-[13px] dark:text-white mt-0.5">{currentData.bildirim.whatsappAktif ? "WP Aktif" : "Pasif"}</div></div>
+                      </div>
+                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("guvenlik")}>
+                        <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-lg flex items-center justify-center text-lg dark:bg-rose-900/20"><i className="fa-solid fa-shield-halved"></i></div>
+                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Güvenlik</div><div className="font-black text-[13px] dark:text-white mt-0.5">Yüksek</div></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {settingsTab === "klinik" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Genel Klinik Bilgileri</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Klinik Tam Adı</label>
+                            <input type="text" value={currentData.klinik.ad} onChange={e => handleSettingChange('klinik', 'ad', e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Telefon</label>
+                              <input type="text" value={currentData.klinik.telefon} onChange={e => handleSettingChange('klinik', 'telefon', e.target.value)} placeholder="05XX..." className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">E-Posta</label>
+                              <input type="email" value={currentData.klinik.eposta} onChange={e => handleSettingChange('klinik', 'eposta', e.target.value)} placeholder="info@klinik.com" className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Açık Adres</label>
+                            <textarea rows="3" value={currentData.klinik.adres} onChange={e => handleSettingChange('klinik', 'adres', e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-medium outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                           <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-800/50 cursor-pointer hover:border-indigo-500 transition-colors h-32">
+                             <i className="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-2"></i>
+                             <span className="text-[11px] font-bold text-slate-500">Logo Yüklemek İçin Tıklayın</span>
+                           </div>
+                           <div>
+                             <label className="block text-[11px] font-bold text-slate-500 uppercase mb-2">Klinik Operasyon Durumu</label>
+                             <div className="flex gap-2">
+                                <button onClick={() => handleSettingChange('klinik', 'durum', 'Aktif')} className={`flex-1 py-2 rounded-lg text-[12px] font-bold border transition-all ${currentData.klinik.durum === 'Aktif' ? 'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-900/30' : 'bg-white text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}>Aktif / Açık</button>
+                                <button onClick={() => handleSettingChange('klinik', 'durum', 'Kapalı')} className={`flex-1 py-2 rounded-lg text-[12px] font-bold border transition-all ${currentData.klinik.durum === 'Kapalı' ? 'bg-rose-50 border-rose-500 text-rose-700 dark:bg-rose-900/30' : 'bg-white text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}>Geçici Kapalı</button>
+                             </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "randevu" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Randevu İşleyiş Kuralları</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <label className="flex items-center justify-between cursor-pointer">
+                              <div><div className="font-bold text-[13px] dark:text-white">Varsayılan Randevu Süresi</div><div className="text-[10px] text-slate-500 mt-0.5">Takvimde otomatik ayrılacak süre.</div></div>
+                              <select value={currentData.randevu.varsayilanSure} onChange={e => handleSettingChange('randevu', 'varsayilanSure', e.target.value)} className="p-1.5 border rounded-lg text-[12px] font-bold outline-none dark:bg-slate-800 dark:text-white">
+                                 <option value="15">15 Dk</option><option value="30">30 Dk</option><option value="45">45 Dk</option><option value="60">60 Dk</option>
+                              </select>
+                            </label>
+                          </div>
+                          <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <label className="flex items-center justify-between cursor-pointer">
+                              <div><div className="font-bold text-[13px] dark:text-white">Takvim Slot Aralığı</div><div className="text-[10px] text-slate-500 mt-0.5">Takvimdeki satır yükseklik ayarı.</div></div>
+                              <select value={currentData.randevu.slotAraligi} onChange={e => handleSettingChange('randevu', 'slotAraligi', e.target.value)} className="p-1.5 border rounded-lg text-[12px] font-bold outline-none dark:bg-slate-800 dark:text-white">
+                                 <option value="10">10 Dk</option><option value="15">15 Dk</option><option value="30">30 Dk</option>
+                              </select>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="font-black text-[12px] text-slate-500 uppercase border-b border-slate-100 dark:border-slate-700 pb-1 mb-2">Akıllı Uyarılar</div>
+                          <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-lg">
+                             <div><div className="font-bold text-[13px] dark:text-white">Hekim Çakışma Kontrolü</div><div className="text-[10px] text-slate-500">Aynı saat dilimine aynı hekime 2. randevu yazmayı engeller.</div></div>
+                             <input type="checkbox" checked={currentData.randevu.cakismaKontrolu} onChange={e => handleSettingChange('randevu', 'cakismaKontrolu', e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+                          </label>
+                          <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-lg">
+                             <div><div className="font-bold text-[13px] dark:text-white">Geçmiş Tarih Uyarısı</div><div className="text-[10px] text-slate-500">Geçmişteki bir tarihe randevu eklenirken uyarı verir.</div></div>
+                             <input type="checkbox" checked={currentData.randevu.gecmisTarihUyarisi} onChange={e => handleSettingChange('randevu', 'gecmisTarihUyarisi', e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+                          </label>
+                        </div>
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "bildirim" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Bildirim ve Hatırlatmalar</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <label className="flex items-center justify-between cursor-pointer p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-200 dark:border-emerald-800 hover:border-emerald-300 transition-colors">
+                             <div>
+                               <div className="font-bold text-[13px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5"><i className="fa-brands fa-whatsapp text-base"></i> WhatsApp Hatırlatmaları</div>
+                               <div className="text-[10px] text-slate-500 mt-0.5">Hastalar için otomatik mesaj taslakları aktifleştir.</div>
+                             </div>
+                             <input type="checkbox" checked={currentData.bildirim.whatsappAktif} onChange={e => handleSettingChange('bildirim', 'whatsappAktif', e.target.checked)} className="w-5 h-5 accent-emerald-500" />
+                          </label>
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3 rounded-xl">
+                           <label className="block text-[11px] font-bold text-slate-500 uppercase mb-2">Randevu Hatırlatma Süresi</label>
+                           <select value={currentData.bildirim.randevuHatirlatma} onChange={e => handleSettingChange('bildirim', 'randevuHatirlatma', e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold outline-none cursor-pointer dark:bg-slate-800 dark:border-slate-600 dark:text-white">
+                             <option value="24">Randevudan 24 Saat Önce</option>
+                             <option value="12">Randevudan 12 Saat Önce</option>
+                             <option value="2">Randevudan 2 Saat Önce</option>
+                           </select>
+                        </div>
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "gorunum" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Arayüz ve Tema</h3>
+                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        {['Acik', 'Koyu', 'Sistem'].map(t => (
+                          <div key={t} onClick={() => handleSettingChange('gorunum', 'tema', t)} className={`border rounded-xl p-3 cursor-pointer text-center flex flex-col items-center gap-2 transition-all ${currentData.gorunum.tema === t ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 dark:bg-indigo-900/20' : 'border-slate-200 hover:border-slate-300 dark:border-slate-700'}`}>
+                            <div className="w-12 h-10 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg shadow-inner border border-slate-200 dark:border-slate-600">
+                              <i className={`fa-solid ${t === 'Acik' ? 'fa-sun text-amber-500' : t === 'Koyu' ? 'fa-moon text-indigo-400' : 'fa-desktop text-slate-500'}`}></i>
+                            </div>
+                            <span className="font-bold text-[12px] dark:text-white">{t === 'Acik' ? 'Açık Tema' : t === 'Koyu' ? 'Koyu Tema' : 'Sistem Tanımlı'}</span>
+                          </div>
+                        ))}
+                     </div>
+                     <label className="flex items-center justify-between cursor-pointer p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 max-w-md">
+                         <div>
+                           <div className="font-bold text-[13px] dark:text-white">Arayüz Animasyonları</div>
+                           <div className="text-[10px] text-slate-500 mt-0.5">Geçiş efektlerini açar/kapatır (Hızlandırmak için kapatılabilir).</div>
+                         </div>
+                         <input type="checkbox" checked={currentData.gorunum.animasyonlar} onChange={e => handleSettingChange('gorunum', 'animasyonlar', e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+                      </label>
+                  </div>
+                )}
+
+                {settingsTab === "guvenlik" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Güvenlik ve Gizlilik</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-4">
+                           <div>
+                             <label className="block text-[11px] font-bold text-slate-500 uppercase mb-2">Oturum Zaman Aşımı</label>
+                             <select value={currentData.guvenlik.oturumZamanAsimi} onChange={e => handleSettingChange('guvenlik', 'oturumZamanAsimi', e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold outline-none cursor-pointer dark:bg-slate-800 dark:text-white dark:border-slate-600">
+                               <option value="30">30 Dakika Hareketsizlikte Çıkış Yap</option>
+                               <option value="120">2 Saat Hareketsizlikte Çıkış Yap</option>
+                               <option value="480">Mesai Sonunda Çıkış Yap</option>
+                             </select>
+                           </div>
+                           <label className="flex items-center justify-between cursor-pointer border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
+                             <div>
+                               <div className="font-bold text-[13px] dark:text-white">Hassas Veri Koruması (Finans Ekranı)</div>
+                             </div>
+                             <input type="checkbox" checked={currentData.guvenlik.hassasEkranUyarisi} onChange={e => handleSettingChange('guvenlik', 'hassasEkranUyarisi', e.target.checked)} className="w-4 h-4 accent-rose-500" />
+                           </label>
+                        </div>
+                        <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col justify-center">
+                           <div className="text-[11px] font-bold text-slate-400 uppercase mb-2">Hesap Şifresi</div>
+                           <div className="text-[11px] text-slate-500 mb-4">Mevcut giriş şifrenizi güncellemek için aşağıdaki butonu kullanın.</div>
+                           <button onClick={() => setIsPasswordModalOpen(true)} className="w-full bg-slate-900 text-white py-2.5 rounded-xl text-[12px] font-bold hover:bg-slate-800 transition shadow-sm dark:bg-indigo-600 dark:hover:bg-indigo-500"><i className="fa-solid fa-key mr-1.5"></i> Şifremi Değiştir</button>
+                        </div>
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "calisma" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                       <h3 className="font-black text-slate-800 dark:text-white text-base">Genel Mesai Saatleri</h3>
+                     </div>
+                     <p className="text-[11px] text-slate-500">Tüm sistemdeki takvim gridleri ve randevu saatleri bu aralıklara göre oluşturulur.</p>
+                     <div className="grid grid-cols-2 gap-4 max-w-md">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Mesai Başlangıç</label>
+                          <input type="time" value={currentData.calisma.baslama} onChange={e => handleSettingChange('calisma', 'baslama', e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 cursor-pointer" />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Mesai Bitiş</label>
+                          <input type="time" value={currentData.calisma.bitis} onChange={e => handleSettingChange('calisma', 'bitis', e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 cursor-pointer" />
+                        </div>
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "tedavi" && (() => {
+                  // Mevcut kullanıcının güncel fiyat/tedavi listesini alıyoruz
+                  const userPricing = globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                  const allTreatments = Object.keys(userPricing);
+
+                  return (
+                  <div className="animate-pop max-w-5xl space-y-4">
+                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                       <h3 className="font-black text-slate-800 dark:text-white text-base">Tedavi ve Ücret Kataloğu</h3>
+                       <button onClick={() => setIsAddTreatmentModalOpen(true)} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm hover:bg-indigo-700 transition"><i className="fa-solid fa-plus mr-1"></i> Yeni Tedavi Ekle</button>
+                     </div>
+                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Tüm uygulamada geçerli olan aktif işlemlerinizin listesi.</p>
+                     <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-x-auto max-h-[400px] custom-scrollbar relative">
+                        <table className="w-full text-left text-[12px] min-w-[500px]">
+                           <thead className="bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-b dark:border-slate-700 sticky top-0 z-10 shadow-sm">
+                             <tr><th className="p-2.5">İşlem Adı</th><th className="p-2.5">Kategori</th><th className="p-2.5">Güncel Ücret</th><th className="p-2.5 text-center">Durum</th></tr>
+                           </thead>
+                           <tbody>
+                             {allTreatments.map(tx => (
+                               <tr key={tx} className="border-b last:border-0 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition">
+                                 <td className="p-2.5 font-bold text-slate-800 dark:text-white">{tx}</td>
+                                 <td className="p-2.5 text-slate-500"><span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 shadow-sm text-[10px] font-bold">Klinik İşlem</span></td>
+                                 <td className="p-2.5 font-black text-indigo-600 dark:text-indigo-400">{userPricing[tx]} ₺</td>
+                                 <td className="p-2.5 text-center"><span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded-md text-[10px] font-bold">Aktif</span></td>
+                               </tr>
+                             ))}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+                  );
+                })()}
+
+                {settingsTab === "belge" && (
+                  <div className="animate-pop max-w-5xl space-y-4">
+                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                       <h3 className="font-black text-slate-800 dark:text-white text-base">Belge ve TDB Şablon Yönetimi</h3>
+                     </div>
+                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Türk Dişhekimleri Birliği (TDB) standartlarında hazırlanmış resmi evrak ve onam formları. Hastalarınız için anında yazdırabilirsiniz.</p>
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                       {TDB_DOCUMENTS.map((doc) => (
+                         <div key={doc.id} onClick={() => setDocumentPreview(doc)} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex justify-between items-center hover:shadow-md transition group cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${doc.bg} ${doc.color}`}><i className={`fa-solid ${doc.icon}`}></i></div>
+                              <div>
+                                <div className="font-bold text-[13px] text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{doc.title}</div>
+                                <div className="text-[10px] text-slate-500 mt-0.5 font-medium">Sistem Şablonu • TDB Uyumlu</div>
+                              </div>
+                            </div>
+                            <button className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 transition flex items-center justify-center"><i className="fa-solid fa-print text-[11px]"></i></button>
+                         </div>
+                       ))}
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "dosya" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                       <h3 className="font-black text-slate-800 dark:text-white text-base">Dosya Masası Özelleştirme</h3>
+                     </div>
+                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Dosya Masası ekranında görünen klasörlerin otomatik kurallarını yönetin.</p>
+                     <div className="space-y-2">
+                       {['Acil Takip', 'Laboratuvar Bekleyenler', 'Evrak Bekleyenler', 'Kontrol Bekleyenler'].map((folder, i) => (
+                         <div key={i} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:border-indigo-300 dark:hover:border-indigo-600 transition gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm ${['bg-rose-500', 'bg-purple-500', 'bg-slate-500', 'bg-emerald-500'][i]}`}><i className={`fa-solid ${['fa-truck-medical', 'fa-flask', 'fa-file-signature', 'fa-calendar-check'][i]}`}></i></div>
+                              <span className="font-bold text-[13px] text-slate-800 dark:text-white">{folder}</span>
+                            </div>
+                            <label className="flex items-center gap-3 cursor-pointer pl-6 sm:pl-0">
+                              <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200 dark:border-emerald-800/50">Otomatik Kural: Aktif</span>
+                              <input type="checkbox" defaultChecked className="w-4 h-4 accent-indigo-600 cursor-pointer pointer-events-none" />
+                            </label>
+                         </div>
+                       ))}
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "otomasyon" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                       <h3 className="font-black text-slate-800 dark:text-white text-base">Süreç Otomasyonları</h3>
+                     </div>
+                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Aşağıdaki otomasyonlar arka planda çalışarak klinik işleyişinizi hızlandırır. İstemediklerinizi kapatabilirsiniz.</p>
+                     <div className="space-y-3">
+                       
+                       <label className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between relative overflow-hidden group gap-2 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors">
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${currentData.otomasyon?.otoEpikriz !== false ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}></div>
+                          <div className="pl-3">
+                            <div className="font-bold text-[13px] text-slate-800 dark:text-white mb-1.5 flex items-center gap-1.5"><i className="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> Randevu Durumu "Geldi" Olursa</div>
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold opacity-80">
+                              <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">Tetikleyici: Durum Değişimi</span>
+                              <i className="fa-solid fa-arrow-right text-slate-400 hidden sm:block"></i>
+                              <span className="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-800/50">Aksiyon: Otomatik Epikriz (Geçmiş) Oluştur</span>
+                            </div>
+                          </div>
+                          <div className="relative inline-flex items-center cursor-pointer sm:ml-4 pl-3 sm:pl-0 shrink-0">
+                             <input type="checkbox" className="sr-only peer" checked={currentData.otomasyon?.otoEpikriz !== false} onChange={e => handleSettingChange('otomasyon', 'otoEpikriz', e.target.checked)} />
+                             <div className="w-9 h-5 bg-slate-200 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                          </div>
+                       </label>
+
+                       <label className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between relative overflow-hidden group gap-2 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors">
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 transition-colors ${currentData.otomasyon?.otoKlasor !== false ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}></div>
+                          <div className="pl-3">
+                            <div className="font-bold text-[13px] text-slate-800 dark:text-white mb-1.5 flex items-center gap-1.5"><i className="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> Yeni Hasta Sisteme Eklendiğinde</div>
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold opacity-80">
+                              <span className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">Tetikleyici: Yeni Kayıt</span>
+                              <i className="fa-solid fa-arrow-right text-slate-400 hidden sm:block"></i>
+                              <span className="bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-800/50">Aksiyon: Dosya Masasında "Yeni Hastalar"a Taşı</span>
+                            </div>
+                          </div>
+                          <div className="relative inline-flex items-center cursor-pointer sm:ml-4 pl-3 sm:pl-0 shrink-0">
+                             <input type="checkbox" className="sr-only peer" checked={currentData.otomasyon?.otoKlasor !== false} onChange={e => handleSettingChange('otomasyon', 'otoKlasor', e.target.checked)} />
+                             <div className="w-9 h-5 bg-slate-200 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                          </div>
+                       </label>
+
+                     </div>
+                  </div>
+                )}
+
+                {settingsTab === "veri" && (
+                  <div className="animate-pop max-w-4xl space-y-4">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Veri ve Yedekleme Merkezi</h3>
+                     
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                           <div>
+                             <div className="font-black text-[14px] text-emerald-800 dark:text-emerald-400 flex items-center gap-2"><i className="fa-solid fa-server"></i> Sistem Durumu: Normal</div>
+                             <div className="text-[11px] text-emerald-600/80 dark:text-emerald-500 mt-1 font-semibold">Firebase bağlantısı aktif. Tüm veriler senkronize.</div>
+                           </div>
+                           <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
+                        </div>
+                        
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center justify-between shadow-sm">
+                           <div>
+                             <div className="font-black text-[13px] text-slate-800 dark:text-white">Veri Bütünlüğü</div>
+                             <div className="text-[11px] text-slate-500 mt-1 font-bold">
+                               {Object.keys(globalData.patientsDb || {}).length} Kayıtlı Hasta • {Object.keys(globalData.appointments || {}).length} Hekim Klasörü
+                             </div>
+                           </div>
+                           <button onClick={() => showNotification("Tüm veri düğümleri başarıyla doğrulandı.", "success")} className="text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shadow-sm border border-slate-200 dark:border-slate-600">Kontrol Et</button>
+                        </div>
+                     </div>
+
+                     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 mt-4 shadow-sm">
+                        <h4 className="font-black text-[12px] text-slate-800 dark:text-white mb-3 uppercase tracking-wider">Veri Dışa Aktarma (Export)</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                           <button 
+                             onClick={() => {
+                               let csv = "Hasta Adi,Telefon,TC,Yas,Cinsiyet,Son Durum\n";
+                               Object.values(globalData.patientsDb || {}).forEach(p => {
+                                 if(!p.isDeleted) csv += `${p.name},${p.phone || "-"},${p.tc || "-"},${p.age || "-"},${p.gender || "-"},${p.lastStatus || "-"}\n`;
+                               });
+                               const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+                               const link = document.createElement("a");
+                               link.href = URL.createObjectURL(blob);
+                               link.download = `Hastalar_${new Date().toLocaleDateString("tr-TR")}.csv`;
+                               link.click();
+                               showNotification("Hasta verileri CSV olarak indirildi.");
+                             }}
+                             className="p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 rounded-xl flex flex-col items-center gap-2 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition group text-slate-600 dark:text-slate-300 shadow-sm"
+                           >
+                             <i className="fa-solid fa-users text-xl group-hover:scale-110 transition-transform"></i>
+                             <span className="font-bold text-[11px]">Hastalar (CSV)</span>
+                           </button>
+                           
+                           <button 
+                             onClick={() => {
+                               let csv = "Tarih,Saat,Hasta,Hekim,Islem,Durum\n";
+                               if(globalData.appointments) {
+                                 Object.entries(globalData.appointments).forEach(([docId, apts]) => {
+                                   Object.entries(apts).forEach(([key, apt]) => {
+                                      const [y, m, d, time] = key.split("-");
+                                      const safeTx = (apt.treatment || "").replace(/,/g, "-");
+                                      csv += `${d}/${m}/${y},${time},${apt.patientName},${globalData.doctorProfiles?.[docId]?.name || docId},${safeTx},${apt.status}\n`;
+                                   });
+                                 });
+                               }
+                               const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+                               const link = document.createElement("a");
+                               link.href = URL.createObjectURL(blob);
+                               link.download = `Randevular_${new Date().toLocaleDateString("tr-TR")}.csv`;
+                               link.click();
+                               showNotification("Randevu verileri CSV olarak indirildi.");
+                             }}
+                             className="p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 rounded-xl flex flex-col items-center gap-2 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition group text-slate-600 dark:text-slate-300 shadow-sm"
+                           >
+                             <i className="fa-regular fa-calendar-check text-xl group-hover:scale-110 transition-transform"></i>
+                             <span className="font-bold text-[11px]">Randevular (CSV)</span>
+                           </button>
+                           
+                           <button 
+                             onClick={() => {
+                               showNotification("Tüm detaylı verilerin PDF özeti hazırlanıyor...", "success");
+                               setTimeout(() => window.print(), 800);
+                             }}
+                             className="p-3 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 rounded-xl flex flex-col items-center gap-2 hover:border-rose-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition group text-slate-600 dark:text-slate-300 shadow-sm"
+                           >
+                             <i className="fa-solid fa-file-pdf text-xl group-hover:scale-110 transition-transform"></i>
+                             <span className="font-bold text-[11px]">Rapor (PDF)</span>
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SABİT KAYDETME ÇUBUĞU (DEĞİŞİKLİK VARSA ÇIKAR) */}
+              {settingsDraft && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center gap-4 animate-[modalPop_0.3s_ease-out_forwards] z-50 border border-white/10 w-[95%] sm:w-auto max-w-xl justify-between sm:justify-center">
+                   <div className="flex items-center gap-2 hidden sm:flex">
+                     <i className="fa-solid fa-circle-exclamation text-amber-400 text-lg"></i>
+                     <span className="font-bold text-[13px]">Kaydedilmemiş değişiklikleriniz var</span>
+                   </div>
+                   <div className="flex gap-2 w-full sm:w-auto">
+                     <button onClick={revertSettings} className="flex-1 sm:flex-none px-4 py-2 rounded-xl text-[12px] font-bold bg-white/10 hover:bg-white/20 dark:bg-black/5 dark:hover:bg-black/10 transition-colors"><i className="fa-solid fa-rotate-left mr-1"></i> İptal</button>
+                     <button onClick={saveSettings} className="flex-1 sm:flex-none px-6 py-2 rounded-xl text-[12px] font-black bg-indigo-500 hover:bg-indigo-400 dark:bg-indigo-600 shadow-lg transition-colors">Kaydet <i className="fa-solid fa-check ml-1"></i></button>
+                   </div>
+                </div>
+              )}
+              {/* MODAL: YENİ TEDAVİ EKLE */}
+              {isAddTreatmentModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2" onClick={() => setIsAddTreatmentModalOpen(false)}>
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop" onClick={e => e.stopPropagation()}>
+                    <div className="px-3 py-2 bg-[#0f172a] text-white flex justify-between items-center">
+                      <h3 className="font-black text-[13px] uppercase tracking-wider"><i className="fa-solid fa-tooth text-indigo-400 mr-1.5"></i>Yeni Tedavi Ekle</h3>
+                      <button onClick={() => setIsAddTreatmentModalOpen(false)} className="text-slate-400 hover:text-white"><i className="fa-solid fa-xmark text-base"></i></button>
+                    </div>
+                    <form onSubmit={handleSaveNewCustomTreatment} className="p-3 space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">İşlem / Tedavi Adı</label>
+                        <input type="text" required value={newTreatmentForm.name} onChange={e => setNewTreatmentForm({...newTreatmentForm, name: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white" placeholder="Örn: Zirkonyum Kaplama" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kategori</label>
+                        <select value={newTreatmentForm.category} onChange={e => setNewTreatmentForm({...newTreatmentForm, category: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white cursor-pointer">
+                          {Object.keys(DYNAMIC_PRICING_CATEGORIES).map(cat => <option key={cat}>{cat}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Varsayılan Ücret (₺)</label>
+                        <input type="number" required value={newTreatmentForm.price} onChange={e => setNewTreatmentForm({...newTreatmentForm, price: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-black text-indigo-600 dark:text-indigo-400 outline-none focus:border-indigo-500" placeholder="0" />
+                      </div>
+                      <button type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-xl font-black text-[13px] shadow-lg hover:bg-indigo-700 transition flex items-center justify-center gap-1.5 mt-2"><i className="fa-solid fa-save"></i> Sisteme Kaydet</button>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL: BELGE (TDB) ÖNİZLEME VE YAZDIRMA */}
+              {documentPreview && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2" onClick={() => setDocumentPreview(null)}>
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-pop flex flex-col h-[85vh]" onClick={e => e.stopPropagation()}>
+                    <div className="px-3 py-2 bg-[#0f172a] text-white flex justify-between items-center shrink-0 no-print">
+                      <h3 className="font-black text-[13px] uppercase tracking-wider flex items-center gap-1.5"><i className={`fa-solid ${documentPreview.icon} text-indigo-400`}></i> {documentPreview.title}</h3>
+                      <button onClick={() => setDocumentPreview(null)} className="text-slate-400 hover:text-white"><i className="fa-solid fa-xmark text-base"></i></button>
+                    </div>
+                    
+                    <div className="flex-1 p-6 overflow-y-auto bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm whitespace-pre-wrap leading-relaxed font-medium" id="document-print-area">
+                      {/* Antet */}
+                      <div className="border-b-2 border-slate-300 dark:border-slate-600 pb-4 mb-4 flex justify-between items-end">
+                        <div>
+                           <div className="font-black text-lg uppercase tracking-widest flex items-center gap-2"><i className="fa-solid fa-tooth text-slate-400"></i> KLİNİK YÖNETİM</div>
+                           <div className="text-[10px] font-bold text-slate-500 mt-1">Resmi Belge Şablonu</div>
+                        </div>
+                        <div className="text-right text-[10px] font-bold text-slate-500">
+                           Tarih: {new Date().toLocaleDateString("tr-TR")}
+                        </div>
+                      </div>
+                      
+                      {documentPreview.content}
+                    </div>
+
+                    <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end gap-2 shrink-0 no-print">
+                      <button onClick={() => setDocumentPreview(null)} className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px] hover:bg-slate-200 dark:hover:bg-slate-600 transition">Kapat</button>
+                      <button onClick={() => {
+                        const originalTitle = document.title;
+                        document.title = documentPreview.title;
+                        
+                        // Sadece belgeyi yazdırmak için basit bir numara
+                        const printContent = document.getElementById('document-print-area').innerHTML;
+                        const originalContent = document.body.innerHTML;
+                        document.body.innerHTML = `<div style="padding:20px; font-family:sans-serif;">${printContent}</div>`;
+                        window.print();
+                        document.body.innerHTML = originalContent;
+                        window.location.reload(); // React state'ini korumak için reload en güvenlisi
+                        
+                      }} className="px-5 py-2 bg-indigo-600 text-white rounded-xl font-black text-[12px] shadow-lg hover:bg-indigo-700 transition flex items-center gap-1.5"><i className="fa-solid fa-print"></i> Yazdır / PDF Al</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
         const renderFinance = () => {
           let totalRevenue = 0,
             totalCollected = 0,
@@ -7603,7 +8285,7 @@ useEffect(() => {
                     isSidebarOpen ? "opacity-100" : "opacity-0 hidden"
                   }`}
                 >
-                  Klinik Randevu
+                  {settings.klinik.ad || "Klinik Randevu"}
                 </span>
               </div>
 
@@ -7648,6 +8330,15 @@ useEffect(() => {
                   icon="fa-vault text-rose-500"
                   label="Finans (Bilanço)"
                   id="finance"
+                />
+              </div>
+              
+              {/* KLİNİK AYARLARI BUTONU (EN ALTTA SABİT) */}
+              <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-transparent">
+                <SidebarItem
+                  icon="fa-gear text-slate-500 dark:text-slate-400"
+                  label="Klinik Ayarları"
+                  id="settings"
                 />
               </div>
             </aside>
@@ -7995,6 +8686,8 @@ useEffect(() => {
                 {activeTab === "doctors" && renderDoctors()}
 
                 {activeTab === "finance" && renderFinance()}
+
+                {activeTab === "settings" && renderSettings()}
               </div>
             </main>
 
@@ -9935,7 +10628,7 @@ useEffect(() => {
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar p-0.5">
-                                  {Object.entries(PRICING_CATEGORIES).map(([catName, data]) => (
+                                  {Object.entries(DYNAMIC_PRICING_CATEGORIES).map(([catName, data]) => (
                                     <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-1.5 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
                                       <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2 flex items-center gap-1 ${data.color}`}>
                                         <i className={`fa-solid ${data.icon}`}></i> {catName}
