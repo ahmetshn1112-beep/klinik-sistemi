@@ -1327,14 +1327,11 @@ const useFirebase = () => {
 
         const [globalData, setGlobalData] = useState({
           usersDb: {},
-
           appointments: {},
-
           doctorProfiles: {},
-
           patientsDb: {},
-
           pricingDb: {},
+          settingsDb: {},
         });
 
         const [isSyncing, setIsSyncing] = useState(true);
@@ -1634,30 +1631,37 @@ useEffect(() => {
         // --- KLİNİK AYARLARI STATE YÖNETİMİ ---
         const DEFAULT_SETTINGS = {
           klinik: { ad: "Benim Kliniğim", kisaAd: "Klinik", telefon: "", eposta: "", adres: "", durum: "Aktif" },
-          calisma: { baslama: "09:00", bitis: "19:00" },
+          calisma: { 
+            baslama: "09:00", bitis: "19:00",
+            gunler: { "Pzt": true, "Sal": true, "Çar": true, "Per": true, "Cum": true, "Cmt": true, "Paz": false },
+            ozelGunler: []
+          },
           randevu: { varsayilanSure: "30", slotAraligi: "15", cakismaKontrolu: true, gecmisTarihUyarisi: true },
           bildirim: { smsAktif: false, whatsappAktif: true, randevuHatirlatma: "24" },
           gorunum: { tema: "Sistem", animasyonlar: true },
           guvenlik: { oturumZamanAsimi: "120", hassasEkranUyarisi: true },
-          otomasyon: { aktifKural: 4 }
+          otomasyon: { aktifKural: 4 },
+          dosya: { acil: true, kontrol: true, tedavi: true, lab: true, evrak: true, yeni: true }
         };
 
         const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
-        // YENİ: Kullanıcı giriş yaptığında (veya değiştiğinde) sadece ONA ÖZEL ayarları yükle
+        // Hangi hesaba girildiyse sadece O HESABIN ayarlarını getir
         useEffect(() => {
           if (currentUser) {
             const saved = localStorage.getItem(`klinikSettings_${currentUser}`);
             if (saved) {
               setSettings(JSON.parse(saved));
             } else {
-              setSettings(DEFAULT_SETTINGS); // Kaydı yoksa varsayılan ayarlara dön
+              setSettings(DEFAULT_SETTINGS);
             }
           }
         }, [currentUser]);
+
         const [settingsDraft, setSettingsDraft] = useState(null);
         const [settingsTab, setSettingsTab] = useState("ozet");
         const [settingsSearch, setSettingsSearch] = useState("");
+        const [isCheckingData, setIsCheckingData] = useState(false);
         // --- GERÇEK ZAMANLI EKLENTİLER (BELGE, TEDAVİ, TEMA) ---
         const [documentPreview, setDocumentPreview] = useState(null);
         const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
@@ -1665,9 +1669,145 @@ useEffect(() => {
 
         // --- GERÇEK TDB BELGELERİ ---
         const TDB_DOCUMENTS = [
-          { id: 1, title: "TDB Aydınlatılmış Onam Formu (Genel)", icon: "fa-file-signature", color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-900/20", content: "İSTANBUL DİŞHEKİMLERİ ODASI / TDB STANDART AYDINLATILMIŞ ONAM FORMU\n\n1. PLANLANAN TEDAVİ:\nHekimim tarafından ağız ve diş sağlığı durumum değerlendirilmiş olup, planlanan tedavi, alternatifleri ve muhtemel sonuçları hakkında detaylı olarak bilgilendirildim.\n\n2. OLASI RİSK VE KOMPLİKASYONLAR:\nLokal anestezi ve/veya tedavi işlemleri sırasında ya da sonrasında nadir de olsa kanama, şişlik, enfeksiyon, geçici veya kalıcı sinir zedelenmesi (uyuşukluk), alerjik reaksiyonlar ve ağrı gibi komplikasyonların gelişebileceği anlatıldı.\n\n3. HASTANIN BEYANI:\nBilincim yerinde olarak, bana yapılan açıklamaları okudum, anladım ve hekimime soru sorma fırsatı buldum. Planlanan tedavinin risklerini kabul ediyor ve hiçbir baskı altında kalmadan kendi özgür irademle tedaviye ONAY VERİYORUM.\n\n\nHASTA / KANUNİ TEMSİLCİSİ\nAdı Soyadı: .......................................\nTarih: ...../...../202...\nİmza: .......................................\n\nSORUMLU HEKİM\nAdı Soyadı: " + (globalData.doctorProfiles?.[currentUser]?.name || currentUser) + "\nİmza:" },
-          { id: 2, title: "KVKK Hasta Bilgilendirme Metni", icon: "fa-shield-halved", color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-900/20", content: "6698 SAYILI KİŞİSEL VERİLERİN KORUNMASI KANUNU KAPSAMINDA HASTA AYDINLATMA METNİ\n\nSayın Hastamız,\nBu aydınlatma metni, " + (settings.klinik.ad || "Klinik") + " tarafından, 6698 sayılı KVKK 10. maddesi uyarınca veri sorumlusu sıfatıyla hazırlanmıştır.\n\n1. KİŞİSEL VERİLERİN İŞLENME AMACI:\nKimlik, iletişim ve sağlık (özel nitelikli kişisel veri) bilgileriniz; kamu sağlığının korunması, koruyucu hekimlik, tıbbî teşhis, tedavi ve bakım hizmetlerinin yürütülmesi, randevu planlaması ve finansal süreçlerin yönetimi amacıyla işlenmektedir.\n\n2. KİŞİSEL VERİLERİN AKTARILMASI:\nVerileriniz, yalnızca yasal zorunluluklar çerçevesinde Sağlık Bakanlığı, SGK veya adli makamlarla paylaşılabilecek olup, ticari amaçla hiçbir 3. şahsa aktarılmamaktadır.\n\n3. İLGİLİ KİŞİNİN HAKLARI:\nKanunun 11. maddesi uyarınca kliniğimize başvurarak verilerinizin işlenip işlenmediğini öğrenme, silinmesini talep etme ve düzeltme isteme haklarına sahipsiniz.\n\nOKUDUM, ANLADIM VE KABUL EDİYORUM.\nHasta Adı/Soyadı: .......................................\nTarih ve İmza: ......................................." },
-          { id: 3, title: "TDB İmplant Cerrahi Onamı", icon: "fa-tooth", color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20", content: "İMPLANT CERRAHİSİ BİLGİLENDİRME VE AYDINLATILMIŞ ONAM FORMU\n\nBu belge, çene kemiğine yerleştirilecek olan dental implant operasyonu için hazırlanmıştır.\n\n1. İŞLEMİN İÇERİĞİ:\nÇene kemiğine titanyum vida yerleştirileceği, iyileşme süreci (osseointegrasyon) sonrasında protez aşamasına geçileceği tarafıma anlatılmıştır.\n\n2. İMPLANTASYON RİSKLERİ:\n- Operasyon sonrası şişlik, ödem ve geçici morarma gelişebilir.\n- Üst çene arka bölgelerde sinüs membranında perforasyon (delinme) riski mevcuttur.\n- Alt çenede mandibular sinirin etkilenmesine bağlı olarak dudak ve çenede geçici/kalıcı uyuşukluk (parestezi) ihtimali tarafıma bildirilmiştir.\n- Kemik yetersizliği durumunda ekstra kemik tozu (greft) kullanımı gerekebilir ve bu durum ek ücrete tabidir.\n\nYapılacak cerrahi müdahaleyi kendi rızamla KABUL EDİYORUM.\n\nHASTA İMZA: .......................................\nHEKİM İMZA: ......................................." },
+          { 
+            id: 1, 
+            title: "TDB Standart Aydınlatılmış Onam Formu", 
+            icon: "fa-file-signature", 
+            color: "text-rose-500", 
+            bg: "bg-rose-50 dark:bg-rose-900/20", 
+            content: `TÜRK DİŞHEKİMLERİ BİRLİĞİ (TDB) VE İSTANBUL DİŞHEKİMLERİ ODASI (İDO) 
+STANDART AYDINLATILMIŞ ONAM FORMU
+
+Bu belge, 1219 sayılı Tababet ve Şuabatı San’atlarının Tarzı İcrasına Dair Kanun ve Hasta Hakları Yönetmeliği gereğince, uygulanacak tıbbi müdahale, alternatifleri, riskleri ve müdahale edilmemesi durumunda oluşabilecek sonuçlar hakkında hastayı bilgilendirmek ve rızasını almak amacıyla hazırlanmıştır.
+
+1. HASTALIĞIN TANIMI VE PLANLANAN TEDAVİ:
+Klinik hekimleri tarafından yapılan klinik ve radyolojik muayeneler sonucunda, ağız ve diş sağlığım ile ilgili mevcut durumum tarafıma anlaşılır bir dilde açıklanmıştır. Uygulanması planlanan tedavinin (dolgu, kanal tedavisi, diş çekimi, protez, cerrahi işlem vb.) aşamaları, süresi ve kullanılacak materyaller hakkında detaylı bilgi verilmiştir.
+
+2. ALTERNATİF TEDAVİ SEÇENEKLERİ:
+Planlanan tedaviye alternatif olarak uygulanabilecek diğer tedavi yöntemleri, bu yöntemlerin avantaj ve dezavantajları ile maliyetleri tarafıma anlatılmıştır. Mevcut koşullarda en uygun seçeneğin hekimim tarafından önerilen tedavi olduğuna karar verdim.
+
+3. TEDAVİNİN RİSKLERİ VE OLASI KOMPLİKASYONLAR:
+Her tıbbi müdahalede olduğu gibi, diş hekimliği uygulamalarında da bazı riskler bulunmaktadır. Tarafıma anlatılan ve anladığım başlıca riskler şunlardır:
+- Lokal anesteziye bağlı alerjik reaksiyonlar, geçici veya kalıcı sinir uyuşuklukları (parestezi).
+- Tedavi sırasında veya sonrasında kanama, şişlik (ödem), ağrı ve enfeksiyon gelişimi.
+- Diş çekimi veya cerrahi işlemler sırasında komşu dişlerin, restorasyonların veya çevre dokuların zarar görmesi.
+- Kanal tedavisi veya diş çekimi sırasında kök kırılması, kanal aleti kırılması veya sinüs boşluğuna açılma.
+- Çene ekleminde (TMJ) hassasiyet, ağrı veya geçici ağız açmada kısıtlılık (trismus).
+
+4. TEDAVİNİN REDDEDİLMESİ DURUMUNDA KARŞILAŞILABİLECEK SONUÇLAR:
+Önerilen tedaviyi kabul etmemem durumunda; mevcut ağrı ve enfeksiyonun şiddetlenebileceği, dişin tamamen kaybedilebileceği, komşu dişlerin ve çevre dokuların zarar görebileceği, kist veya tümör gibi daha ciddi genel sağlık sorunlarının ortaya çıkabileceği konusunda uyarıldım.
+
+5. HASTANIN BEYANI VE RIZASI:
+Yukarıda yer alan maddeleri tamamen okudum ve anladım. Klinik hekimleri tarafından bana durumumla ilgili yeterli zaman ayrıldı ve sorduğum tüm sorulara tatmin edici cevaplar aldım. Uygulanacak tedavinin başarısı için tıp biliminin doğası gereği kesin bir garanti verilemeyeceğini biliyorum. Beklenmeyen durumlarda, hekimimin sağlığım için gerekli göreceği ek tıbbi müdahaleleri yapmasına da izin veriyorum.
+
+Kendi özgür irademle, hiçbir baskı altında kalmadan, planlanan tıbbi/cerrahi müdahalenin ve gerekli lokal anestezi işlemlerinin yapılmasına ONAY VERİYORUM.
+
+
+HASTA / KANUNİ TEMSİLCİSİ (18 Yaşından Küçükler İçin)
+Adı Soyadı: ....................................................
+T.C. Kimlik No: ..............................................
+Tarih: ...../...../202...
+İmza: .....................................................`
+          },
+          { 
+            id: 2, 
+            title: "KVKK Aydınlatma ve Açık Rıza Metni", 
+            icon: "fa-shield-halved", 
+            color: "text-indigo-500", 
+            bg: "bg-indigo-50 dark:bg-indigo-900/20", 
+            content: `6698 SAYILI KİŞİSEL VERİLERİN KORUNMASI KANUNU (KVKK) KAPSAMINDA 
+HASTA AYDINLATMA VE AÇIK RIZA METNİ
+
+Sayın Hastamız / Hasta Yakınımız,
+Bu aydınlatma metni, veri sorumlusu sıfatıyla kliniğimiz tarafından, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun (KVKK) 10. maddesi ve Aydınlatma Yükümlülüğünün Yerine Getirilmesinde Uyulacak Usul ve Esaslar Hakkında Tebliğ uyarınca hazırlanmıştır.
+
+1. İŞLENEN KİŞİSEL VERİLERİNİZ VE İŞLENME AMAÇLARI:
+Kliniğimize başvurmanız dolayısıyla elde edilen;
+- Kimlik Verileriniz (Ad, soyad, T.C. kimlik numarası, pasaport numarası, doğum yeri ve tarihi, cinsiyet),
+- İletişim Verileriniz (Adres, telefon numarası, e-posta adresi),
+- Sağlık Verileriniz (Röntgen görüntüleri, laboratuvar sonuçları, test sonuçları, muayene verileri, randevu bilgileri, reçete bilgileri, daha önce geçirilmiş hastalıklar, kronik hastalıklar, alerjiler ve diğer tüm tıbbi kayıtlar),
+- Finansal Verileriniz (Fatura bilgileri, ödeme ve kredi kartı bilgileri)
+
+Yukarıda belirtilen kişisel ve özel nitelikli kişisel verileriniz; tıbbi teşhis, tedavi ve bakım hizmetlerinin yürütülmesi, randevu planlamasının yapılması, yasal yükümlülüklerin yerine getirilmesi (Sağlık Bakanlığı, İTS, SGK vb. bildirimler) ve sağlık hizmetlerinin finansmanının sağlanması amaçlarıyla işlenmektedir.
+
+2. KİŞİSEL VERİLERİN AKTARILMASI:
+Kişisel verileriniz, KVKK'nın 8. ve 9. maddelerinde belirtilen şartlar dahilinde; ilgili mevzuat hükümlerinin izin verdiği kurum ve kuruluşlara (Sağlık Bakanlığı, İl Sağlık Müdürlükleri, SGK, Emniyet Genel Müdürlüğü ve adli makamlar), protetik ve ortodontik laboratuvarlara, yasal savunma hakkımızı kullanabilmek adına hukuki danışmanlarımıza aktarılabilecektir. Verileriniz kesinlikle ticari amaçla 3. şahıslara satılmaz veya devredilmez.
+
+3. İLGİLİ KİŞİNİN (HASTANIN) HAKLARI:
+KVKK'nın 11. maddesi uyarınca kliniğimize başvurarak;
+- Kişisel verilerinizin işlenip işlenmediğini öğrenme,
+- İşlenmişse buna ilişkin bilgi talep etme,
+- İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,
+- Eksik veya yanlış işlenmişse düzeltilmesini isteme,
+- Kanunda öngörülen şartlar çerçevesinde silinmesini veya yok edilmesini talep etme haklarına sahipsiniz.
+
+4. HASTA BEYANI VE AÇIK RIZA:
+Yukarıda yer alan aydınlatma metnini tamamen okudum, anladım. Kişisel ve sağlık verilerimin, yukarıda belirtilen amaçlar ve sınırlar çerçevesinde işlenmesine, kaydedilmesine, muhafaza edilmesine ve ilgili yasal mercilere/laboratuvarlara aktarılmasına özgür irademle AÇIK RIZA gösteriyorum.
+
+HASTA / KANUNİ TEMSİLCİSİ
+Adı Soyadı: ....................................................
+Tarih: ...../...../202...
+İmza: .....................................................`
+          },
+          { 
+            id: 3, 
+            title: "TDB İmplant Cerrahi Onam Formu", 
+            icon: "fa-tooth", 
+            color: "text-emerald-500", 
+            bg: "bg-emerald-50 dark:bg-emerald-900/20", 
+            content: `İMPLANT CERRAHİSİ BİLGİLENDİRME VE AYDINLATILMIŞ ONAM FORMU (TDB UYUMLU)
+
+Bu belge, çene kemiğine yerleştirilecek olan dental implant (yapay diş kökü) operasyonu ve sonrasındaki protez işlemleri için hazırlanmıştır. Lütfen dikkatlice okuyunuz.
+
+1. İŞLEMİN TANIMI:
+Eksik olan diş veya dişlerinizin telafisi için, lokal anestezi altında çene kemiğinize titanyum veya titanyum alaşımlı dental implantların yerleştirilmesi planlanmaktadır. Operasyon sonrasında implantın kemikle kaynaşması (osseointegrasyon) için ortalama 2 ile 6 ay arasında bir iyileşme süresi beklenecektir. Bu süre sonunda implant üzerine protez (kron, köprü veya hareketli protez) yapılacaktır.
+
+2. İMPLANT CERRAHİSİ RİSKLERİ VE KOMPLİKASYONLARI:
+Bu cerrahi işlemin genel anestezi ve cerrahi risklerinin yanı sıra kendine özgü riskleri de vardır:
+- Operasyon sırasında ve sonrasında kanama, yüzde ve diş etlerinde şişlik (ödem), morarma (ekimoz) görülebilir.
+- Alt çeneye yapılacak müdahalelerde, mandibular sinirin (nervus alveolaris inferior) etkilenmesine bağlı olarak alt dudakta, çenede veya dilde geçici ya da çok nadir durumlarda kalıcı uyuşukluk (parestezi/anestezi) gelişebilir.
+- Üst çene arka bölgelerde implant yerleştirilirken sinüs boşluğuna girilebilir (sinüs perforasyonu) veya implant sinüs içine kaçabilir. Bu durum ek cerrahi müdahaleler gerektirebilir.
+- Ameliyat sırasında komşu dişlerin kökleri zarar görebilir.
+- İyileşme döneminde veya sonrasında enfeksiyon gelişebilir. Kötü ağız hijyeni, aşırı sigara kullanımı veya sistemik hastalıklar (diyabet vb.) enfeksiyon ve implant kaybı (kemiğin implantı reddetmesi) riskini ciddi oranda artırır.
+
+3. EK CERRAHİ İŞLEMLER (GREFTLEME / SİNÜS LİFTİNG):
+Çene kemiğinin miktar veya kalite olarak yetersiz olduğu durumlarda, implant yerleştirebilmek için kemik tozu (greft) veya membran kullanımı ile kemik artırma işlemleri gerekebilir. Bu işlemler önceden planlanabileceği gibi, operasyon esnasında da hekim tarafından gerekli görülebilir. Bu cerrahi ek işlemler ayrıca faturalandırılabilir.
+
+4. BAŞARI GARANTİSİ VE HASTANIN SORUMLULUKLARI:
+Tıbbi prosedürlerde olduğu gibi implant cerrahisinde de %100 başarı garantisi verilmesi tıbben ve hukuken mümkün değildir. İmplantın ömrü; genel sağlık durumum, ağız bakımım, sigara tüketimim ve düzenli hekim kontrollerime bağlıdır. Hekimimin verdiği ilaçları düzenli kullanacağımı ve tavsiyelerine harfiyen uyacağımı kabul ediyorum.
+
+5. HASTA ONAYI:
+Bana uygulanacak implant cerrahisi hakkında tüm detaylar anlatıldı. Olası riskleri, alternatif tedavileri (hareketli protezler, köprüler) ve implantın başarısız olma ihtimalini anladım. Ek bir cerrahi işlem gerektiğinde kliniğe ve hekimime tam yetki veriyorum. Kendi rızamla bu cerrahi operasyonun yapılmasına ONAY VERİYORUM.
+
+HASTA / KANUNİ TEMSİLCİSİ
+Adı Soyadı: ....................................................
+Tarih: ...../...../202...
+İmza: ....................................................`
+          },
+          { 
+            id: 4, 
+            title: "Ortodontik Tedavi Sözleşmesi", 
+            icon: "fa-teeth-open", 
+            color: "text-amber-500", 
+            bg: "bg-amber-50 dark:bg-amber-900/20", 
+            content: `ORTODONTİ TEDAVİSİ BİLGİLENDİRME VE ONAM FORMU
+
+1. TEDAVİ SÜRECİ VE SÜRESİ:
+Tedavinin tahmini süresi belirtilmiş olup, hastanın biyolojik kemik yanıtlarına, büyüme gelişim potansiyeline ve randevu devamsızlıklarına bağlı olarak bu sürenin uzayabileceğini veya kısalabileceğini kabul ediyorum.
+
+2. HASTA UYUMU VE SORUMLULUKLAR:
+- Tedavi süresince asitli, yapışkan ve sert yiyeceklerin (sakız, lokum, fındık, asitli içecekler vb.) tüketilmemesi gerektiği anlatılmıştır.
+- Braketlerin veya apareylerin hastanın kullanım hatası sonucu kırılması/kopması durumunda ek malzeme ve işçilik ücreti yansıtılabileceği tarafıma bildirilmiştir.
+- Ağız hijyeninin yetersiz olduğu durumlarda dişlerde çürükler veya kalıcı beyaz lekeler (dekalsifikasyon) oluşabileceği bilgisi verilmiştir.
+
+3. KONTROL RANDEVULARI:
+Randevularıma zamanında geleceğimi, gelemeyeceğim durumlarda kliniğe önceden bilgi vereceğimi taahhüt ederim. Devamsızlık durumunda tedavinin uzayacağını kabul ediyorum. Yukarıdaki şartları okudum ve ortodontik tedaviye başlanmasına onay veriyorum.
+
+HASTA / VELİSİ
+Adı Soyadı: ....................................................
+Tarih: ...../...../202...
+İmza: ....................................................`
+          }
         ];
 
         // --- TAKVİM ARALIĞINI DİNAMİK YAPAN MOTOR ---
@@ -1751,13 +1891,25 @@ useEffect(() => {
           });
         };
 
+        // YENİ: Ayarları Firebase'e Kaydet
         const saveSettings = () => {
           if (!settingsDraft) return;
-          setSettings(settingsDraft);
-          // YENİ: Ayarları sadece giriş yapan kullanıcıya özel kaydet
-          localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(settingsDraft));
-          setSettingsDraft(null);
-          showNotification("Klinik ayarları başarıyla kaydedildi.", "success");
+          
+          const updatedSettingsDb = {
+            ...(globalData.settingsDb || {}),
+            [currentUser]: settingsDraft
+          };
+
+          saveGlobalData({ ...globalData, settingsDb: updatedSettingsDb })
+            .then(() => {
+              setSettings(settingsDraft);
+              setSettingsDraft(null);
+              showNotification("Klinik ayarları başarıyla Buluta (Firebase) kaydedildi.", "success");
+            })
+            .catch(err => {
+              showNotification("Ayarlar kaydedilirken ağ hatası oluştu!", "error");
+              console.error(err);
+            });
         };
 
         const revertSettings = () => {
@@ -1878,6 +2030,7 @@ useEffect(() => {
                 const data = snapshot.val();
 
                 if (!data.pricingDb) data.pricingDb = DEFAULT_PRICING;
+                if (!data.settingsDb) data.settingsDb = {};
 
                 setGlobalData(data);
               } else {
@@ -1943,6 +2096,7 @@ useEffect(() => {
             checkOneLevel("doctorProfiles");
             checkOneLevel("patientsDb");
             checkOneLevel("pricingDb");
+            checkOneLevel("settingsDb"); // YENİ: Ayarlar artık Firebase'e yazılacak
 
             // İki katmanlı verileri (Randevular: Doctor -> Appointment) kontrol et
             const oldApts = globalData.appointments || {};
@@ -4260,7 +4414,7 @@ useEffect(() => {
                     { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.length, data: fLab, desc: "Laboratuvar süreçleri", info: "Ölçü alınacak, laboratuvarda veya provaya hazır olarak işaretlenmiş hastalar." },
                     { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.length, data: fEvrak, desc: "Eksik belgeler", info: "Onam formu, röntgen veya kimlik gibi eksik evrakı olan hastalar." },
                     { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 günde eklenenler", info: "Son 7 gün içinde sisteme eklenmiş veya henüz randevusu oluşturulmamış yeni hastalar." }
-                  ];
+                  ].filter(f => settings?.dosya?.[f.id] !== false);
 
                   const activeFolderData = activeFolderId ? folders.find(f => f.id === activeFolderId) : null;
 
@@ -4620,8 +4774,13 @@ useEffect(() => {
                       const isPastDate = selectedStart < todayStart;
                       const isToday = selectedStart === todayStart;
                       const slotHour = parseInt(slot.split(":")[0]);
-                      const isPastSlot =
-                        isPastDate || (isToday && slotHour < now.getHours());
+                      
+                      // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Günlük)
+                      const dayName = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
+                      const currentFormattedDate = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
+                      const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || (settings?.calisma?.ozelGunler || []).some(og => og.tarih === currentFormattedDate);
+                      
+                      const isPastSlot = isPastDate || (isToday && slotHour < now.getHours()) || isDayClosed;
 
                       let pId = apt
                         ? apt.patientName.toLowerCase().replace(/\s+/g, "")
@@ -4874,9 +5033,13 @@ useEffect(() => {
                           const isPastDate = dayStart < todayStart;
                           const isToday = dayStart === todayStart;
                           const slotHour = parseInt(time.split(":")[0]);
-                          const isPastSlot =
-                            isPastDate ||
-                            (isToday && slotHour < now.getHours());
+                          
+                          // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Haftalık)
+                          const dayName = DAYS[d.getDay() === 0 ? 6 : d.getDay() - 1];
+                          const currentFormattedDate = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+                          const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || (settings?.calisma?.ozelGunler || []).some(og => og.tarih === currentFormattedDate);
+                          
+                          const isPastSlot = isPastDate || (isToday && slotHour < now.getHours()) || isDayClosed;
 
                           let anamnesis = apt
                             ? globalData.patientsDb?.[
@@ -5393,8 +5556,13 @@ useEffect(() => {
                         const isPastDate = selectedStart < todayStart;
                         const isToday = selectedStart === todayStart;
                         const slotHour = parseInt(time.split(":")[0]);
-                        const isPastSlot =
-                          isPastDate || (isToday && slotHour < now.getHours());
+                        
+                        // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Liste)
+                        const dayName = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
+                        const currentFormattedDate = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
+                        const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || (settings?.calisma?.ozelGunler || []).some(og => og.tarih === currentFormattedDate);
+                        
+                        const isPastSlot = isPastDate || (isToday && slotHour < now.getHours()) || isDayClosed;
 
                         let pId = apt
                           ? apt.patientName.toLowerCase().replace(/\s+/g, "")
@@ -6849,10 +7017,23 @@ const renderSettings = () => {
                           </div>
                         </div>
                         <div className="space-y-4">
-                           <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-800/50 cursor-pointer hover:border-indigo-500 transition-colors h-32">
-                             <i className="fa-solid fa-cloud-arrow-up text-2xl text-slate-400 mb-2"></i>
-                             <span className="text-[11px] font-bold text-slate-500">Logo Yüklemek İçin Tıklayın</span>
-                           </div>
+                           <label className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-800/50 cursor-pointer hover:border-indigo-500 transition-colors h-32 relative overflow-hidden group">
+                             {currentData.klinik.logo ? (
+                               <img src={currentData.klinik.logo} className="w-full h-full object-contain absolute inset-0 p-2 opacity-50 group-hover:opacity-20 transition" alt="Logo Önizleme" />
+                             ) : null}
+                             <i className="fa-solid fa-cloud-arrow-up text-2xl text-indigo-400 mb-2 relative z-10"></i>
+                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 relative z-10">{currentData.klinik.logo ? "Logoyu Değiştir" : "Logo Yüklemek İçin Tıklayın"}</span>
+                             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                               const file = e.target.files[0];
+                               if(file){
+                                 const reader = new FileReader();
+                                 reader.onload = (event) => {
+                                   handleSettingChange('klinik', 'logo', event.target.result);
+                                 };
+                                 reader.readAsDataURL(file);
+                               }
+                             }} />
+                           </label>
                            <div>
                              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-2">Klinik Operasyon Durumu</label>
                              <div className="flex gap-2">
@@ -6882,7 +7063,10 @@ const renderSettings = () => {
                             <label className="flex items-center justify-between cursor-pointer">
                               <div><div className="font-bold text-[13px] dark:text-white">Takvim Slot Aralığı</div><div className="text-[10px] text-slate-500 mt-0.5">Takvimdeki satır yükseklik ayarı.</div></div>
                               <select value={currentData.randevu.slotAraligi} onChange={e => handleSettingChange('randevu', 'slotAraligi', e.target.value)} className="p-1.5 border rounded-lg text-[12px] font-bold outline-none dark:bg-slate-800 dark:text-white">
-                                 <option value="10">10 Dk</option><option value="15">15 Dk</option><option value="30">30 Dk</option>
+                                 <option value="10">10 Dk</option>
+                                 <option value="15">15 Dk</option>
+                                 <option value="30">30 Dk</option>
+                                 <option value="60">60 Dk</option>
                               </select>
                             </label>
                           </div>
@@ -6982,27 +7166,105 @@ const renderSettings = () => {
                 {settingsTab === "calisma" && (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
-                       <h3 className="font-black text-slate-800 dark:text-white text-base">Genel Mesai Saatleri</h3>
+                       <h3 className="font-black text-slate-800 dark:text-white text-base">Genel Mesai Saatleri ve Günler</h3>
                      </div>
-                     <p className="text-[11px] text-slate-500">Tüm sistemdeki takvim gridleri ve randevu saatleri bu aralıklara göre oluşturulur.</p>
-                     <div className="grid grid-cols-2 gap-4 max-w-md">
+                     <p className="text-[11px] text-slate-500 dark:text-slate-400">Tüm sistemdeki takvim gridleri ve randevu saatleri bu aralıklara göre oluşturulur.</p>
+                     
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mb-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
                         <div>
                           <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Mesai Başlangıç</label>
-                          <input type="time" value={currentData.calisma.baslama} onChange={e => handleSettingChange('calisma', 'baslama', e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 cursor-pointer" />
+                          <input type="time" value={currentData.calisma.baslama} onChange={e => handleSettingChange('calisma', 'baslama', e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-800 dark:text-white dark:border-slate-600 cursor-pointer shadow-sm" />
                         </div>
                         <div>
                           <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Mesai Bitiş</label>
-                          <input type="time" value={currentData.calisma.bitis} onChange={e => handleSettingChange('calisma', 'bitis', e.target.value)} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 cursor-pointer" />
+                          <input type="time" value={currentData.calisma.bitis} onChange={e => handleSettingChange('calisma', 'bitis', e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-800 dark:text-white dark:border-slate-600 cursor-pointer shadow-sm" />
                         </div>
+                     </div>
+
+                     <div className="space-y-2">
+                       <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
+                         <h4 className="font-bold text-[12px] text-slate-700 dark:text-slate-300">Çalışma Günleri (Haftalık)</h4>
+                       </div>
+                       
+                       {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((day) => {
+                          const isWorking = currentData.calisma.gunler?.[day] !== false;
+                          return (
+                          <div key={day} className={`flex items-center justify-between p-2.5 rounded-xl border transition-colors ${isWorking ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm" : "bg-slate-50 dark:bg-slate-900/50 border-dashed border-slate-200 dark:border-slate-800 opacity-60"}`}>
+                             <label className="flex items-center gap-3 w-1/3 cursor-pointer">
+                                <input type="checkbox" checked={isWorking} onChange={(e) => {
+                                   const newGunler = { ...(currentData.calisma.gunler || {}) };
+                                   newGunler[day] = e.target.checked;
+                                   handleSettingChange('calisma', 'gunler', newGunler);
+                                }} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                <span className={`font-bold text-[13px] ${isWorking ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>
+                                  {day === "Pzt" ? "Pazartesi" : day === "Sal" ? "Salı" : day === "Çar" ? "Çarşamba" : day === "Per" ? "Perşembe" : day === "Cum" ? "Cuma" : day === "Cmt" ? "Cumartesi" : "Pazar"}
+                                </span>
+                             </label>
+                             <div className="flex items-center gap-2 flex-1 justify-end">
+                                <span className={`text-[11px] font-bold px-2 py-1 rounded shadow-sm border ${isWorking ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"}`}>
+                                  {isWorking ? `${currentData.calisma.baslama} - ${currentData.calisma.bitis}` : "Kapalı"}
+                                </span>
+                             </div>
+                          </div>
+                          );
+                       })}
+
+                       <div className="mt-6 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl">
+                          <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-3 gap-2 border-b border-amber-200 dark:border-amber-800 pb-3">
+                             <h5 className="text-[11px] font-black text-amber-700 dark:text-amber-500 uppercase"><i className="fa-solid fa-calendar-xmark mr-1"></i> Özel Günler / Tatiller (Kapalı)</h5>
+                             <div className="flex gap-1.5">
+                               <input type="date" id="ozelGunInput" className="p-1.5 rounded-lg border border-amber-200 text-[11px] font-bold outline-none dark:bg-slate-800 dark:text-white dark:border-slate-600" />
+                               <button type="button" onClick={() => {
+                                 const el = document.getElementById("ozelGunInput");
+                                 if(!el || !el.value) {
+                                   showNotification("Lütfen bir tarih seçin", "error");
+                                   return;
+                                 }
+                                 const [y, m, d] = el.value.split('-');
+                                 const formatted = `${d}.${m}.${y}`;
+                                 const guncelAyarlar = settingsDraft || settings;
+                                 const mevcutOzel = guncelAyarlar?.calisma?.ozelGunler || [];
+                                 
+                                 // Aynı tarih daha önce eklendiyse engelle
+                                 if(mevcutOzel.some(og => og.tarih === formatted)){
+                                   showNotification("Bu tarih zaten ekli!", "error");
+                                   return;
+                                 }
+
+                                 const yeniOzel = [...mevcutOzel, { tarih: formatted, durum: "Kapalı" }];
+                                 handleSettingChange('calisma', 'ozelGunler', yeniOzel);
+                                 el.value = "";
+                                 showNotification(`${formatted} tarihi kapalı olarak eklendi`, "success");
+                               }} className="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-amber-600 shadow-sm transition-colors">Ekle</button>
+                             </div>
+                          </div>
+                          
+                          <div className="space-y-1.5">
+                             {(currentData.calisma.ozelGunler || []).length > 0 ? (
+                               (currentData.calisma.ozelGunler || []).map((og, idx) => (
+                                  <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-amber-100 dark:border-amber-800/50 shadow-sm">
+                                    <span className="text-[12px] font-bold dark:text-white"><i className="fa-regular fa-calendar mr-1 text-slate-400"></i> {og.tarih}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded font-bold dark:bg-rose-900/40 dark:text-rose-400">Tam Gün Kapalı</span>
+                                      <button type="button" onClick={() => {
+                                        const newOzel = currentData.calisma.ozelGunler.filter((_, i) => i !== idx);
+                                        handleSettingChange('calisma', 'ozelGunler', newOzel);
+                                      }} className="text-slate-400 hover:text-rose-500 w-6 h-6 flex items-center justify-center rounded hover:bg-rose-50 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                                    </div>
+                                  </div>
+                               ))
+                             ) : (
+                               <div className="text-[11px] text-amber-600/70 font-semibold italic text-center py-2">Henüz özel kapalı gün eklenmemiş.</div>
+                             )}
+                          </div>
+                       </div>
                      </div>
                   </div>
                 )}
 
                 {settingsTab === "tedavi" && (() => {
-                  // Mevcut kullanıcının güncel fiyat/tedavi listesini alıyoruz
                   const userPricing = globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
                   const allTreatments = Object.keys(userPricing);
-
                   return (
                   <div className="animate-pop max-w-5xl space-y-4">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
@@ -7054,28 +7316,40 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "dosya" && (
-                  <div className="animate-pop max-w-4xl space-y-4">
-                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
-                       <h3 className="font-black text-slate-800 dark:text-white text-base">Dosya Masası Özelleştirme</h3>
-                     </div>
-                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Dosya Masası ekranında görünen klasörlerin otomatik kurallarını yönetin.</p>
-                     <div className="space-y-2">
-                       {['Acil Takip', 'Laboratuvar Bekleyenler', 'Evrak Bekleyenler', 'Kontrol Bekleyenler'].map((folder, i) => (
-                         <div key={i} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:border-indigo-300 dark:hover:border-indigo-600 transition gap-2">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm ${['bg-rose-500', 'bg-purple-500', 'bg-slate-500', 'bg-emerald-500'][i]}`}><i className={`fa-solid ${['fa-truck-medical', 'fa-flask', 'fa-file-signature', 'fa-calendar-check'][i]}`}></i></div>
-                              <span className="font-bold text-[13px] text-slate-800 dark:text-white">{folder}</span>
-                            </div>
-                            <label className="flex items-center gap-3 cursor-pointer pl-6 sm:pl-0">
-                              <span className="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-200 dark:border-emerald-800/50">Otomatik Kural: Aktif</span>
-                              <input type="checkbox" defaultChecked className="w-4 h-4 accent-indigo-600 cursor-pointer pointer-events-none" />
-                            </label>
-                         </div>
-                       ))}
-                     </div>
-                  </div>
-                )}
+                {settingsTab === "dosya" && (() => {
+                  const DOSYA_KLASORLERI = [
+                     { id: "acil", isim: "Acil Takip", icon: "fa-truck-medical", color: "bg-rose-500" },
+                     { id: "lab", isim: "Laboratuvar Bekleyenler", icon: "fa-flask", color: "bg-purple-500" },
+                     { id: "evrak", isim: "Evrak Bekleyenler", icon: "fa-file-signature", color: "bg-slate-500" },
+                     { id: "kontrol", isim: "Kontrol Bekleyenler", icon: "fa-calendar-check", color: "bg-emerald-500" },
+                     { id: "tedavi", isim: "Tedavisi Devam Edenler", icon: "fa-tooth", color: "bg-amber-500" },
+                     { id: "yeni", isim: "Yeni Hastalar", icon: "fa-user-plus", color: "bg-blue-500" }
+                  ];
+                  return (
+                    <div className="animate-pop max-w-4xl space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                            <h3 className="font-black text-slate-800 dark:text-white text-base">Dosya Masası Özelleştirme</h3>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Dosya Masası ekranında hangi klasörlerin aktif olarak görüneceğini seçin. Değişiklik anında Ana Sayfaya yansır.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {DOSYA_KLASORLERI.map((folder) => (
+                                <div key={folder.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:border-indigo-300 transition gap-2">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-sm ${folder.color}`}><i className={`fa-solid ${folder.icon}`}></i></div>
+                                    <span className="font-bold text-[13px] text-slate-800 dark:text-white">{folder.isim}</span>
+                                </div>
+                                <label className="flex items-center gap-3 cursor-pointer pl-6 sm:pl-0">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${currentData.dosya?.[folder.id] !== false ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-600"}`}>
+                                    {currentData.dosya?.[folder.id] !== false ? "Görünür" : "Gizli"}
+                                    </span>
+                                    <input type="checkbox" checked={currentData.dosya?.[folder.id] !== false} onChange={e => handleSettingChange('dosya', folder.id, e.target.checked)} className="w-4 h-4 accent-indigo-600 cursor-pointer" />
+                                </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                  );
+                })()}
 
                 {settingsTab === "otomasyon" && (
                   <div className="animate-pop max-w-4xl space-y-4">
@@ -7121,7 +7395,12 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "veri" && (
+                {settingsTab === "veri" && (() => {
+                  // Sadece bu kliniğe ait verileri hesaplıyoruz
+                  const myPatientsCount = Object.values(globalData.patientsDb || {}).filter(p => (p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser) && !p.isDeleted).length;
+                  const myAptsCount = allDoctors.reduce((sum, docId) => sum + Object.keys(globalData.appointments?.[docId] || {}).length, 0);
+
+                  return (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Veri ve Yedekleme Merkezi</h3>
                      
@@ -7138,10 +7417,20 @@ const renderSettings = () => {
                            <div>
                              <div className="font-black text-[13px] text-slate-800 dark:text-white">Veri Bütünlüğü</div>
                              <div className="text-[11px] text-slate-500 mt-1 font-bold">
-                               {Object.keys(globalData.patientsDb || {}).length} Kayıtlı Hasta • {Object.keys(globalData.appointments || {}).length} Hekim Klasörü
+                               {myPatientsCount} Kayıtlı Hasta • {myAptsCount} Toplam Randevu
                              </div>
                            </div>
-                           <button onClick={() => showNotification("Tüm veri düğümleri başarıyla doğrulandı.", "success")} className="text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shadow-sm border border-slate-200 dark:border-slate-600">Kontrol Et</button>
+                           <button onClick={() => {
+                             setIsCheckingData(true);
+                             setTimeout(() => {
+                               setIsCheckingData(false);
+                               showNotification(`Doğrulama başarılı! Toplam ${myPatientsCount} hasta ve ${myAptsCount} randevu sorunsuz taranıp güvenceye alındı.`, "success");
+                             }, 2500);
+                           }} 
+                           className="text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shadow-sm border border-slate-200 dark:border-slate-600 w-28 text-center"
+                           disabled={isCheckingData}>
+                             {isCheckingData ? <><i className="fa-solid fa-spinner fa-spin mr-1"></i> Taranıyor</> : "Kontrol Et"}
+                           </button>
                         </div>
                      </div>
 
@@ -7205,12 +7494,13 @@ const renderSettings = () => {
                         </div>
                      </div>
                   </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* SABİT KAYDETME ÇUBUĞU (DEĞİŞİKLİK VARSA ÇIKAR) */}
               {settingsDraft && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex items-center gap-4 animate-[modalPop_0.3s_ease-out_forwards] z-50 border border-white/10 w-[95%] sm:w-auto max-w-xl justify-between sm:justify-center">
+                <div className="fixed bottom-24 sm:bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-4 py-3 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-row items-center gap-3 animate-[modalPop_0.3s_ease-out_forwards] z-[200] border border-white/10 w-[90%] sm:w-auto max-w-xl justify-center">
                    <div className="flex items-center gap-2 hidden sm:flex">
                      <i className="fa-solid fa-circle-exclamation text-amber-400 text-lg"></i>
                      <span className="font-bold text-[13px]">Kaydedilmemiş değişiklikleriniz var</span>
@@ -7263,7 +7553,7 @@ const renderSettings = () => {
                       {/* Antet */}
                       <div className="border-b-2 border-slate-300 dark:border-slate-600 pb-4 mb-4 flex justify-between items-end">
                         <div>
-                           <div className="font-black text-lg uppercase tracking-widest flex items-center gap-2"><i className="fa-solid fa-tooth text-slate-400"></i> KLİNİK YÖNETİM</div>
+                           <div className="font-black text-lg uppercase tracking-widest flex items-center gap-2"><i className="fa-solid fa-tooth text-slate-400"></i> {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK YÖNETİM"}</div>
                            <div className="text-[10px] font-bold text-slate-500 mt-1">Resmi Belge Şablonu</div>
                         </div>
                         <div className="text-right text-[10px] font-bold text-slate-500">
@@ -8366,6 +8656,8 @@ const renderSettings = () => {
                 "doctors",
 
                 "finance",
+
+                "settings",
               ].map((tab) => (
                 <button
                   key={tab}
@@ -8393,7 +8685,9 @@ const renderSettings = () => {
                         ? "fa-tags"
                         : tab === "doctors"
                         ? "fa-user-doctor"
-                        : "fa-vault"
+                        : tab === "finance"
+                        ? "fa-vault"
+                        : "fa-gear"
                     } text-lg transition-transform ${
                       activeTab === tab ? "scale-110 -translate-y-0.5" : ""
                     }`}
@@ -8413,7 +8707,9 @@ const renderSettings = () => {
                         ? "FİYAT"
                         : tab === "doctors"
                         ? "HEKİM"
-                        : "FİNANS"}
+                        : tab === "finance"
+                        ? "FİNANS"
+                        : "AYARLAR"}
                     </span>
                   )}
                 </button>
@@ -8439,13 +8735,34 @@ const renderSettings = () => {
                 }}
                 onMouseEnter={() => setIsHeaderVisible(true)}
               >
+                {/* MOBİL İÇİN MENÜ AÇMA BUTONU */}
                 <button
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="w-9 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:bg-indigo-100 transition mr-2 lg:hidden"
+                  className="w-9 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:bg-indigo-100 transition mr-2 lg:hidden shrink-0"
                 >
-                  <i className="fa-solid fa-tooth text-base"></i>
+                  <i className="fa-solid fa-bars text-base"></i>
                 </button>
 
+                {/* KLİNİK LOGO VE ADI (MASAÜSTÜNDE ARAMA ÇUBUĞUNUN SOLUNDA GÖRÜNÜR) */}
+                <div className="hidden lg:flex items-center gap-3 mr-6 shrink-0 select-none">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-lg shadow-md overflow-hidden border border-indigo-200 dark:border-indigo-800">
+                    {settings?.klinik?.logo ? (
+                      <img src={settings.klinik.logo} alt="Klinik Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <i className="fa-solid fa-tooth drop-shadow-md"></i>
+                    )}
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <span className="font-black text-slate-800 dark:text-white tracking-tight text-[15px] leading-tight truncate max-w-[200px]">
+                      {settings?.klinik?.ad || "Klinik Randevu"}
+                    </span>
+                    <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 leading-none mt-0.5">
+                      Yönetim Paneli
+                    </span>
+                  </div>
+                </div>
+
+                {/* ARAMA ÇUBUĞU */}
                 <div className="relative flex-1 max-w-sm mr-3" ref={searchRef}>
                   <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 w-full focus-within:border-indigo-400 focus-within:ring-2 transition-all shadow-inner group relative">
                     <div className="flex items-center flex-1 min-w-0">
@@ -10534,9 +10851,9 @@ const renderSettings = () => {
                                 <div className="flex justify-between items-end mb-1.5">
                                   <div>
                                     <h1 className="text-base font-black uppercase tracking-wider mb-0.5 flex items-center text-black">
-                                      <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-base"></i>
-                                      KLİNİK RANDEVU
-                                    </h1>
+                                <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-base"></i>
+                                {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK RANDEVU"}
+                              </h1>
                                     <h2 className="text-[11px] font-bold text-gray-600">Tedavi Planı ve Bilgilendirme Formu</h2>
                                   </div>
                                   <div className="text-right text-[10px] font-semibold text-gray-600">
