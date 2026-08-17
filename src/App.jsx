@@ -1404,8 +1404,14 @@ useEffect(() => {
 
         const [passwordForm, setPasswordForm] = useState({
           oldPass: "",
-
           newPass: "",
+          confirmPass: "",
+        });
+        // YENİ: Şifreleri gizle/göster durumu için
+        const [showPassState, setShowPassState] = useState({
+          old: false,
+          new: false,
+          confirm: false,
         });
 
         const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1484,6 +1490,8 @@ useEffect(() => {
         const [isSplitMode, setIsSplitMode] = useState(false); // YENİ: Bölünmüş Ekran Kontrolcüsü
 
         const [patientForm, setPatientForm] = useState(null);
+        // YENİ EKLENEN: Takvime aktarılacak hastayı tutan React State'i
+        const [pendingAptPatient, setPendingAptPatient] = useState(null);
 
         const [paymentInput, setPaymentInput] = useState("");
         const [paymentMethod, setPaymentMethod] = useState("Nakit");
@@ -1637,9 +1645,8 @@ useEffect(() => {
             ozelGunler: []
           },
           randevu: { varsayilanSure: "30", slotAraligi: "15", cakismaKontrolu: true, gecmisTarihUyarisi: true },
-          gorunum: { tema: "Sistem", renk: "indigo", yogunluk: "standart" },
-          bildirim: { smsAktif: false, whatsappAktif: true, randevuHatirlatma: "24" },
-          gorunum: { tema: "Sistem", animasyonlar: true },
+          gorunum: { tema: "Sistem", renk: "indigo", yogunluk: "standart", animasyonlar: true },
+  bildirim: { smsAktif: false, whatsappAktif: true, randevuHatirlatma: "24" },
           guvenlik: { oturumZamanAsimi: "120", hassasEkranUyarisi: true },
           otomasyon: { aktifKural: 4 },
           dosya: { acil: true, kontrol: true, tedavi: true, lab: true, evrak: true, yeni: true }
@@ -1841,9 +1848,9 @@ Tarih: ...../...../202...
 
         // --- TAKVİM ARALIĞINI DİNAMİK YAPAN MOTOR ---
         const TIME_SLOTS = useMemo(() => {
-           const interval = parseInt(settings.randevu.slotAraligi || "15", 10);
-           const startStr = settings.calisma.baslama || "09:00";
-           const endStr = settings.calisma.bitis || "19:00";
+     const interval = parseInt(settings?.randevu?.slotAraligi || "15", 10);
+     const startStr = settings?.calisma?.baslama || "09:00";
+     const endStr = settings?.calisma?.bitis || "19:00";
            
            let startHour = parseInt(startStr.split(":")[0], 10);
            let startMin = parseInt(startStr.split(":")[1], 10);
@@ -1927,7 +1934,7 @@ Tarih: ...../...../202...
           
           if (settings.gorunum.tema === "Koyu") {
              setIsDarkMode(true);
-          } else if (settings.gorunum.tema === "Acik") {
+          } else if (settings.gorunum.tema === "Açık") {
              setIsDarkMode(false);
           } else if (settings.gorunum.tema === "Sistem") {
              setIsDarkMode(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -2002,11 +2009,10 @@ Tarih: ...../...../202...
 
         // AYARLARI KAYDETME: Hibrit Motor (Hem Local Hem Bulut)
         const saveSettings = () => {
-          if (!settingsDraft && Object.keys(pricingEditValues).length === 0) return;
+          if (!settingsDraft) return;
           
-          const finalSettings = { ...(settingsDraft || settings) };
+          const finalSettings = { ...settingsDraft };
           
-          // 8️⃣ GERÇEK SİSTEM BAĞLANTISI: SON KAYDEDİLME ZAMANI METADATASI (Gerçek Kayıt)
           if (!finalSettings.meta) finalSettings.meta = {};
           finalSettings.meta.lastSavedAt = Date.now();
 
@@ -2015,23 +2021,15 @@ Tarih: ...../...../202...
             [currentUser]: finalSettings
           };
 
-          // YENİ: Tedavi Fiyatlarındaki değişiklikleri tespit et ve Firebase'e hazırla
-          let updatedPricingDb = globalData.pricingDb || {};
-          if (Object.keys(pricingEditValues).length > 0) {
-            const currentUserPricing = { ...(updatedPricingDb[currentUser] || DEFAULT_PRICING), ...pricingEditValues };
-            updatedPricingDb = { ...updatedPricingDb, [currentUser]: currentUserPricing };
-          }
-
           // 1. Aşama: Cihaza kaydet
           localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(finalSettings));
           setSettings(finalSettings); 
 
-          // 2. Aşama: Ayarları ve Fiyatları Buluta (Firebase) Yolla
-          saveGlobalData({ ...globalData, settingsDb: updatedSettingsDb, pricingDb: updatedPricingDb })
+          // 2. Aşama: Ayarları Buluta (Firebase) Yolla
+          saveGlobalData({ ...globalData, settingsDb: updatedSettingsDb })
             .then(() => {
               setSettingsDraft(null);
-              setPricingEditValues({}); // Kayıt sonrası fiyat değişiklik havuzunu temizle
-              showNotification("Ayarlar ve Tedavi Kataloğu başarıyla Buluta kaydedildi.", "success");
+              showNotification("Ayarlar başarıyla Buluta kaydedildi.", "success");
             })
             .catch(err => {
               showNotification("Buluta kaydedilirken hata oluştu ancak cihazınıza kaydedildi.", "error");
@@ -2217,7 +2215,7 @@ Tarih: ...../...../202...
               const oldCol = globalData[collectionName] || {};
               const newCol = newData[collectionName] || {};
 
-              // Yenileri veya değişenleri bul
+              // Yenileri veya değişenleri bul (Deep Equal Kontrolü - Performans Optimizasyonu)
               Object.keys(newCol).forEach((key) => {
                 if (JSON.stringify(oldCol[key]) !== JSON.stringify(newCol[key])) {
                   updates[`${collectionName}/${key}`] = newCol[key];
@@ -2371,6 +2369,38 @@ Tarih: ...../...../202...
           document.addEventListener("keydown", handleKeyDown);
           return () => document.removeEventListener("keydown", handleKeyDown);
         }, [avatarModalInfo]); // State bağımlılığı eklendi
+        // OTURUM ZAMAN AŞIMI (IDLE TIMEOUT) MOTORU
+        useEffect(() => {
+          if (!currentUser) return;
+          
+          let timeoutId;
+          const timeoutMinutes = parseInt(settings?.guvenlik?.oturumZamanAsimi || "120", 10);
+          const timeoutMs = timeoutMinutes * 60 * 1000;
+
+          const handleLogoutDueToInactivity = () => {
+            sessionStorage.removeItem("klinikAktifKullanici");
+            sessionStorage.removeItem("klinikOturumTokeni");
+            setCurrentUser(null);
+            if (typeof showNotification === "function") {
+              showNotification("Uzun süre işlem yapılmadığı için güvenlik amacıyla oturumunuz kapatıldı.", "error");
+            }
+          };
+
+          const resetTimer = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = setTimeout(handleLogoutDueToInactivity, timeoutMs);
+          };
+
+          const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
+          events.forEach(event => window.addEventListener(event, resetTimer));
+
+          resetTimer();
+
+          return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            events.forEach(event => window.removeEventListener(event, resetTimer));
+          };
+        }, [currentUser, settings?.guvenlik?.oturumZamanAsimi]);
 
         const toggleAnamnesis = (opt, formType) => {
           let current = "";
@@ -3252,7 +3282,7 @@ Tarih: ...../...../202...
           } else {
             setAptModalMode("edit");
 
-            const pData = window.pendingAptPatient;
+            const pData = pendingAptPatient; // YENİ: React State'inden oku
             // 1️⃣ GERÇEK SİSTEM BAĞLANTISI: Ayarlardan varsayılan süreyi çek (Yoksa 30 kullan)
             const defaultDuration = settings?.randevu?.varsayilanSure || "30";
 
@@ -3278,7 +3308,7 @@ Tarih: ...../...../202...
             });
 
             // Kullanıldıktan sonra hafızayı temizle (başka randevulara karışmaması için)
-            window.pendingAptPatient = null;
+            setPendingAptPatient(null); // YENİ: State'i sıfırla
           }
 
           setIsModalOpen(true);
@@ -4569,58 +4599,67 @@ Tarih: ...../...../202...
                   sevenDaysAgo.setDate(now.getDate() - 7);
 
                   // 3. Çok daha akıllı (İçinde geçen kelimeye göre arayan) Klasörleme Sistemi
-                  const fAcil = myPatientsForHome.filter(p => {
-                     const status = (p.lastStatus || "").toLowerCase();
-                     return status.includes("acil") || status.includes("ağrı") || status.includes("kanama");
-                  });
+                  const nowTime = new Date().getTime();
+                  const sevenDaysAgoTime = nowTime - (7 * 24 * 60 * 60 * 1000);
+
+                  // AKILLI FİLTRE MOTORU: Hem manuel etiketleri hem de otomatik koşulları denetler
+                  const checkFolderLogic = (p, folderKey, keywords) => {
+                      const manualStatus = p[folderKey] || "";
+                      if (manualStatus === "Tamamlandı") return false; // Manuel tamamlandıysa gizle
+                      if (manualStatus !== "") return true; // Manuel etiket atanmışsa göster
+                      
+                      const status = (p.lastStatus || "").toLowerCase();
+                      return keywords.some(k => status.includes(k));
+                  };
+
+                  const fAcil = myPatientsForHome.filter(p => checkFolderLogic(p, 'folder_acil', ['acil', 'ağrı', 'kanama']));
                   
-                  const fKontrol = myPatientsForHome.filter(p => {
-                     const status = (p.lastStatus || "").toLowerCase();
-                     return status.includes("kontrol") || status.includes("takip") || status.includes("sonraki");
-                  });
-
+                  const fKontrol = myPatientsForHome.filter(p => checkFolderLogic(p, 'folder_kontrol', ['kontrol', 'takip', 'sonraki']));
+                  
                   const fTedavi = myPatientsForHome.filter(p => {
-                     const status = (p.lastStatus || "").toLowerCase();
-                     return status.includes("tedavi") || status.includes("planlandı") || status.includes("devam") || status.includes("kanal") || status.includes("dolgu") || status.includes("çekim");
+                      const manualStatus = p.folder_tedavi || "";
+                      if (manualStatus === "Tamamlandı") return false;
+                      if (manualStatus !== "") return true;
+
+                      const status = (p.lastStatus || "").toLowerCase();
+                      const hasPlan = p.plannedTreatments && p.plannedTreatments.length > 0;
+                      return hasPlan || status.includes("tedavi") || status.includes("devam") || status.includes("kanal") || status.includes("dolgu") || status.includes("çekim");
                   });
 
-                  const fLab = myPatientsForHome.filter(p => {
-                     const status = (p.lastStatus || "").toLowerCase();
-                     return status.includes("lab") || status.includes("ölçü") || status.includes("prova") || status.includes("protez");
-                  });
+                  const fLab = myPatientsForHome.filter(p => checkFolderLogic(p, 'folder_lab', ['lab', 'ölçü', 'prova', 'protez']));
+                  
+                  const fEvrak = myPatientsForHome.filter(p => checkFolderLogic(p, 'folder_evrak', ['evrak', 'onam', 'röntgen', 'kimlik']));
 
-                  const fEvrak = myPatientsForHome.filter(p => {
-                     const status = (p.lastStatus || "").toLowerCase();
-                     return status.includes("evrak") || status.includes("onam") || status.includes("röntgen") || status.includes("kimlik");
-                  });
-
-                  // YENİ HASTALAR KLASÖRÜ (MÜKEMMELLEŞTİRİLDİ)
                   const fYeni = myPatientsForHome.filter(p => {
-                     // Kural 1: Durumunda "Yeni" yazıyorsa direkt al
-                     if((p.lastStatus || "").toLowerCase().includes("yeni")) return true;
-                     
-                     // Kural 2: Sisteme son 7 gün içinde eklenmişse otomatik olarak al
-                     if(p.date) {
-                         let pDate;
-                         if (p.date.includes(".")) {
-                           const [d, m, y] = p.date.split(".");
-                           pDate = new Date(y, m - 1, d);
-                         } else {
-                           pDate = new Date(p.date);
-                         }
-                         if(pDate >= sevenDaysAgo && pDate <= now) return true;
-                     }
+                      const manualStatus = p.folder_yeni || "";
+                      if (manualStatus === "Tamamlandı") return false;
+                      if (manualStatus !== "") return true;
 
-                     // Kural 3: Geçmişte veya gelecekte hiç randevusu YAZILMAMIŞSA (sadece kaydedilip bırakıldıysa) "Yeni" klasörüne düşsün
-                     let hasApt = false;
-                     if(globalData.appointments) {
-                       Object.values(globalData.appointments).forEach(apts => {
-                         Object.values(apts).forEach(apt => {
-                           if(apt.patientId === p.id || apt.patientName === p.name) hasApt = true;
-                         });
-                       });
-                     }
-                     return !hasApt;
+                      if ((p.lastStatus || "").toLowerCase().includes("yeni")) return true;
+
+                      // Sisteme kayıt tarihini benzersiz ID'sinden (Timestamp) çıkarıyoruz
+                      let creationTime = 0;
+                      if (p.id) {
+                          const parts = p.id.split('_');
+                          if (parts.length >= 2) {
+                              const ts = parseInt(parts[1]);
+                              if (!isNaN(ts) && ts > 1000000000000) creationTime = ts;
+                          }
+                      }
+                      
+                      // Son 7 gün içinde eklenmişse otomatik olarak "Yeni Hastalar"a al
+                      if (creationTime >= sevenDaysAgoTime && creationTime <= nowTime) return true;
+
+                      // Hiç randevusu yoksa yeni hasta kabul et
+                      let hasApt = false;
+                      if(globalData.appointments) {
+                        Object.values(globalData.appointments).forEach(apts => {
+                          Object.values(apts).forEach(apt => {
+                            if(apt.patientId === p.id || apt.patientName === p.name) hasApt = true;
+                          });
+                        });
+                      }
+                      return !hasApt;
                   });
 
                   // 4. Dosya Masası (Folders) Dizisi ve Kullanıcı Ayarlarına Göre Gizleme/Gösterme
@@ -4724,46 +4763,80 @@ Tarih: ...../...../202...
                           <div className="space-y-2 overflow-y-auto max-h-[450px] custom-scrollbar pr-1.5">
                             {displayedData.length > 0 ? (
                               displayedData.map((pt, i) => {
-                                // YENİ: TEK TIKLA DURUM GÜNCELLEME (QUICK STATUS UPDATE)
+                                // 6 KLASÖR İÇİN ENTEGRE DURUM GÜNCELLEME (QUICK STATUS UPDATE)
                                 let specificStatus = null;
                                 let badgeColor = "";
                                 let options = [];
                                 let fieldToUpdate = "";
                                 
-                                if(activeFolderId === "acil") { 
+                                if (activeFolderId === "acil") { 
                                   specificStatus = pt.folder_acil || ""; 
                                   fieldToUpdate = "folder_acil";
-                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800" : "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-400 dark:border-rose-800"; 
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-400"; 
                                   options = [
                                     {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
                                     {val: "Aktif Acil", label: "🔴 Aktif Acil Durum"},
                                     {val: "Ağrı Takibi", label: "🟠 Ağrı Takibi"},
                                     {val: "İlaç Kullanıyor", label: "🟡 İlaç Kullanıyor"},
-                                    {val: "", label: "🗑️ Klasörden Kaldır"}
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
                                   ];
-                                }
-                                else if(activeFolderId === "lab") { 
-                                  specificStatus = pt.folder_lab || ""; 
-                                  fieldToUpdate = "folder_lab";
-                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800" : "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400 dark:border-purple-800"; 
+                                } else if (activeFolderId === "kontrol") { 
+                                  specificStatus = pt.folder_kontrol || ""; 
+                                  fieldToUpdate = "folder_kontrol";
+                                  badgeColor = (specificStatus === "Tamamlandı" || specificStatus === "Gizle") ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400"; 
                                   options = [
                                     {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Kontrol Bekliyor", label: "⏳ Kontrol Bekliyor"},
+                                    {val: "Randevu Verildi", label: "📅 Randevu Verildi"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "tedavi") { 
+                                  specificStatus = pt.folder_tedavi || ""; 
+                                  fieldToUpdate = "folder_tedavi";
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Tedavisi Sürüyor", label: "🦷 Tedavisi Sürüyor"},
+                                    {val: "Planlama Aşamasında", label: "📋 Planlama Aşamasında"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "lab") { 
+                                  specificStatus = pt.folder_lab || ""; 
+                                  fieldToUpdate = "folder_lab";
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
                                     {val: "Ölçü Alınacak", label: "⏳ Ölçü Alınacak"},
                                     {val: "Laboratuvarda", label: "🧪 Laboratuvarda"},
                                     {val: "Klinikte (Provaya Hazır)", label: "🏢 Klinikte (Provaya Hazır)"},
-                                    {val: "", label: "🗑️ Klasörden Kaldır"}
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
                                   ];
-                                }
-                                else if(activeFolderId === "evrak") { 
+                                } else if (activeFolderId === "evrak") { 
                                   specificStatus = pt.folder_evrak || ""; 
                                   fieldToUpdate = "folder_evrak";
-                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400 dark:border-emerald-800" : "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600"; 
+                                  badgeColor = (specificStatus === "Tamamlandı" || specificStatus === "Gizle") ? "bg-slate-100 text-slate-500 border-slate-300 dark:bg-slate-700 dark:text-slate-400" : "bg-emerald-100 text-emerald-700 border-emerald-200"; 
                                   options = [
                                     {val: "Tamamlandı", label: "✅ Evraklar Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
                                     {val: "Onam Formu Eksik", label: "📄 Onam Formu Eksik"},
                                     {val: "Röntgen Bekliyor", label: "🦴 Röntgen Bekliyor"},
                                     {val: "Kimlik/Pasaport Eksik", label: "🪪 Kimlik/Pasaport Eksik"},
-                                    {val: "", label: "🗑️ Klasörden Kaldır"}
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "yeni") { 
+                                  specificStatus = pt.folder_yeni || ""; 
+                                  fieldToUpdate = "folder_yeni";
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ İşlem Gördü / Tam"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Randevu Bekliyor", label: "⏳ Randevu Bekliyor"},
+                                    {val: "Ulaşılamadı", label: "☎️ Ulaşılamadı"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
                                   ];
                                 }
 
@@ -4991,13 +5064,16 @@ Tarih: ...../...../202...
                       const isPastDate = selectedStart < todayStart;
                       const isToday = selectedStart === todayStart;
                       const slotHour = parseInt(slot.split(":")[0]);
+                      const slotMin = parseInt(slot.split(":")[1]);
+const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slotHour === now.getHours() && slotMin < now.getMinutes())));
                       
                       // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Günlük)
                       const dayName = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
-                      const currentFormattedDate = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
-                      const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || (settings?.calisma?.ozelGunler || []).some(og => og.tarih === currentFormattedDate);
+                      const yyyy_mm_dd = formatDateKey(selectedDate);
+                      const dd_mm_yyyy = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
                       
-                      const isPastSlot = isPastDate || (isToday && slotHour < now.getHours()) || isDayClosed;
+                      const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || 
+                        (settings?.calisma?.ozelGunler || []).some(og => og.tarih === yyyy_mm_dd || og.tarih === dd_mm_yyyy);
 
                       let pId = apt
                         ? apt.patientName.toLowerCase().replace(/\s+/g, "")
@@ -5250,13 +5326,16 @@ Tarih: ...../...../202...
                           const isPastDate = dayStart < todayStart;
                           const isToday = dayStart === todayStart;
                           const slotHour = parseInt(time.split(":")[0]);
+                          const slotMin = parseInt(time.split(":")[1]);
+const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slotHour === now.getHours() && slotMin < now.getMinutes())));
                           
                           // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Haftalık)
                           const dayName = DAYS[d.getDay() === 0 ? 6 : d.getDay() - 1];
-                          const currentFormattedDate = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-                          const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || (settings?.calisma?.ozelGunler || []).some(og => og.tarih === currentFormattedDate);
+                          const yyyy_mm_dd = formatDateKey(d);
+                          const dd_mm_yyyy = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
                           
-                          const isPastSlot = isPastDate || (isToday && slotHour < now.getHours()) || isDayClosed;
+                          const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || 
+                            (settings?.calisma?.ozelGunler || []).some(og => og.tarih === yyyy_mm_dd || og.tarih === dd_mm_yyyy);
 
                           let anamnesis = apt
                             ? globalData.patientsDb?.[
@@ -5773,13 +5852,16 @@ Tarih: ...../...../202...
                         const isPastDate = selectedStart < todayStart;
                         const isToday = selectedStart === todayStart;
                         const slotHour = parseInt(time.split(":")[0]);
+                        const slotMin = parseInt(time.split(":")[1]);
+const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slotHour === now.getHours() && slotMin < now.getMinutes())));
                         
                         // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Liste)
                         const dayName = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
-                        const currentFormattedDate = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
-                        const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || (settings?.calisma?.ozelGunler || []).some(og => og.tarih === currentFormattedDate);
+                        const yyyy_mm_dd = formatDateKey(selectedDate);
+                        const dd_mm_yyyy = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
                         
-                        const isPastSlot = isPastDate || (isToday && slotHour < now.getHours()) || isDayClosed;
+                        const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || 
+                          (settings?.calisma?.ozelGunler || []).some(og => og.tarih === yyyy_mm_dd || og.tarih === dd_mm_yyyy);
 
                         let pId = apt
                           ? apt.patientName.toLowerCase().replace(/\s+/g, "")
@@ -7397,10 +7479,11 @@ const renderSettings = () => {
                            <div>
                              <label className="block text-[11px] font-bold text-slate-500 uppercase mb-2">Oturum Zaman Aşımı</label>
                              <select value={currentData.guvenlik.oturumZamanAsimi} onChange={e => handleSettingChange('guvenlik', 'oturumZamanAsimi', e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold outline-none cursor-pointer dark:bg-slate-800 dark:text-white dark:border-slate-600">
-                               <option value="30">30 Dakika Hareketsizlikte Çıkış Yap</option>
-                               <option value="120">2 Saat Hareketsizlikte Çıkış Yap</option>
-                               <option value="480">Mesai Sonunda Çıkış Yap</option>
-                             </select>
+                              <option value="1">⚡ 1 Dakika (Test İçin Hızlı)</option>
+                              <option value="30">30 Dakika Hareketsizlikte Çıkış Yap</option>
+                              <option value="120">2 Saat Hareketsizlikte Çıkış Yap</option>
+                              <option value="480">8 Saat (Mesai Boyunca Açık Kal)</option>
+                           </select>
                            </div>
                            <label className="flex items-center justify-between cursor-pointer border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
                              <div>
@@ -7475,21 +7558,23 @@ const renderSettings = () => {
                                    showNotification("Lütfen bir tarih seçin", "error");
                                    return;
                                  }
-                                 const [y, m, d] = el.value.split('-');
-                                 const formatted = `${d}.${m}.${y}`;
-                                 const guncelAyarlar = settingsDraft || settings;
-                                 const mevcutOzel = guncelAyarlar?.calisma?.ozelGunler || [];
-                                 
-                                 // Aynı tarih daha önce eklendiyse engelle
-                                 if(mevcutOzel.some(og => og.tarih === formatted)){
-                                   showNotification("Bu tarih zaten ekli!", "error");
-                                   return;
-                                 }
+                                 const rawDate = el.value; // Her zaman YYYY-MM-DD olarak kalır
+                                  const guncelAyarlar = settingsDraft || settings;
+                                  const mevcutOzel = guncelAyarlar?.calisma?.ozelGunler || [];
+                                  
+                                  // Aynı tarih daha önce eklendiyse engelle
+                                  if(mevcutOzel.some(og => og.tarih === rawDate)){
+                                    showNotification("Bu tarih zaten ekli!", "error");
+                                    return;
+                                  }
 
-                                 const yeniOzel = [...mevcutOzel, { tarih: formatted, durum: "Kapalı" }];
-                                 handleSettingChange('calisma', 'ozelGunler', yeniOzel);
-                                 el.value = "";
-                                 showNotification(`${formatted} tarihi kapalı olarak eklendi`, "success");
+                                  const yeniOzel = [...mevcutOzel, { tarih: rawDate, durum: "Kapalı" }];
+                                  handleSettingChange('calisma', 'ozelGunler', yeniOzel);
+                                  el.value = "";
+                                  
+                                  // Sadece ekrana bildirim basarken Türkçeye çevir
+                                  const displayDate = rawDate.split('-').reverse().join('.');
+                                  showNotification(`${displayDate} tarihi kapalı olarak eklendi`, "success");
                                }} className="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-amber-600 shadow-sm transition-colors">Ekle</button>
                              </div>
                           </div>
@@ -7498,7 +7583,10 @@ const renderSettings = () => {
                              {(currentData.calisma.ozelGunler || []).length > 0 ? (
                                (currentData.calisma.ozelGunler || []).map((og, idx) => (
                                   <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-amber-100 dark:border-amber-800/50 shadow-sm">
-                                    <span className="text-[12px] font-bold dark:text-white"><i className="fa-regular fa-calendar mr-1 text-slate-400"></i> {og.tarih}</span>
+                                    <span className="text-[12px] font-bold dark:text-white">
+                                      <i className="fa-regular fa-calendar mr-1 text-slate-400"></i> 
+                                      {og.tarih.includes('-') ? og.tarih.split('-').reverse().join('.') : og.tarih}
+                                    </span>
                                     <div className="flex items-center gap-2">
                                       <span className="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded font-bold dark:bg-rose-900/40 dark:text-rose-400">Tam Gün Kapalı</span>
                                       <button type="button" onClick={() => {
@@ -7933,7 +8021,7 @@ const renderSettings = () => {
               </div>
 
               {/* SABİT KAYDETME ÇUBUĞU (DEĞİŞİKLİK VARSA ÇIKAR) */}
-              {settingsDraft && (
+              {settingsDraft && JSON.stringify(settings) !== JSON.stringify(settingsDraft) && (
                 <div className="fixed bottom-24 sm:bottom-8 left-0 right-0 mx-auto w-[92%] sm:w-max bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-5 py-3.5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-row items-center justify-between gap-4 animate-[modalPop_0.3s_ease-out_forwards] z-[9999] border border-white/10">
                    <div className="flex items-center gap-2 hidden sm:flex">
                      <i className="fa-solid fa-circle-exclamation text-amber-400 text-lg"></i>
@@ -9456,71 +9544,149 @@ const renderSettings = () => {
             </main>
 
             {isPasswordModalOpen && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2">
-                <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-pop">
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
-                    <h3 className="font-black text-[13px] uppercase tracking-wider">
-                      <i className="fa-solid fa-key mr-2"></i>Şifre Değiştir
-                    </h3>
-
+              <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[350] p-3 animate-fadeIn" onClick={() => setIsPasswordModalOpen(false)}>
+                <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-pop border border-slate-100 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
+                  
+                  {/* Başlık Alanı */}
+                  <div className="px-4 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                    <div className="flex items-center gap-2.5 relative z-10">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm shadow-inner">
+                        <i className="fa-solid fa-key"></i>
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm tracking-wide">Hesap Şifresini Değiştir</h3>
+                        <p className="text-[10px] text-indigo-100 font-medium">Güvenliğiniz için güçlü bir şifre seçin</p>
+                      </div>
+                    </div>
                     <button
                       onClick={() => setIsPasswordModalOpen(false)}
-                      className="text-slate-400 hover:text-white"
+                      className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition backdrop-blur-md relative z-10"
                     >
-                      <i className="fa-solid fa-xmark text-base"></i>
+                      <i className="fa-solid fa-xmark text-sm"></i>
                     </button>
                   </div>
 
-                  <form
-                    onSubmit={handleChangePassword}
-                    className="p-3 space-y-2"
-                  >
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
-                        Eski Şifre
-                      </label>
-
-                      <input
-                        required
-                        type="password"
-                        value={passwordForm.oldPass}
-                        onChange={(e) =>
-                          setPasswordForm({
-                            ...passwordForm,
-
-                            oldPass: e.target.value,
-                          })
-                        }
-                        className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
-                      />
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (passwordForm.newPass !== passwordForm.confirmPass) {
+                      showNotification("Yeni şifreler birbiriyle uyuşmuyor!", "error");
+                      return;
+                    }
+                    if (passwordForm.newPass.length < 6) {
+                      showNotification("Yeni şifre en az 6 karakter olmalıdır!", "error");
+                      return;
+                    }
+                    handleChangePassword(e);
+                  }} className="p-4 space-y-3.5">
+                    
+                    {/* Eski Şifre */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Mevcut Şifre</label>
+                      <div className="relative group">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <i className="fa-solid fa-lock text-xs"></i>
+                        </span>
+                        <input
+                          required
+                          type={showPassState.old ? "text" : "password"}
+                          value={passwordForm.oldPass}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, oldPass: e.target.value })}
+                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:text-white transition-all shadow-inner"
+                          placeholder="Mevcut şifrenizi girin"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassState({ ...showPassState, old: !showPassState.old })}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-indigo-600 transition"
+                        >
+                          <i className={`fa-solid ${showPassState.old ? "fa-eye-slash" : "fa-eye"} text-xs`}></i>
+                        </button>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
-                        Yeni Şifre
-                      </label>
+                    {/* Yeni Şifre */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre</label>
+                      <div className="relative group">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <i className="fa-solid fa-key text-xs"></i>
+                        </span>
+                        <input
+                          required
+                          type={showPassState.new ? "text" : "password"}
+                          value={passwordForm.newPass}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, newPass: e.target.value })}
+                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:text-white transition-all shadow-inner"
+                          placeholder="En az 6 karakter"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassState({ ...showPassState, new: !showPassState.new })}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-indigo-600 transition"
+                        >
+                          <i className={`fa-solid ${showPassState.new ? "fa-eye-slash" : "fa-eye"} text-xs`}></i>
+                        </button>
+                      </div>
 
-                      <input
-                        required
-                        type="password"
-                        value={passwordForm.newPass}
-                        onChange={(e) =>
-                          setPasswordForm({
-                            ...passwordForm,
-
-                            newPass: e.target.value,
-                          })
-                        }
-                        className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
-                      />
+                      {/* Canlı Şifre Güç Barı */}
+                      {passwordForm.newPass && (
+                        <div className="pt-1 space-y-1 animate-fadeIn">
+                          <div className="flex gap-1 h-1 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className={`h-full transition-all duration-300 ${passwordForm.newPass.length < 6 ? 'w-1/3 bg-rose-500' : passwordForm.newPass.length < 10 ? 'w-2/3 bg-amber-500' : 'w-full bg-emerald-500'}`}></div>
+                          </div>
+                          <div className="text-[10px] font-bold text-right">
+                            {passwordForm.newPass.length < 6 ? <span className="text-rose-500">Zayıf Şifre</span> : passwordForm.newPass.length < 10 ? <span className="text-amber-500">Orta Güçte</span> : <span className="text-emerald-500">Güçlü Şifre</span>}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    <button
-                      type="submit"
-                      className="w-full py-2 bg-indigo-600 text-white rounded-xl font-black mt-1.5 shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition"
-                    >
-                      Güncelle
-                    </button>
+                    {/* Yeni Şifre Tekrar */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre (Tekrar)</label>
+                      <div className="relative group">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <i className="fa-solid fa-check-double text-xs"></i>
+                        </span>
+                        <input
+                          required
+                          type={showPassState.confirm ? "text" : "password"}
+                          value={passwordForm.confirmPass}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, confirmPass: e.target.value })}
+                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:text-white transition-all shadow-inner"
+                          placeholder="Yeni şifreyi tekrar girin"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassState({ ...showPassState, confirm: !showPassState.confirm })}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-indigo-600 transition"
+                        >
+                          <i className={`fa-solid ${showPassState.confirm ? "fa-eye-slash" : "fa-eye"} text-xs`}></i>
+                        </button>
+                      </div>
+                      {passwordForm.confirmPass && passwordForm.newPass !== passwordForm.confirmPass && (
+                        <div className="text-[10px] font-bold text-rose-500 mt-0.5">Şifreler eşleşmiyor!</div>
+                      )}
+                    </div>
+
+                    {/* Aksiyon Butonları */}
+                    <div className="pt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsPasswordModalOpen(false)}
+                        className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 rounded-xl font-bold text-xs transition shadow-sm"
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-[2] py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5"
+                      >
+                        Şifreyi Güncelle <i className="fa-solid fa-check ml-1"></i>
+                      </button>
+                    </div>
+
                   </form>
                 </div>
               </div>
@@ -10217,10 +10383,10 @@ const renderSettings = () => {
                   <div
                     className={
                       isSplitMode
-                        ? `fixed top-16 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full sm:w-[360px] xl:w-[400px] ${
+                        ? `fixed top-16 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full lg:w-[380px] xl:w-[450px] ${
                             isSidebarOpen
                               ? "left-0 lg:left-[224px]"
-                              : "left-0 sm:left-[68px]"
+                              : "left-0 lg:left-[68px]"
                           }`
                         : "fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 transition-all duration-300"
                     }
@@ -10778,7 +10944,7 @@ const renderSettings = () => {
                                   type="button"
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    window.pendingAptPatient = patientForm; // Hasta bilgisini hafızaya al
+                                    setPendingAptPatient(patientForm); // YENİ: React State'e kaydet
                                     setIsPatientModalOpen(false);
                                     setActiveTab("calendar");
                                     setTimeout(() => {
