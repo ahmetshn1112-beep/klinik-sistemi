@@ -373,6 +373,47 @@ const useFirebase = () => {
             return;
           }
 
+          // YENİ: Tam Protez (Tek Çene) Akıllı Seçim Motoru
+          if (activePlanTreatment === "Tam Protez (Tek Çene)") {
+            const tInt = parseInt(toothNo);
+            const isUpperClick = tInt < 30 || (tInt >= 50 && tInt < 70);
+            const targetJaw = isUpperClick ? "Üst Çene" : "Alt Çene";
+
+            const exists = patientForm.plannedTreatments?.some(
+              (t) => t.tooth === targetJaw && t.treatment === activePlanTreatment
+            );
+
+            if (exists) {
+              setPatientForm((prev) => ({
+                ...prev,
+                plannedTreatments: prev.plannedTreatments.filter(
+                  (t) => !(t.tooth === targetJaw && t.treatment === activePlanTreatment)
+                ),
+              }));
+              showNotification(`${targetJaw} bölgesinden Tam Protez çıkarıldı.`, "error");
+              return;
+            }
+
+            const userPricing = globalData.pricingDb?.[patientForm?.addedBy] || globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+            const txPrice = userPricing?.[activePlanTreatment] !== undefined ? parseFloat(userPricing[activePlanTreatment]) : DEFAULT_PRICING[activePlanTreatment] || 0;
+
+            const newTx = {
+              id: Date.now() + Math.random().toString(),
+              tooth: targetJaw,
+              treatment: activePlanTreatment,
+              date: Date.now(),
+              price: txPrice,
+            };
+
+            setPatientForm((prev) => ({
+              ...prev,
+              plannedTreatments: [...(prev.plannedTreatments || []), newTx],
+            }));
+
+            showNotification(`${targetJaw} için Tam Protez planlandı. (${txPrice} ₺)`);
+            return;
+          }
+
           // YENİ: Akıllı 8 Numara (Yirmilik) Çekimi Kontrolü
           let actualPlanTreatment = activePlanTreatment;
           if (
@@ -596,6 +637,9 @@ const useFirebase = () => {
           const hasImplant = treatments.some((t) =>
             t.treatment.includes("İmplant")
           );
+          const hasGraftedImplant = treatments.some((t) =>
+            t.treatment.includes("İmplant (Greftli)")
+          );
           const hasFilling = treatments.some((t) =>
             t.treatment.includes("Dolgu")
           );
@@ -611,10 +655,36 @@ const useFirebase = () => {
             t.treatment.includes("Detertraj")
           );
           const hasCrown = treatments.some((t) => t.treatment.includes("Kron"));
+          // YENİ: Profesyonel Zirkonyum ve Vener Algılayıcıları
+          const hasVeneer = treatments.some((t) => t.treatment.includes("Vener"));
+          const hasZirconium = treatments.some((t) => t.treatment.includes("Zirkonyum"));
 
           const hasWholeJawDetertraj = patientForm.plannedTreatments?.some(
             (t) => t.tooth === "Tüm Çene" && t.treatment === "Detertraj"
           );
+
+          // YENİ: Tam Protez Görünüm Kontrolü
+          const allJawTreatments = allTreatmentsSorted.filter((x) => {
+             const targetJaw = isUpper ? "Üst Çene" : "Alt Çene";
+             if (x.tooth !== targetJaw) return false;
+             if (timelineIndex === -1) return true;
+             const txDateStr = new Date(x.date).toLocaleDateString("tr-TR");
+             const txIndex = uniqueDates.indexOf(txDateStr);
+             return txIndex <= timelineIndex;
+          });
+          const isFullDenture = allJawTreatments.some(t => t.treatment === "Tam Protez (Tek Çene)");
+
+          // 1. ADIM: Dişin durum ve tanılarını (Diagnoses) çekiyoruz
+          const toothRecord = patientForm.toothRecords?.[toothNo.toString()] || { status: "Sağlıklı", diagnoses: [] };
+          const tStatus = toothRecord.status;
+          const tDiags = toothRecord.diagnoses || [];
+
+          // Klinik teşhis bayrakları (Sıradaki adımlarda görselleştireceğiz)
+          const isImpacted = tStatus === "Gömülü" || treatments.some(t => t.treatment.includes("Gömülü"));
+          const hasAbscess = tDiags.some(d => d.includes("Apse") || d.includes("Apikal Periodontitis") || d.includes("Lezyon"));
+          const hasInitialCaries = tStatus === "Başlangıç Çürüğü" || tDiags.includes("Başlangıç Çürüğü");
+          const hasDeepCaries = tStatus === "Kavitasyonlu Çürük" || tDiags.includes("Aşırı Madde Kaybı") || tDiags.includes("Sekonder Çürük");
+          const hasPulpitis = tDiags.some(d => d.includes("Pulpitis") || d.includes("Nekroz"));
 
           let heatMapClass = "";
           if (hasExtraction || hasImplant) heatMapClass = "heatmap-danger";
@@ -623,7 +693,15 @@ const useFirebase = () => {
 
           const anatomy = getToothAnatomy(toothNo);
 
-          const transform = isUpper ? "" : "scale(1, -1) translate(0, -140)";
+          // Gömülü dişler için rotasyon yerine küçültme ve diş etine gömme (oklüzalden uzaklaştırma) efekti
+          let baseTransform = isUpper ? "" : "scale(1, -1) translate(0, -140)";
+          if (isImpacted) {
+             // scale(0.75) ile boyut küçülüyor.
+             // translate(7.5, -25) ile hem X ekseninde ortalanıyor hem de Y ekseninde oklüzalden uzaklaşıyor (kök tarafına gömülüyor).
+             const impactTransform = "translate(7.5, -25) scale(0.75)";
+             baseTransform = `${baseTransform} ${impactTransform}`;
+          }
+          const transform = baseTransform;
 
           return (
             <div
@@ -669,203 +747,194 @@ const useFirebase = () => {
                 className="w-full h-[70px] sm:h-[90px] md:h-[110px] drop-shadow-md overflow-visible"
               >
                 <defs>
-                  <linearGradient
-                    id={`rootGrad-${toothNo}`}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="0%"
-                  >
+                  {/* Normal Kök Gradyanı */}
+                  <linearGradient id={`rootGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" stopColor="#dcb892" />
-
                     <stop offset="50%" stopColor="#fef3c7" />
-
                     <stop offset="100%" stopColor="#dcb892" />
                   </linearGradient>
 
-                  <linearGradient
-                    id={`crownGrad-${toothNo}`}
-                    x1="0%"
-                    y1="0%"
-                    x2="100%"
-                    y2="100%"
-                  >
+                  {/* Sağlıklı Diş Kuron Gradyanı */}
+                  <linearGradient id={`crownGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#ffffff" />
-
                     <stop offset="80%" stopColor="#f8fafc" />
-
-                    <stop offset="100%" stopColor="#cbd5e1" />
+                    <stop offset="100%" stopColor="#e2e8f0" />
                   </linearGradient>
 
-                  <pattern
-                    id="crownPattern"
-                    width="6"
-                    height="6"
-                    patternUnits="userSpaceOnUse"
-                    patternTransform="rotate(45)"
-                  >
-                    <line
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="6"
-                      stroke="#fbbf24"
-                      strokeWidth="2"
-                    />
-                  </pattern>
+                  {/* Standart Porselen Kron Gradyanı (Metalik/Gri Yansıma) */}
+                  <linearGradient id="porcelainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#f1f5f9" />
+                    <stop offset="50%" stopColor="#cbd5e1" />
+                    <stop offset="100%" stopColor="#94a3b8" />
+                  </linearGradient>
+
+                  {/* PROFESYONEL: Zirkonyum Kron Gradyanı (Belirgin Premium İndigo/Mavi) */}
+                  <linearGradient id="zirconiumGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#e0e7ff" />
+                    <stop offset="40%" stopColor="#a5b4fc" />
+                    <stop offset="70%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#6366f1" />
+                  </linearGradient>
+
+                  {/* PROFESYONEL: Estetik Dolgu / Kompozit Şeffaflığı */}
+                  <linearGradient id="compositeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="rgba(255, 255, 255, 0.95)" />
+                    <stop offset="60%" stopColor="rgba(224, 242, 254, 0.8)" />
+                    <stop offset="100%" stopColor="rgba(186, 230, 253, 0.5)" />
+                  </linearGradient>
+
+                  {/* Apse / Lezyon Filtresi (Radial Blur) */}
+                  <radialGradient id="abscessGrad">
+                    <stop offset="0%" stopColor="rgba(225, 29, 72, 0.9)" />
+                    <stop offset="60%" stopColor="rgba(159, 18, 57, 0.6)" />
+                    <stop offset="100%" stopColor="transparent" />
+                  </radialGradient>
+
+                  {/* 3D Derinlik ve Gölgelendirme Filtresi */}
+                  <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodOpacity="0.35" />
+                  </filter>
+
+                  {/* 3D Titanyum Yüzey Gradyanı */}
+                  <linearGradient id={`titaniumGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#94a3b8" />
+                    <stop offset="30%" stopColor="#f8fafc" />
+                    <stop offset="70%" stopColor="#64748b" />
+                    <stop offset="100%" stopColor="#334155" />
+                  </linearGradient>
+                  
+                  {/* DAHA BELİRGİN Greft (Kemik Tozu) Bulutu Gradyanı */}
+                  <radialGradient id={`graftGrad-${toothNo}`}>
+                    <stop offset="0%" stopColor="rgba(250, 204, 21, 0.85)" />
+                    <stop offset="60%" stopColor="rgba(253, 224, 71, 0.6)" />
+                    <stop offset="100%" stopColor="transparent" />
+                  </radialGradient>
                 </defs>
 
                 <g transform={transform}>
-                  {hasImplant ? (
-                    <g>
-                      <rect
-                        x="23"
-                        y="10"
-                        width="14"
-                        height="70"
-                        fill="#94a3b8"
-                        rx="3"
-                      />
-
-                      <line
-                        x1="18"
-                        y1="20"
-                        x2="42"
-                        y2="25"
-                        stroke="#475569"
-                        strokeWidth="2.5"
-                      />
-
-                      <line
-                        x1="18"
-                        y1="40"
-                        x2="42"
-                        y2="45"
-                        stroke="#475569"
-                        strokeWidth="2.5"
-                      />
-
-                      <line
-                        x1="18"
-                        y1="60"
-                        x2="42"
-                        y2="65"
-                        stroke="#475569"
-                        strokeWidth="2.5"
-                      />
+                  {isFullDenture ? (
+                    <g filter="url(#drop-shadow)">
+                      {/* Pembe Akrilik Protez Kaidesi (Kökleri kapatan estetik diş eti) */}
+                      <path d="M -2,85 Q 30,110 62,85 L 55,60 Q 30,75 5,60 Z" fill="#ec4899" stroke="#be185d" strokeWidth="1" opacity="0.95" />
+                      
+                      {/* Yapay Porselen/Akrilik Diş (Oklüzale hizalanmış) */}
+                      <path d={anatomy.crownPath} fill="url(#porcelainGrad)" stroke="#cbd5e1" strokeWidth="1.2" />
+                      
+                      {/* Diş ve Kaide Birleşim Hattı */}
+                      <path d="M 10,83 Q 30,76 50,83" fill="none" stroke="#9d174d" strokeWidth="1.5" opacity="0.7" />
                     </g>
                   ) : (
-                    anatomy.rootPaths.map((path, i) => (
-                      <path
-                        key={i}
-                        d={path}
-                        fill={`url(#rootGrad-${toothNo})`}
-                        stroke="#c19b76"
-                        strokeWidth="1"
-                        opacity="0.95"
-                      />
-                    ))
+                    <>
+                      {/* NORMAL DİŞ VE İMPLANT ÇİZİMLERİ (Tam Protez Yoksa) */}
+                      {hasImplant ? (
+                        <g filter="url(#drop-shadow)">
+                          {/* GREFT (Kemik Tozu) Simülasyonu */}
+                          {hasGraftedImplant && (
+                            <g>
+                              <ellipse cx="30" cy="40" rx="22" ry="36" fill={`url(#graftGrad-${toothNo})`} />
+                              {/* Partiküller */}
+                              <circle cx="15" cy="25" r="2.5" fill="#facc15" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="44" cy="30" r="3" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="12" cy="45" r="3.5" fill="#eab308" stroke="#ca8a04" strokeWidth="0.5" opacity="0.8" />
+                              <circle cx="47" cy="50" r="2.5" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="16" cy="60" r="2.5" fill="#facc15" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="42" cy="65" r="3" fill="#eab308" stroke="#ca8a04" strokeWidth="0.5" opacity="0.8" />
+                              <circle cx="30" cy="12" r="2.5" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                            </g>
+                          )}
+
+                          {/* İMPLANT GÖVDESİ (Titanyum Fikstür) */}
+                          <rect x="25" y="70" width="10" height="12" fill={`url(#titaniumGrad-${toothNo})`} stroke="#1e293b" strokeWidth="0.5" />
+                          <path d="M 21,25 L 21,70 L 39,70 L 39,25 L 34,10 L 26,10 Z" fill={`url(#titaniumGrad-${toothNo})`} stroke="#0f172a" strokeWidth="1" />
+                          <path d="M 21,25 L 39,28 M 21,35 L 39,38 M 21,45 L 39,48 M 21,55 L 39,58 M 21,65 L 39,68" stroke="#0f172a" strokeWidth="1.5" opacity="0.8" />
+                          <path d="M 21,28 L 39,31 M 21,38 L 39,41 M 21,48 L 39,51 M 21,58 L 39,61" stroke="#cbd5e1" strokeWidth="0.5" opacity="0.6" />
+                        </g>
+                      ) : (
+                        anatomy.rootPaths.map((path, i) => (
+                          <path key={i} d={path} fill={`url(#rootGrad-${toothNo})`} stroke="#c19b76" strokeWidth="1" opacity="0.95" />
+                        ))
+                      )}
+
+                      {hasCrown ? (
+                        <g>
+                          <path d={anatomy.crownPath} fill={hasZirconium ? "url(#zirconiumGrad)" : "url(#porcelainGrad)"} stroke={hasZirconium ? "#4f46e5" : "#475569"} strokeWidth="1.5" filter="url(#drop-shadow)" />
+                          {hasZirconium && ( <path d="M 20,85 Q 30,110 40,85" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" /> )}
+                          {!hasZirconium && ( <path d={anatomy.crownPath} fill="none" stroke="#334155" strokeWidth="2.5" opacity="0.8" /> )}
+                        </g>
+                      ) : (
+                        <path d={anatomy.crownPath} fill={`url(#crownGrad-${toothNo})`} stroke="#94a3b8" strokeWidth="0.5" />
+                      )}
+
+                      {hasVeneer && !hasCrown && ( <path d={anatomy.crownPath} fill="url(#compositeGrad)" stroke="#7dd3fc" strokeWidth="1.2" opacity="0.9" filter="url(#drop-shadow)" /> )}
+
+                      {hasFilling && !hasCrown && !hasVeneer && (
+                        <g filter="url(#drop-shadow)">
+                          <path d="M 23,105 Q 30,112 37,105 Q 39,112 35,116 Q 30,113 25,116 Q 21,112 23,105 Z" fill="#ef4444" stroke="#991b1b" strokeWidth="0.5" opacity="0.9" />
+                          <path d="M 26,108 Q 30,111 34,108" fill="none" stroke="#7f1d1d" strokeWidth="1" opacity="0.8" />
+                        </g>
+                      )}
+
+                      {hasInitialCaries && !hasCrown && !hasVeneer && !hasFilling && (
+                        <g opacity="0.8">
+                          <circle cx="27" cy="100" r="1.5" fill="#a16207" />
+                          <circle cx="33" cy="102" r="2" fill="#854d0e" />
+                          <circle cx="29" cy="105" r="1" fill="#713f12" />
+                        </g>
+                      )}
+
+                      {hasDeepCaries && !hasCrown && !hasVeneer && !hasFilling && (
+                        <g filter="url(#drop-shadow)"><path d="M 22,98 Q 30,105 38,98 Q 35,110 30,112 Q 25,110 22,98 Z" fill="#422006" stroke="#1c1917" strokeWidth="0.5" opacity="0.9" /></g>
+                      )}
+
+                      {hasPulpitis && !hasCanal && ( <path d="M 28,105 Q 30,80 30,60" fill="none" stroke="#ef4444" strokeWidth="2" strokeDasharray="2,2" opacity="0.8" /> )}
+
+                      {hasAbscess && anatomy.canalLines.map((line, i) => ( <circle key={`abscess-${i}`} cx={line.x1} cy={line.y1 - 2} r="6" fill="url(#abscessGrad)" className="animate-pulse opacity-80" /> ))}
+
+                      {hasCanal && anatomy.canalLines.map((line, i) => (
+                        <g key={`canal-${i}`} filter="url(#drop-shadow)">
+                          <polygon points={`${line.x1 - 0.8},${line.y1} ${line.x1 + 0.8},${line.y1} ${line.x2 + 2.5},80 ${line.x2 - 2.5},80`} fill="#f43f5e" stroke="#be123c" strokeWidth="0.5" opacity="0.95" />
+                          <circle cx={line.x1} cy={line.y1} r="1" fill="#fb7185" />
+                        </g>
+                      ))}
+
+                      {/* PROFESYONEL: Kanal Yenileme (İçi mor dolgulu, belirgin) */}
+                      {hasRetreatment && !hasCanal && anatomy.canalLines.map((line, i) => ( 
+                        <g key={`retreat-${i}`} filter="url(#drop-shadow)">
+                          <polygon points={`${line.x1 - 1},${line.y1} ${line.x1 + 1},${line.y1} ${line.x2 + 3},80 ${line.x2 - 3},80`} fill="#c084fc" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="3,1" opacity="0.95" /> 
+                          <circle cx={line.x1} cy={line.y1} r="1.5" fill="#9333ea" />
+                        </g>
+                      ))}
+                      
+                      {/* Normal kanalın üzerine yenileme eklendiğinde (Saran kalın çerçeve) */}
+                      {hasRetreatment && hasCanal && anatomy.canalLines.map((line, i) => ( 
+                        <polygon key={`retreat-over-${i}`} points={`${line.x1 - 1.5},${line.y1 - 1} ${line.x1 + 1.5},${line.y1 - 1} ${line.x2 + 3.5},81 ${line.x2 - 3.5},81`} fill="none" stroke="#6d28d9" strokeWidth="2.5" strokeDasharray="4,2" opacity="0.9" filter="url(#drop-shadow)" /> 
+                      ))}
+
+                      {hasCleaning && (
+                        <g>
+                          <path d="M 15,85 Q 30,77 45,85" fill="none" stroke="#f472b6" strokeWidth="0.8" opacity="0.6" />
+                          <path d="M 15,85 Q 30,77 45,85" fill="none" stroke="#06b6d4" strokeWidth="3.5" strokeLinecap="round" opacity="0.25" filter="url(#drop-shadow)" />
+                          <circle cx="20" cy="82" r="1.2" fill="#67e8f9" className="animate-pulse" />
+                          <circle cx="30" cy="78" r="1.5" fill="#cffafe" className="animate-pulse" style={{ animationDelay: "0.2s" }} />
+                          <circle cx="40" cy="82" r="1.2" fill="#67e8f9" className="animate-pulse" style={{ animationDelay: "0.4s" }} />
+                          <path d="M 29,76 L 31,76 M 30,75 L 30,77" stroke="#ffffff" strokeWidth="0.5" />
+                        </g>
+                      )}
+                    </>
                   )}
 
-                  {hasCrown ? (
-                    <path
-                      d={anatomy.crownPath}
-                      fill="url(#crownPattern)"
-                      stroke="#f59e0b"
-                      strokeWidth="1.5"
-                      opacity="0.8"
-                    />
-                  ) : (
-                    <path
-                      d={anatomy.crownPath}
-                      fill={`url(#crownGrad-${toothNo})`}
-                      stroke="#94a3b8"
-                      strokeWidth="0.5"
-                    />
-                  )}
-
-                  {hasFilling && !hasCrown && (
-                    <circle
-                      cx="30"
-                      cy="110"
-                      r="7"
-                      fill="#ef4444"
-                      opacity="0.8"
-                    />
-                  )}
-
-                  {hasCanal &&
-                    anatomy.canalLines.map((line, i) => (
-                      <line
-                        key={`canal-${i}`}
-                        x1={line.x1}
-                        y1={line.y1}
-                        x2={line.x2}
-                        y2={line.y2}
-                        stroke="#ef4444"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                      />
-                    ))}
-
-                  {hasRetreatment &&
-                    !hasCanal &&
-                    anatomy.canalLines.map((line, i) => (
-                      <line
-                        key={`retreat-${i}`}
-                        x1={line.x1}
-                        y1={line.y1}
-                        x2={line.x2}
-                        y2={line.y2}
-                        stroke="#8b5cf6"
-                        strokeWidth="3.5"
-                        strokeDasharray="3,3"
-                        strokeLinecap="round"
-                      />
-                    ))}
-
-                  {hasRetreatment &&
-                    hasCanal &&
-                    anatomy.canalLines.map((line, i) => (
-                      <line
-                        key={`retreat-over-${i}`}
-                        x1={line.x1}
-                        y1={line.y1}
-                        x2={line.x2}
-                        y2={line.y2}
-                        stroke="#8b5cf6"
-                        strokeWidth="3.5"
-                        strokeDasharray="3,3"
-                        strokeLinecap="round"
-                      />
-                    ))}
-
-                  {hasCleaning && (
-                    <path
-                      d="M 15,85 Q 30,75 45,85"
-                      fill="none"
-                      stroke="#10b981"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                  )}
-
-                  {hasWholeJawDetertraj && (
-                    <path
-                      d="M -5,82 L 65,82"
-                      fill="none"
-                      stroke="#1e293b"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      opacity="0.8"
-                    />
+                  {/* TÜM ÇENE DETERTRAJ (Genel Ferahlık Bandı - Tam protezliyken gizlenir) */}
+                  {hasWholeJawDetertraj && !isFullDenture && (
+                    <g>
+                      <path d="M -5,85 Q 30,78 65,85" fill="none" stroke="#0ea5e9" strokeWidth="4" strokeLinecap="round" opacity="0.15" />
+                      <path d="M -5,85 Q 30,78 65,85" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4,4" opacity="0.8" />
+                    </g>
                   )}
                 </g>
 
                 {hasExtraction && (
                   <g stroke="#ef4444" strokeWidth="4" strokeLinecap="round">
                     <line x1="10" y1="20" x2="50" y2="120" />
-
                     <line x1="50" y1="20" x2="10" y2="120" />
                   </g>
                 )}
