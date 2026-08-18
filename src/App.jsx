@@ -12000,9 +12000,15 @@ const renderSettings = () => {
                                 <div className="flex justify-between items-end mb-1.5">
                                   <div>
                                     <h1 className="text-base font-black uppercase tracking-wider mb-0.5 flex items-center text-black">
-                                <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-base"></i>
-                                {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK RANDEVU"}
-                              </h1>
+                                      <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-base"></i>
+                                      {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK RANDEVU"}
+                                    </h1>
+                                    {/* Ayarlardan gelen Klinik Telefon Numarası */}
+                                    {settings?.klinik?.telefon && (
+                                      <div className="text-[11px] font-black text-gray-800 mb-1 flex items-center gap-1">
+                                        <i className="fa-solid fa-phone text-gray-500"></i> {settings.klinik.telefon}
+                                      </div>
+                                    )}
                                     <h2 className="text-[11px] font-bold text-gray-600">Tedavi Planı ve Bilgilendirme Formu</h2>
                                   </div>
                                   <div className="text-right text-[10px] font-semibold text-gray-600">
