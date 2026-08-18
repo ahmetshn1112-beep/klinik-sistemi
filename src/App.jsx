@@ -1385,53 +1385,31 @@ const useFirebase = () => {
           height: auto !important;
           overflow: visible !important;
           font-size: 11pt !important;
-          -webkit-print-color-adjust: exact;
         }
         /* Ekranda gereksiz her şeyi gizle */
         header, aside, .no-print, .header-transition, [class*="bottom-"], #main-content-area > :not(#print-area):not(#print-plan-area) {
           display: none !important;
         }
-        
         /* Modal açıkken arka planı ve taşmaları sıfırla */
-        .fixed, .absolute {
+        .fixed {
           position: static !important;
           background: transparent !important;
           padding: 0 !important;
           margin: 0 !important;
-          width: auto !important;
+          width: 100% !important;
           height: auto !important;
           overflow: visible !important;
           display: block !important;
         }
-
-        /* YENİ: iOS / iPad Safari Yazdırma Kesilme Hatası Kesin Çözümü */
-        #print-plan-area, #print-plan-area *,
-        .print-only, .print-only * {
-          overflow: visible !important;
-          height: auto !important;
-          max-height: none !important;
-          float: none !important;
-        }
-        
-        /* iOS'un sayfayı kırpmasına sebep olan esnek ve kaydırmalı kutuları devre dışı bırak */
-        .overflow-y-auto, .overflow-x-auto, .overflow-hidden, .custom-scrollbar {
-          overflow: visible !important;
-          height: auto !important;
-          max-height: none !important;
-          display: block !important;
-        }
-        .flex-1 { flex: none !important; display: block !important; }
-
         /* Modal kartlarını tam sayfa yap */
         [class*="max-w-"], [class*="max-h-"], [class*="rounded-"] {
-          max-width: none !important;
+          max-width: 100% !important;
           max-height: none !important;
           border-radius: 0 !important;
           box-shadow: none !important;
           border: none !important;
           overflow: visible !important;
         }
-        
         /* Gizli yazdırma bloklarını zorla görünür yap */
         .print-only-block {
           display: block !important;
@@ -1440,7 +1418,6 @@ const useFirebase = () => {
         .print-hide {
           display: none !important;
         }
-        
         /* Tablo ve metin düzenlemeleri */
         table {
           width: 100% !important;
