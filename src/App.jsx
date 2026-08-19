@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, update, onValue } from 'firebase/database';
+import { getDatabase, ref, set, update, onValue, push, child } from 'firebase/database';
 const MONTHS = [
         "Ocak",
 
@@ -1616,17 +1616,34 @@ useEffect(() => {
           let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
           let updatedPlanned = [...(patientForm.plannedTreatments || [])];
           let addedRevenueCount = 0;
+          let isAptUpdated = false;
           const docId = newHistoryForm.doctorId || currentUser;
 
-          // YENİ DÜZELTME: Seçilen planlanan işlemleri kendi ID'leriyle tamamla (Yeni randevu OLUŞTURMADAN)
           const completedIds = newHistoryForm.completedPlanIds || [];
           if (completedIds.length > 0) {
               updatedPlanned = updatedPlanned.map(tx => {
                   if (completedIds.includes(tx.id) && !tx.isCompleted) {
-                      // Gizli randevu oluşturulması İPTAL EDİLDİ. İşlem kendi plan kimliğiyle ciroya yansıyacak.
                       return { ...tx, isCompleted: true, completedAt: Date.now(), completedBy: currentUser };
                   }
                   return tx;
+              });
+
+              Object.keys(updatedAppointments).forEach(docId => {
+                  Object.keys(updatedAppointments[docId]).forEach(aptKey => {
+                      const apt = updatedAppointments[docId][aptKey];
+                      if (apt.patientName === patientForm.name && apt.selectedTreatments) {
+                          const hasCompletedPlan = apt.selectedTreatments.some(t => {
+                              return completedIds.some(cId => {
+                                  const p = updatedPlanned.find(up => up.id === cId);
+                                  return p && p.treatment === t.treatment && p.tooth === t.tooth;
+                              });
+                          });
+                          if (hasCompletedPlan && apt.status !== "Geldi") {
+                              updatedAppointments[docId][aptKey].status = "Geldi";
+                              isAptUpdated = true;
+                          }
+                      }
+                  });
               });
           }
 
@@ -1664,6 +1681,7 @@ useEffect(() => {
           setPatientForm(updatedPatient);
           saveGlobalData({
             ...globalData,
+            appointments: isAptUpdated ? updatedAppointments : globalData.appointments,
             patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient }
           });
           setIsAddHistoryModalOpen(false);
@@ -2953,12 +2971,13 @@ Tarih: ...../...../202...
 
           const pData = globalData.patientsDb?.[patientId];
 
+          // BİLANÇO/BAKİYE SADECE HASTA PLANLAMA (PLANNED TREATMENTS) ÜZERİNDEN HESAPLANIR
           if (pData && pData.plannedTreatments) {
             pData.plannedTreatments.forEach((tx) => {
               const price = parseFloat(tx.price) || 0;
               const origPrice = tx.originalPrice !== undefined ? parseFloat(tx.originalPrice) : price;
 
-              totalBilled += price;
+              totalBilled += price; // İndirim uygulanmışsa burası otomatik olarak düşük yansır
               totalOriginalBilled += origPrice;
 
               treatments.push({
@@ -2973,36 +2992,8 @@ Tarih: ...../...../202...
             });
           }
 
-          if (globalData.appointments) {
-            Object.entries(globalData.appointments).forEach(([docId, docApts]) => {
-                if (docId !== currentUser && globalData.doctorProfiles?.[docId]?.addedBy !== currentUser) return;
-                Object.entries(docApts).forEach(([key, apt]) => {
-                  // YENİ: Öncelik ID'de, yoksa (eski kayıtsa) isme bak
-                  const isMatch = apt.patientId === patientId || (!apt.patientId && apt.patientName === patientName);
-                  if (isMatch && apt.price && !apt.linkedPlanId) {
-                    const pVal = parseFloat(apt.price);
-                    const origPVal = apt.originalPrice !== undefined ? parseFloat(apt.originalPrice) : pVal;
-
-                    totalBilled += pVal;
-                    totalOriginalBilled += origPVal;
-
-                    const [y, m, d] = key.split("-").map(Number);
-
-                    treatments.push({
-                      id: key,
-                      date: new Date(`${y}-${m}-${d}`).getTime(),
-                      dateStr: `${d}/${m}/${y}`,
-                      treatment: renderTreatmentText(apt) + " (Hızlı Kayıt)",
-                      price: pVal,
-                      originalPrice: origPVal,
-                      isPlan: false,
-                      docId: apt.docId || Object.keys(globalData.appointments).find((d) => globalData.appointments[d][key] === apt),
-                    });
-                  }
-                });
-              }
-            );
-          }
+          // DİKKAT: Kullanıcı talebi doğrultusunda Randevu sayfasındaki "Geldi" işlemleri hastanın ana bakiyesini VE klinik toplam cirosunu ETKİLEMEZ.
+          // Bakiye ve Genel Ciro SADECE "Hasta Planlama" üzerinden hesaplanır.
 
           if (pData && pData.payments) {
             totalPaid = pData.payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
@@ -3140,7 +3131,8 @@ Tarih: ...../...../202...
           // Eskiden isimle arama yapılıp başka hastanın ID'si çalınıyordu, bu tamamen KALDIRILDI.
           // Artık kendi ID'si varsa korur (düzenleme), yoksa yepyeni ve benzersiz bir kayıt oluşturur.
           const isNewPatient = !patientForm.id;
-          const pId = patientForm.id || (patientForm.name.toLowerCase().replace(/\s+/g, "") + "_" + Date.now() + Math.random().toString(36).substr(2, 4));
+// Firebase push metodu ile asla çakışmayan, Türkçe karakter hatası vermeyen benzersiz kimlik (ID) üretimi
+const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
 
           // YENİ: Hasta ilk kez oluşturuluyorsa otomatik "İlk Kayıt" epikrizi at
           let currentHistory = patientForm.clinicalHistory || [];
@@ -3605,8 +3597,8 @@ Tarih: ...../...../202...
             );
 
           const patientId = existingPatient
-            ? existingPatient.id
-            : formData.patientName.toLowerCase().replace(/\s+/g, "") + "_" + Date.now() + Math.random().toString(36).substr(2, 4);
+  ? existingPatient.id
+  : push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
 
           let updatedPatientsDb = { ...(globalData.patientsDb || {}) };
 
@@ -6645,15 +6637,10 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
           const getDoctorFilteredStats = (docId) => {
             let stats = {
               total: 0,
-
               waiting: 0,
-
               done: 0,
-
               revenue: 0,
-
               treatments: {},
-
               ptList: [],
             };
 
@@ -6661,84 +6648,96 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
 
             Object.entries(apts).forEach(([key, a]) => {
               const [y, m, d] = key.split("-").map(Number);
-
-              const aptDateStr = `${y}-${String(m).padStart(2, "0")}-${String(
-                d
-              ).padStart(2, "0")}`;
+              const aptDateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
               let inRange = true;
-
               if (docStatsStart && aptDateStr < docStatsStart) inRange = false;
-
               if (docStatsEnd && aptDateStr > docStatsEnd) inRange = false;
 
               if (inRange) {
                 stats.total++;
-
-                if (a.status === "Yeni Kayıt" || a.status === "Bekliyor")
-                  stats.waiting++;
-
+                if (a.status === "Yeni Kayıt" || a.status === "Bekliyor") stats.waiting++;
                 if (a.status === "Geldi") stats.done++;
-                
-                // YENİ: Virgül sorunu çözümü -> Array (Dizi) bazlı profesyonel sayım
+
+                // Hastayı bul (Planlarındaki indirimli fiyatlara erişmek için)
+                let pId = a.patientId;
+                if (!pId) {
+                  const pObj = Object.values(globalData.patientsDb || {}).find(p => p.name === a.patientName);
+                  if (pObj) pId = pObj.id;
+                }
+                const pData = pId ? globalData.patientsDb[pId] : null;
+
+                // İşlemleri parçala (Birden fazla işlem varsa ayrı satırlara bölmek için)
+                let txList = [];
                 if (a.selectedTreatments && a.selectedTreatments.length > 0) {
-                  // Yeni nesil array bazlı kayıtları kullan
-                  a.selectedTreatments.forEach(t => {
-                    if (t.treatment) {
-                       stats.treatments[t.treatment] = (stats.treatments[t.treatment] || 0) + 1;
-                    }
-                  });
+                    txList = a.selectedTreatments;
                 } else if (a.treatment) {
-                  // Eski veriler için (veya hızlı kayıtlar için) güvenli fallback: Önce kendi başına işlem listesinde var mı diye bak.
-                  const knownTreatments = Object.keys(globalData.pricingDb?.[docId] || DEFAULT_PRICING);
-                  if (knownTreatments.includes(a.treatment.trim())) {
-                      // İçinde virgül geçse bile (Örn: "Cerrahi Çekim, Komplikasyonlu") tek bir işlem olarak say
-                      stats.treatments[a.treatment.trim()] = (stats.treatments[a.treatment.trim()] || 0) + 1;
-                  } else {
-                      // Listede yoksa mecburen böl
-                      const txList = a.treatment.split(",").map(t => t.trim()).filter(Boolean);
-                      txList.forEach(t => {
-                        stats.treatments[t] = (stats.treatments[t] || 0) + 1;
-                      });
-                  }
+                    const knownTreatments = Object.keys(globalData.pricingDb?.[docId] || DEFAULT_PRICING);
+                    if (knownTreatments.includes(a.treatment.trim())) {
+                        txList = [{ treatment: a.treatment.trim(), tooth: "" }];
+                    } else {
+                        txList = a.treatment.split(",").map(t => ({ treatment: t.trim(), tooth: "" })).filter(t => t.treatment);
+                    }
+                } else if (a.price) {
+                    txList = [{ treatment: "İşlem Kaydı", tooth: "" }];
                 }
 
-                let aptPrice = parseFloat(a.price) || 0;
-                // Randevuda manuel fiyat yoksa ilgili hekimin özel fiyat listesinden çek
-                if (!aptPrice && a.treatment) {
-                  const docPricing =
-                    globalData.pricingDb?.[docId] ||
-                    (typeof globalData.pricingDb === "object" &&
-                    globalData.pricingDb["Genel Muayene"]
-                      ? globalData.pricingDb
-                      : DEFAULT_PRICING);
-                  const matchedTx = Object.keys(DEFAULT_PRICING).find((t) =>
-                    a.treatment.includes(t)
-                  );
-                  if (matchedTx && docPricing[matchedTx] !== undefined) {
-                    aptPrice = parseFloat(docPricing[matchedTx]) || 0;
-                  }
-                }
-                // Randevu "Geldi" (İşlem Bitti) olarak işaretlendiğinde hekimin cirosuna ekle
-                if (a.status === "Geldi" && aptPrice > 0)
-                  stats.revenue += aptPrice;
+                // Toplam manuel fiyat varsa ve işlem parçalanamıyorsa
+                let aptOverallPrice = parseFloat(a.price) || 0;
+                let useOverallPrice = aptOverallPrice > 0 && txList.length <= 1;
 
-                stats.ptList.push({
-                  date: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
-                  time: key.split("-")[3],
-                  patient: a.patientName,
-                  treatment: renderTreatmentText(a),
-                  rawTreatment: a.treatment, // YENİ: Tam eşleşmeli filtreleme için ham veri eklendi
-                  selectedTreatments: a.selectedTreatments, // Filtrelemede diziyi kullanmak için referans aktarımı
-                  status: a.status,
-                  price: aptPrice,
-                  // YENİ: Gerçek zaman damgası (Timestamp) arka planda hesaplanıp saklanıyor
-                  timestamp: new Date(y, m - 1, d, ...(key.split("-")[3] || "00:00").split(":")).getTime() 
+                // Her bir işlem için fiyat hesapla ve listeye AYRI AYRI ekle
+                txList.forEach((tx) => {
+                    stats.treatments[tx.treatment] = (stats.treatments[tx.treatment] || 0) + 1;
+                    
+                    let itemPrice = 0;
+
+                    // 1. Eğer hastanın planında bu işlem varsa, oradaki (indirimli) fiyatı al
+                    let matchedPlan = null;
+                    if (pData && pData.plannedTreatments) {
+                        matchedPlan = pData.plannedTreatments.find(pt => 
+                            pt.treatment === tx.treatment && 
+                            (pt.tooth === tx.tooth || !tx.tooth || tx.tooth === "")
+                        );
+                    }
+
+                    if (matchedPlan) {
+                        itemPrice = parseFloat(matchedPlan.price) || 0;
+                    } 
+                    // 2. Eğer randevuya manuel GİRİLMİŞ toplam bir fiyat varsa ve tek işlemse onu al
+                    else if (useOverallPrice) {
+                        itemPrice = aptOverallPrice;
+                    } 
+                    // 3. Aksi halde hekimin standart fiyat listesinden al
+                    else {
+                        const docPricing = globalData.pricingDb?.[docId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                        const matchedStandardTx = Object.keys(docPricing).find(t => tx.treatment.includes(t));
+                        if (matchedStandardTx && docPricing[matchedStandardTx] !== undefined) {
+                            itemPrice = parseFloat(docPricing[matchedStandardTx]) || 0;
+                        }
+                    }
+
+                    // Sadece Geldi olduğunda hekim cirosuna ekle
+                    if (a.status === "Geldi" && itemPrice > 0) {
+                        stats.revenue += itemPrice;
+                    }
+
+                    stats.ptList.push({
+                        date: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
+                        time: key.split("-")[3] || "00:00",
+                        patient: a.patientName,
+                        treatment: tx.tooth ? `Diş: ${tx.tooth} - ${tx.treatment}` : tx.treatment,
+                        rawTreatment: tx.treatment,
+                        selectedTreatments: [tx],
+                        status: a.status,
+                        price: itemPrice,
+                        timestamp: new Date(y, m - 1, d, ...(key.split("-")[3] || "00:00").split(":")).getTime() 
+                    });
                 });
               }
             });
 
-            // YENİ DÜZELTME: Planlanan ve bu hekim tarafından TAMAMLANAN işlemleri de istatistiklere ve listeye ekle
+            // 2. Planlanan ve bu hekim tarafından (Epikriz ekranından vb.) TAMAMLANAN işlemleri de istatistiklere ekle
             Object.values(globalData.patientsDb || {}).forEach((p) => {
                 if (p.plannedTreatments) {
                     p.plannedTreatments.forEach((tx) => {
@@ -6751,33 +6750,41 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                             if (docStatsEnd && txDateStr > docStatsEnd) inRange = false;
                             
                             if (inRange) {
-                                stats.total++;
-                                stats.done++;
-                                
-                                let finalPrice = parseFloat(tx.price) || 0;
-                                stats.revenue += finalPrice;
-                                
-                                stats.treatments[tx.treatment] = (stats.treatments[tx.treatment] || 0) + 1;
-                                
-                                stats.ptList.push({
-                                    date: `${String(completedDate.getDate()).padStart(2, "0")}/${String(completedDate.getMonth() + 1).padStart(2, "0")}/${completedDate.getFullYear()}`,
-                                    time: completedDate.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"}),
-                                    patient: p.name,
-                                    treatment: tx.tooth === "Tüm Çene" ? tx.treatment : `Diş: ${tx.tooth} - ${tx.treatment}`,
-                                    rawTreatment: tx.treatment,
-                                    selectedTreatments: [{treatment: tx.treatment, tooth: tx.tooth}],
-                                    status: "Geldi",
-                                    price: finalPrice,
-                                    timestamp: completedDate.getTime()
-                                });
+                                // Çifte sayım kontrolü: Bu planlı işlem zaten yukarıda bir randevu üzerinden eklendi mi?
+                                const alreadyAdded = stats.ptList.some(listItem => 
+                                    listItem.patient === p.name && 
+                                    listItem.rawTreatment === tx.treatment && 
+                                    listItem.status === "Geldi" &&
+                                    (listItem.selectedTreatments[0]?.tooth === tx.tooth || !tx.tooth)
+                                );
+
+                                if (!alreadyAdded) {
+                                    stats.total++;
+                                    stats.done++;
+                                    
+                                    let finalPrice = parseFloat(tx.price) || 0;
+                                    stats.revenue += finalPrice;
+                                    
+                                    stats.treatments[tx.treatment] = (stats.treatments[tx.treatment] || 0) + 1;
+                                    
+                                    stats.ptList.push({
+                                        date: `${String(completedDate.getDate()).padStart(2, "0")}/${String(completedDate.getMonth() + 1).padStart(2, "0")}/${completedDate.getFullYear()}`,
+                                        time: completedDate.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"}),
+                                        patient: p.name,
+                                        treatment: tx.tooth === "Tüm Çene" ? tx.treatment : `Diş: ${tx.tooth} - ${tx.treatment}`,
+                                        rawTreatment: tx.treatment,
+                                        selectedTreatments: [{treatment: tx.treatment, tooth: tx.tooth}],
+                                        status: "Geldi",
+                                        price: finalPrice,
+                                        timestamp: completedDate.getTime()
+                                    });
+                                }
                             }
                         }
                     });
                 }
             });
 
-            // YENİ DÜZELTME: Metinsel sıralama (localeCompare) iptal edildi. 
-            // Matematiksel timestamp ile hatasız kronolojik sıralama yapılıyor (En yeniden en eskiye).
             stats.ptList.sort((a, b) => b.timestamp - a.timestamp);
 
             return stats;
@@ -8457,106 +8464,71 @@ const renderSettings = () => {
           });
 
           if (globalData.appointments) {
-            Object.entries(globalData.appointments).forEach(
-              ([docId, docApts]) => {
-                if (
-                  docId !== currentUser &&
-                  globalData.doctorProfiles?.[docId]?.addedBy !== currentUser
-                )
-                  return;
-                Object.entries(docApts).forEach(([key, apt]) => {
-                  const dateStr = key.split("-").slice(0, 3).join("-");
-                  if (
-                    isDateInRange(
-                      dateStr,
-                      financePeriod,
-                      financeCustomStart,
-                      financeCustomEnd
-                    )
-                  ) {
-                    // YENİ: Fiyat manuel girilmemişse, otomatik olarak hekim fiyat listesinden bul
+            Object.entries(globalData.appointments).forEach(([docId, docApts]) => {
+              if (docId !== currentUser && globalData.doctorProfiles?.[docId]?.addedBy !== currentUser) return;
+              
+              Object.entries(docApts).forEach(([key, apt]) => {
+                const dateStr = key.split("-").slice(0, 3).join("-");
+                if (isDateInRange(dateStr, financePeriod, financeCustomStart, financeCustomEnd)) {
+                  
+                  // HEKİM ÜRETİLEN CİROSU (SADECE GELDİ OLANLAR)
+                  if (apt.status === "Geldi") {
                     let aptPrice = parseFloat(apt.price) || 0;
+                    
+                    // Birden fazla işlem varsa (Örn: Dolgu, Çekim) her birinin ücretini bulup ayrı ayrı topla
                     if (!aptPrice && apt.treatment) {
-                      const docPricing =
-                        globalData.pricingDb?.[docId] ||
-                        (typeof globalData.pricingDb === "object" &&
-                        globalData.pricingDb["Genel Muayene"]
-                          ? globalData.pricingDb
-                          : DEFAULT_PRICING);
-                      const matchedTx = Object.keys(DEFAULT_PRICING).find((t) =>
-                        apt.treatment.includes(t)
-                      );
-                      if (matchedTx && docPricing[matchedTx] !== undefined) {
-                        aptPrice = parseFloat(docPricing[matchedTx]) || 0;
-                      }
-                    }
-
-                    // YENİ DÜZELTME: Sadece "Geldi" durumundaki ve PLANA BAĞLI OLMAYAN serbest randevuları ciroya yansıt (Çift sayımı engeller)
-                    if (aptPrice > 0 && apt.status === "Geldi" && !apt.linkedPlanId) {
-                      totalRevenue += aptPrice;
-                      if (doctorStats[docId])
-                        doctorStats[docId].revenue += aptPrice;
-
-                      const [y, m, d] = key.split("-").map(Number);
-                      revenueHistory.push({
-                        // Invalid Date sorununu çözmek için padStart ile sıfırlar eklendi
-                        date: new Date(
-                          `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T${key.split("-")[3] || "00:00"}:00`
-                        ).getTime(),
-                        patientName: apt.patientName,
-                        treatment: renderTreatmentText(apt),
-                        amount: aptPrice,
-                        type: "İşlem Kaydı",
+                      const docPricing = globalData.pricingDb?.[docId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                      const txList = apt.treatment.split(",").map(t => t.trim());
+                      
+                      txList.forEach(txName => {
+                        const matchedTx = Object.keys(docPricing).find(t => txName.includes(t));
+                        if (matchedTx && docPricing[matchedTx] !== undefined) {
+                          aptPrice += parseFloat(docPricing[matchedTx]) || 0;
+                        }
                       });
                     }
+
+                    // Hekim üretilen cirosuna ekle (Bilanço/Toplam Ciroya EKLENMEZ, Toplam ciro sadece planlardan gelir)
+                    if (aptPrice > 0 && doctorStats[docId]) {
+                      doctorStats[docId].revenue += aptPrice;
+                    }
                   }
-                });
-              }
-            );
+                }
+              });
+            });
           }
 
           if (globalData.patientsDb) {
             Object.values(globalData.patientsDb)
-              .filter(
-                (p) =>
-                  p.addedBy === currentUser ||
-                  globalData.doctorProfiles?.[p.addedBy]?.addedBy ===
-                    currentUser
-              )
+              .filter(p => p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser)
               .forEach((p) => {
                 if (p.plannedTreatments) {
                   p.plannedTreatments.forEach((tx) => {
+                    
+                    // KLİNİK TOPLAM CİROSU: Hasta planlandığı an eklenir (Tamamlanma şartı ARANMAZ)
                     const txDateStr = formatDateKey(new Date(tx.date));
 
-                    if (
-                      isDateInRange(
-                        txDateStr,
-
-                        financePeriod,
-
-                        financeCustomStart,
-
-                        financeCustomEnd
-                      )
-                    ) {
+                    if (isDateInRange(txDateStr, financePeriod, financeCustomStart, financeCustomEnd)) {
                       const price = parseFloat(tx.price) || 0;
-
-                      totalRevenue += price;
+                      totalRevenue += price; // Toplam ciro sadece buradan etkilenir, indirim yapılmışsa düşmüş hali eklenir.
 
                       revenueHistory.push({
                         date: tx.date,
-
                         patientName: p.name,
-
-                        treatment:
-                          tx.tooth === "Tüm Çene"
-                            ? tx.treatment
-                            : `Diş: ${tx.tooth} - ${tx.treatment}`,
-
+                        treatment: tx.tooth === "Tüm Çene" ? tx.treatment : `Diş: ${tx.tooth} - ${tx.treatment}`,
                         amount: price,
-
                         type: "Planlı İşlem",
                       });
+                    }
+
+                    // HEKİM CİROSU (EPİKRİZ): Hekime eklenecek kısım için işlemin "Tamamlanmış" (isCompleted) olması ARANIR
+                    if (tx.isCompleted && tx.completedBy) {
+                       const compDateStr = formatDateKey(new Date(tx.completedAt || tx.date));
+                       if (isDateInRange(compDateStr, financePeriod, financeCustomStart, financeCustomEnd)) {
+                           if (doctorStats[tx.completedBy]) {
+                               doctorStats[tx.completedBy].revenue += (parseFloat(tx.price) || 0);
+                           }
+                       }
                     }
                   });
                 }
@@ -10400,10 +10372,14 @@ const renderSettings = () => {
                                 <div className="font-black text-[13px] text-slate-700 group-hover:text-indigo-700 dark:text-slate-200 dark:group-hover:text-indigo-400 transition-colors">
                                   {p.name}
                                 </div>
-                                <div className="text-[11px] text-slate-500 font-bold bg-white border border-slate-100 px-1.5 py-0.5 rounded-md shadow-sm dark:bg-slate-800 dark:border-slate-600">
-                                  <i className="fa-solid fa-phone mr-1 opacity-70"></i>
-                                  {p.phone || "-"}
-                                </div>
+                                <div className="text-[11px] text-slate-500 font-bold bg-white border border-slate-100 px-1.5 py-0.5 rounded-md shadow-sm dark:bg-slate-800 dark:border-slate-600 flex items-center gap-2">
+  <span><i className="fa-solid fa-phone mr-1 opacity-70"></i>{p.phone || "-"}</span>
+  {p.tc && (
+    <span className="border-l border-slate-200 dark:border-slate-600 pl-2">
+      <i className="fa-solid fa-id-card mr-1 opacity-70"></i>{p.tc}
+    </span>
+  )}
+</div>
                               </div>
                             ))}
                           </div>
@@ -12637,23 +12613,40 @@ const renderSettings = () => {
                                 
                                 let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
                                 let updatedPlanned = [...(patientForm.plannedTreatments || [])];
-                                let addedRevenueCount = 0;
+                                let isAptUpdated = false;
                                 const docId = selectedHistoryRecord.doctorId || currentUser;
 
-                                // YENİ DÜZELTME: Epikriz düzenleme ekranından seçilen planlı işlemleri tamamla veya tiki kaldırılanları geri al
                                 const completedIds = selectedHistoryRecord.completedPlanIds || [];
                                 
                                 updatedPlanned = updatedPlanned.map((tx) => {
-                                    // 1. Yeni işaretlenenleri tamamla (Randevu oluşturmadan)
                                     if (completedIds.includes(tx.id) && !tx.isCompleted) {
                                         return { ...tx, isCompleted: true, completedAt: Date.now(), completedBy: currentUser };
                                     }
-                                    // 2. Tiki kaldırılanları geri al (Tamamlanmadı yap)
                                     if (!completedIds.includes(tx.id) && tx.isCompleted) {
                                         return { ...tx, isCompleted: false, completedAt: null, completedBy: null };
                                     }
                                     return tx;
                                 });
+
+                                if (completedIds.length > 0) {
+                                    Object.keys(updatedAppointments).forEach(docId => {
+                                        Object.keys(updatedAppointments[docId]).forEach(aptKey => {
+                                            const apt = updatedAppointments[docId][aptKey];
+                                            if (apt.patientName === patientForm.name && apt.selectedTreatments) {
+                                                const hasCompletedPlan = apt.selectedTreatments.some(t => {
+                                                    return completedIds.some(cId => {
+                                                        const p = updatedPlanned.find(up => up.id === cId);
+                                                        return p && p.treatment === t.treatment && p.tooth === t.tooth;
+                                                    });
+                                                });
+                                                if (hasCompletedPlan && apt.status !== "Geldi") {
+                                                    updatedAppointments[docId][aptKey].status = "Geldi";
+                                                    isAptUpdated = true;
+                                                }
+                                            }
+                                        });
+                                    });
+                                }
 
                                 const updatedHistory = patientForm.clinicalHistory.map(h => 
                                   h.id === selectedHistoryRecord.id ? selectedHistoryRecord : h
@@ -12663,7 +12656,7 @@ const renderSettings = () => {
                                 setPatientForm(updatedPatient);
                                 saveGlobalData({ 
                                     ...globalData, 
-                                    appointments: addedRevenueCount > 0 ? updatedAppointments : globalData.appointments,
+                                    appointments: isAptUpdated ? updatedAppointments : globalData.appointments,
                                     patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient } 
                                 });
                                 setIsHistoryDetailModalOpen(false);
