@@ -418,7 +418,7 @@ const useFirebase = () => {
           let actualPlanTreatment = activePlanTreatment;
           if (
             activePlanTreatment === "Diş Çekimi" &&
-            ["18", "28", "38", "48", "55", "65", "75", "85"].includes(
+            ["18", "28", "38", "48"].includes(
               toothNo.toString()
             )
           ) {
@@ -1386,11 +1386,27 @@ const useFirebase = () => {
             : amount;
         };
 
-        // Tek tıkla telefon kopyalama fonksiyonu
+        // Tek tıkla telefon kopyalama fonksiyonu (Güçlendirilmiş)
         const handleCopyPhone = (e, phone, id) => {
-          e.stopPropagation(); // Tıklamanın hasta modalını açmasını engeller
+          e.stopPropagation();
           if (!phone || phone === "-") return;
-          navigator.clipboard.writeText(phone);
+          
+          if (navigator.clipboard && window.isSecureContext) {
+              navigator.clipboard.writeText(phone);
+          } else {
+              // HTTPS olmayan lokal ağlar için Fallback (Plan B)
+              const textArea = document.createElement("textarea");
+              textArea.value = phone;
+              textArea.style.position = "fixed";
+              textArea.style.left = "-999999px";
+              textArea.style.top = "-999999px";
+              document.body.appendChild(textArea);
+              textArea.focus();
+              textArea.select();
+              try { document.execCommand('copy'); } catch (err) { console.error('Kopyalama hatası', err); }
+              document.body.removeChild(textArea);
+          }
+
           setCopiedPhoneId(id);
           setTimeout(() => setCopiedPhoneId(null), 2000);
           showNotification("Telefon numarası kopyalandı!");
@@ -1602,34 +1618,12 @@ useEffect(() => {
           let addedRevenueCount = 0;
           const docId = newHistoryForm.doctorId || currentUser;
 
-          // YENİ: Epikriz üzerinden seçilen "Planlanan İşlemleri" tamamla ve ciroya yaz
+          // YENİ DÜZELTME: Seçilen planlanan işlemleri kendi ID'leriyle tamamla (Yeni randevu OLUŞTURMADAN)
           const completedIds = newHistoryForm.completedPlanIds || [];
           if (completedIds.length > 0) {
-              const nowTime = new Date();
-              const dateKey = formatDateKey(nowTime);
-              const timeStr = nowTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-
-              if (!updatedAppointments[docId]) updatedAppointments[docId] = {};
-
               updatedPlanned = updatedPlanned.map(tx => {
                   if (completedIds.includes(tx.id) && !tx.isCompleted) {
-                      // Gizli (Arka Plan) Randevusu Oluştur (Ciro için Geldi olarak)
-                      const aptKey = `${dateKey}-${timeStr}-${Math.floor(Math.random()*1000)}`;
-                      updatedAppointments[docId][aptKey] = {
-                          patientName: patientForm.name,
-                          patientId: patientForm.id,
-                          phone: patientForm.phone,
-                          treatment: tx.treatment,
-                          selectedTeeth: [tx.tooth],
-                          price: tx.price,
-                          originalPrice: tx.originalPrice !== undefined ? tx.originalPrice : tx.price,
-                          status: "Geldi",
-                          duration: "30",
-                          notes: "Epikriz ekranından tamamlandı.",
-                          createdAt: Date.now(),
-                          linkedPlanId: tx.id // Çift bakiyeyi engeller!
-                      };
-                      addedRevenueCount++;
+                      // Gizli randevu oluşturulması İPTAL EDİLDİ. İşlem kendi plan kimliğiyle ciroya yansıyacak.
                       return { ...tx, isCompleted: true, completedAt: Date.now(), completedBy: currentUser };
                   }
                   return tx;
@@ -1670,7 +1664,6 @@ useEffect(() => {
           setPatientForm(updatedPatient);
           saveGlobalData({
             ...globalData,
-            appointments: addedRevenueCount > 0 ? updatedAppointments : globalData.appointments,
             patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient }
           });
           setIsAddHistoryModalOpen(false);
@@ -2984,7 +2977,9 @@ Tarih: ...../...../202...
             Object.entries(globalData.appointments).forEach(([docId, docApts]) => {
                 if (docId !== currentUser && globalData.doctorProfiles?.[docId]?.addedBy !== currentUser) return;
                 Object.entries(docApts).forEach(([key, apt]) => {
-                  if (apt.patientName === patientName && apt.price && !apt.linkedPlanId) {
+                  // YENİ: Öncelik ID'de, yoksa (eski kayıtsa) isme bak
+                  const isMatch = apt.patientId === patientId || (!apt.patientId && apt.patientName === patientName);
+                  if (isMatch && apt.price && !apt.linkedPlanId) {
                     const pVal = parseFloat(apt.price);
                     const origPVal = apt.originalPrice !== undefined ? parseFloat(apt.originalPrice) : pVal;
 
@@ -3039,7 +3034,12 @@ Tarih: ...../...../202...
               )
                 return;
               Object.entries(dApts).forEach(([k, apt]) => {
-                if (apt.patientName.toLowerCase() === pName.toLowerCase()) {
+                // YENİ: ID varsa ID ile, yoksa isimle güvenli eşleşme
+                const pId = patientForm?.id;
+                const isMatch = (apt.patientId && pId && apt.patientId === pId) || 
+                                (!apt.patientId && apt.patientName.toLowerCase() === pName.toLowerCase());
+                
+                if (isMatch) {
                   const parts = k.split("-");
 
                   const y = parts[0],
@@ -6738,6 +6738,44 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
               }
             });
 
+            // YENİ DÜZELTME: Planlanan ve bu hekim tarafından TAMAMLANAN işlemleri de istatistiklere ve listeye ekle
+            Object.values(globalData.patientsDb || {}).forEach((p) => {
+                if (p.plannedTreatments) {
+                    p.plannedTreatments.forEach((tx) => {
+                        if (tx.isCompleted && tx.completedBy === docId) {
+                            const completedDate = new Date(tx.completedAt || tx.date);
+                            const txDateStr = formatDateKey(completedDate);
+                            
+                            let inRange = true;
+                            if (docStatsStart && txDateStr < docStatsStart) inRange = false;
+                            if (docStatsEnd && txDateStr > docStatsEnd) inRange = false;
+                            
+                            if (inRange) {
+                                stats.total++;
+                                stats.done++;
+                                
+                                let finalPrice = parseFloat(tx.price) || 0;
+                                stats.revenue += finalPrice;
+                                
+                                stats.treatments[tx.treatment] = (stats.treatments[tx.treatment] || 0) + 1;
+                                
+                                stats.ptList.push({
+                                    date: `${String(completedDate.getDate()).padStart(2, "0")}/${String(completedDate.getMonth() + 1).padStart(2, "0")}/${completedDate.getFullYear()}`,
+                                    time: completedDate.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"}),
+                                    patient: p.name,
+                                    treatment: tx.tooth === "Tüm Çene" ? tx.treatment : `Diş: ${tx.tooth} - ${tx.treatment}`,
+                                    rawTreatment: tx.treatment,
+                                    selectedTreatments: [{treatment: tx.treatment, tooth: tx.tooth}],
+                                    status: "Geldi",
+                                    price: finalPrice,
+                                    timestamp: completedDate.getTime()
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+
             // YENİ DÜZELTME: Metinsel sıralama (localeCompare) iptal edildi. 
             // Matematiksel timestamp ile hatasız kronolojik sıralama yapılıyor (En yeniden en eskiye).
             stats.ptList.sort((a, b) => b.timestamp - a.timestamp);
@@ -8453,16 +8491,17 @@ const renderSettings = () => {
                       }
                     }
 
-                    // YENİ: Sadece "Geldi" durumundaki randevuları Hekim Cirosuna yansıt
-                    if (aptPrice > 0 && apt.status === "Geldi") {
+                    // YENİ DÜZELTME: Sadece "Geldi" durumundaki ve PLANA BAĞLI OLMAYAN serbest randevuları ciroya yansıt (Çift sayımı engeller)
+                    if (aptPrice > 0 && apt.status === "Geldi" && !apt.linkedPlanId) {
                       totalRevenue += aptPrice;
                       if (doctorStats[docId])
                         doctorStats[docId].revenue += aptPrice;
 
                       const [y, m, d] = key.split("-").map(Number);
                       revenueHistory.push({
+                        // Invalid Date sorununu çözmek için padStart ile sıfırlar eklendi
                         date: new Date(
-                          `${y}-${m}-${d}T${key.split("-")[3] || "00:00"}:00`
+                          `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T${key.split("-")[3] || "00:00"}:00`
                         ).getTime(),
                         patientName: apt.patientName,
                         treatment: renderTreatmentText(apt),
@@ -10423,11 +10462,12 @@ const renderSettings = () => {
                             );
                           }
 
-                          // Müsait planları listele
+                          // Müsait planları listele (YENİ DÜZELTME: Tamamlanmış işlemleri listeden gizle)
                           const availablePlans = (
                             formData.plannedTreatments || []
                           ).filter(
                             (tx) =>
+                              !tx.isCompleted && // YENİ: Eğer işlem daha önce bittiyse (isCompleted: true), listeye alma
                               !scheduledTxs.includes(
                                 `${tx.treatment}-${tx.tooth}`
                               )
@@ -11871,8 +11911,32 @@ const renderSettings = () => {
                           return (
                             <div
                               id="print-plan-area"
-                              className="flex-1 overflow-y-auto p-2.5 lg:p-2.5 bg-slate-50 flex flex-col gap-2 relative dark:bg-slate-900/50 print:bg-white print:p-0"
+                              className="flex-1 overflow-y-auto p-2.5 lg:p-2.5 bg-slate-50 flex flex-col gap-2 relative dark:bg-slate-900/50 print:block print:w-full print:bg-white print:p-0"
                             >
+                              {/* YENİ DÜZELTME: SADECE iOS/iPad (Safari) İÇİN ÖZEL A4 YAZDIRMA KALIBI */}
+                              <style type="text/css" media="print">
+                                {`
+                                  @supports (-webkit-touch-callout: none) {
+                                    #print-plan-area {
+                                      position: absolute !important;
+                                      left: 0 !important;
+                                      top: 0 !important;
+                                      right: 0 !important;
+                                      width: 100% !important;
+                                      min-width: 100vw !important;
+                                      height: auto !important;
+                                      overflow: visible !important;
+                                      display: block !important;
+                                      padding: 5mm !important;
+                                      box-sizing: border-box !important;
+                                      z-index: 999999 !important;
+                                      -webkit-print-color-adjust: exact !important;
+                                      print-color-adjust: exact !important;
+                                    }
+                                  }
+                                `}
+                              </style>
+
                               {/* --- ARAÇ ÇUBUĞU (Yazdırılmaz) --- */}
                               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1.5 shrink-0">
                                 <div>
@@ -11901,22 +11965,22 @@ const renderSettings = () => {
                               </div>
 
                               {/* --- YAZDIRMA KLİNİK ANTETİ (Gizli, Sadece Baskıda Görünür) --- */}
-                              <div className="hidden print-only mb-1.5 border-b-2 border-black pb-1.5">
-                                <div className="flex justify-between items-end mb-1.5">
-                                  <div>
-                                    <h1 className="text-base font-black uppercase tracking-wider mb-0.5 flex items-center text-black">
-                                      <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-base"></i>
+                              <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <h1 className="text-lg font-black uppercase tracking-wider flex items-center text-black leading-none">
+                                      <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-lg"></i>
                                       {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK RANDEVU"}
                                     </h1>
-                                    {/* Ayarlardan gelen Klinik Telefon Numarası */}
+                                    {/* Ayarlardan gelen Klinik Telefon Numarası (Güncellenmiş Görünüm) */}
                                     {settings?.klinik?.telefon && (
-                                      <div className="text-[11px] font-black text-gray-800 mb-1 flex items-center gap-1">
-                                        <i className="fa-solid fa-phone text-gray-500"></i> {settings.klinik.telefon}
+                                      <div className="text-[12px] font-bold text-gray-800 flex items-center gap-1 mt-0.5">
+                                        <i className="fa-solid fa-phone text-gray-500"></i> Tel: {settings.klinik.telefon}
                                       </div>
                                     )}
-                                    <h2 className="text-[11px] font-bold text-gray-600">Tedavi Planı ve Bilgilendirme Formu</h2>
+                                    <h2 className="text-[11px] font-bold text-gray-500 mt-1">Tedavi Planı ve Bilgilendirme Formu</h2>
                                   </div>
-                                  <div className="text-right text-[10px] font-semibold text-gray-600">
+                                  <div className="text-right text-[10px] font-semibold text-gray-600 mt-1">
                                     <p>Tarih: {new Date().toLocaleDateString("tr-TR")}</p>
                                     <p>Hekim: {globalData.doctorProfiles?.[currentUser]?.name || currentUser}</p>
                                   </div>
@@ -12109,32 +12173,6 @@ const renderSettings = () => {
                                                 <button
                                                   onClick={() => {
                                                     showConfirm(`"${tx.treatment}" işlemini tamamlandı olarak işaretlemek istiyor musunuz? İşlem cirosu hekime yansıyacaktır.`, () => {
-                                                      const nowTime = new Date();
-                                                      const dateKey = formatDateKey(nowTime);
-                                                      const timeStr = nowTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-                                                      
-                                                      let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
-                                                      if (!updatedAppointments[currentUser]) updatedAppointments[currentUser] = {};
-                                                      
-                                                      // YENİ: Hem milisaniye hem rastgele sayı ile %100 benzersiz key oluştur.
-                                                      const uniqueSalt = Math.random().toString(36).substring(2, 7);
-                                                      const aptKey = `${dateKey}-${timeStr}-${Date.now()}-${uniqueSalt}`;
-                                                      
-                                                      updatedAppointments[currentUser][aptKey] = {
-                                                            patientName: patientForm.name,
-                                                            patientId: patientForm.id,
-                                                            phone: patientForm.phone,
-                                                            treatment: tx.treatment,
-                                                            selectedTeeth: [tx.tooth],
-                                                            price: tx.price,
-                                                            originalPrice: tx.originalPrice !== undefined ? tx.originalPrice : tx.price,
-                                                            status: "Geldi",
-                                                            duration: "30",
-                                                            notes: "Planlama ekranından hızlıca tamamlandı.",
-                                                            createdAt: Date.now(),
-                                                            linkedPlanId: tx.id // Çift bakiye koruması
-                                                      };
-
                                                       const updatedPlanned = patientForm.plannedTreatments.map(t => 
                                                          t.id === tx.id ? { ...t, isCompleted: true, completedAt: Date.now(), completedBy: currentUser } : t
                                                       );
@@ -12144,9 +12182,8 @@ const renderSettings = () => {
                                                       
                                                       saveGlobalData({
                                                          ...globalData,
-                                                         appointments: updatedAppointments,
                                                          patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient }
-                                                      }).then(() => showNotification("İşlem tamamlandı ve ciroya eklendi.", "success"));
+                                                      }).then(() => showNotification("İşlem tamamlandı olarak işaretlendi.", "success"));
                                                     });
                                                   }}
                                                   className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:bg-slate-800 dark:border-emerald-900/30 transition-all flex items-center justify-center shadow-sm"
@@ -12603,41 +12640,20 @@ const renderSettings = () => {
                                 let addedRevenueCount = 0;
                                 const docId = selectedHistoryRecord.doctorId || currentUser;
 
-                                // YENİ: Epikriz düzenleme ekranından seçilen planlı işlemleri tamamla
+                                // YENİ DÜZELTME: Epikriz düzenleme ekranından seçilen planlı işlemleri tamamla veya tiki kaldırılanları geri al
                                 const completedIds = selectedHistoryRecord.completedPlanIds || [];
-                                if (completedIds.length > 0) {
-                                    const nowTime = new Date();
-                                    const dateKey = formatDateKey(nowTime);
-                                    const timeStr = nowTime.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-
-                                    if (!updatedAppointments[docId]) updatedAppointments[docId] = {};
-
-                                    updatedPlanned = updatedPlanned.map((tx, iterationIndex) => {
-                                        if (completedIds.includes(tx.id) && !tx.isCompleted) {
-                                            // YENİ: Döngü içinde çakışmayı önlemek için index + milisaniye + rastgele tuz (salt) kullanımı
-                                            const uniqueSalt = Math.random().toString(36).substring(2, 7);
-                                            const aptKey = `${dateKey}-${timeStr}-${Date.now()}-${iterationIndex}-${uniqueSalt}`;
-                                            
-                                            updatedAppointments[docId][aptKey] = {
-                                                patientName: patientForm.name,
-                                                patientId: patientForm.id,
-                                                phone: patientForm.phone,
-                                                treatment: tx.treatment,
-                                                selectedTeeth: [tx.tooth],
-                                                price: tx.price,
-                                                originalPrice: tx.originalPrice !== undefined ? tx.originalPrice : tx.price,
-                                                status: "Geldi",
-                                                duration: "30",
-                                                notes: "Epikriz düzenleme ekranından tamamlandı.",
-                                                createdAt: Date.now(),
-                                                linkedPlanId: tx.id // Çift bakiyeyi engeller!
-                                            };
-                                            addedRevenueCount++;
-                                            return { ...tx, isCompleted: true, completedAt: Date.now(), completedBy: currentUser };
-                                        }
-                                        return tx;
-                                    });
-                                }
+                                
+                                updatedPlanned = updatedPlanned.map((tx) => {
+                                    // 1. Yeni işaretlenenleri tamamla (Randevu oluşturmadan)
+                                    if (completedIds.includes(tx.id) && !tx.isCompleted) {
+                                        return { ...tx, isCompleted: true, completedAt: Date.now(), completedBy: currentUser };
+                                    }
+                                    // 2. Tiki kaldırılanları geri al (Tamamlanmadı yap)
+                                    if (!completedIds.includes(tx.id) && tx.isCompleted) {
+                                        return { ...tx, isCompleted: false, completedAt: null, completedBy: null };
+                                    }
+                                    return tx;
+                                });
 
                                 const updatedHistory = patientForm.clinicalHistory.map(h => 
                                   h.id === selectedHistoryRecord.id ? selectedHistoryRecord : h
