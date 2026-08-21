@@ -366,14 +366,23 @@ const useFirebase = () => {
 
         const handleToothClick = (toothNo) => {
           if (!activePlanTreatment) {
-            showNotification(
-              "Lütfen önce alt kısımdan bir işlem türü seçin!",
-              "error"
-            );
+            showNotification("Lütfen önce alt kısımdan bir işlem türü seçin!", "error");
             return;
           }
 
-          // YENİ: Tam Protez (Tek Çene) Akıllı Seçim Motoru
+          // ZIRHLI FİYAT OKUMA MOTORU (Klinik İzolasyonuna Uyumlu Patron Bulucu)
+          let ownerId = currentUser;
+          const myProfile = globalData.userProfiles?.[currentUser];
+          if (myProfile?.clinicId) {
+             const patron = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === myProfile.clinicId && v.role === "clinic_owner");
+             if (patron) ownerId = patron[0];
+          } else if (myProfile?.role === "assistant" || myProfile?.role === "doctor") {
+             ownerId = myProfile.createdBy || currentUser;
+          }
+          
+          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
+          const userPricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+
           if (activePlanTreatment === "Tam Protez (Tek Çene)") {
             const tInt = parseInt(toothNo);
             const isUpperClick = tInt < 30 || (tInt >= 50 && tInt < 70);
@@ -394,8 +403,7 @@ const useFirebase = () => {
               return;
             }
 
-            const userPricing = globalData.pricingDb?.[patientForm?.addedBy] || globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
-            const txPrice = userPricing?.[activePlanTreatment] !== undefined ? parseFloat(userPricing[activePlanTreatment]) : DEFAULT_PRICING[activePlanTreatment] || 0;
+            const txPrice = userPricing[activePlanTreatment] !== undefined ? parseFloat(userPricing[activePlanTreatment]) : 0;
 
             const newTx = {
               id: Date.now() + Math.random().toString(),
@@ -414,18 +422,10 @@ const useFirebase = () => {
             return;
           }
 
-          // YENİ: Akıllı 8 Numara (Yirmilik) Çekimi Kontrolü
           let actualPlanTreatment = activePlanTreatment;
-          if (
-            activePlanTreatment === "Diş Çekimi" &&
-            ["18", "28", "38", "48"].includes(
-              toothNo.toString()
-            )
-          ) {
+          if (activePlanTreatment === "Diş Çekimi" && ["18", "28", "38", "48"].includes(toothNo.toString())) {
             actualPlanTreatment = "Gömülü ve 20lik Diş Çekimi";
-            showNotification(
-              "8 Numaralı diş seçildiği için tarife 'Gömülü ve 20lik Diş Çekimi' olarak otomatik güncellendi."
-            );
+            showNotification("8 Numaralı diş seçildiği için tarife 'Gömülü ve 20lik Diş Çekimi' olarak otomatik güncellendi.");
           }
 
           const exists = patientForm.plannedTreatments?.some(
@@ -436,29 +436,14 @@ const useFirebase = () => {
             setPatientForm((prev) => ({
               ...prev,
               plannedTreatments: prev.plannedTreatments.filter(
-                (t) =>
-                  !(t.tooth === toothNo && t.treatment === actualPlanTreatment)
+                (t) => !(t.tooth === toothNo && t.treatment === actualPlanTreatment)
               ),
             }));
-            showNotification(
-              `${toothNo} numaralı bölgeden ${actualPlanTreatment} çıkarıldı.`,
-              "error"
-            );
+            showNotification(`${toothNo} numaralı bölgeden ${actualPlanTreatment} çıkarıldı.`, "error");
             return;
           }
 
-          const userPricing =
-            globalData.pricingDb?.[patientForm?.addedBy] ||
-            globalData.pricingDb?.[currentUser] ||
-            (typeof globalData.pricingDb === "object" &&
-            globalData.pricingDb["Genel Muayene"]
-              ? globalData.pricingDb
-              : DEFAULT_PRICING);
-
-          const txPrice =
-            userPricing?.[actualPlanTreatment] !== undefined
-              ? parseFloat(userPricing[actualPlanTreatment])
-              : DEFAULT_PRICING[actualPlanTreatment] || 0;
+          const txPrice = userPricing[actualPlanTreatment] !== undefined ? parseFloat(userPricing[actualPlanTreatment]) : 0;
 
           const newTx = {
             id: Date.now() + Math.random().toString(),
@@ -473,9 +458,7 @@ const useFirebase = () => {
             plannedTreatments: [...(prev.plannedTreatments || []), newTx],
           }));
 
-          showNotification(
-            `${toothNo} numaralı dişe ${actualPlanTreatment} planlandı. (${txPrice} ₺)`
-          );
+          showNotification(`${toothNo} numaralı dişe ${actualPlanTreatment} planlandı. (${txPrice} ₺)`);
         };
 
         const getToothAnatomy = (toothNo) => {
@@ -1452,6 +1435,232 @@ useEffect(() => {
   };
   checkSession();
 }, []);
+// ==========================================
+  // ADIM 1: YENİ ROL VE YETKİ SİSTEMİ (RBAC)
+  // ==========================================
+
+  const ROLE_PERMISSIONS = {
+    clinic_owner: {
+      "patients.view": true, "patients.create": true, "patients.edit": true, "patients.delete": true,
+      "appointments.view": true, "appointments.create": true, "appointments.edit": true, "appointments.delete": true,
+      "finance.view": true, "finance.payment": true, "finance.discount": true, "finance.edit": true,
+      "doctors.view": true, "doctors.create": true, "doctors.edit": true, "doctors.delete": true,
+      "users.view": true, "users.create": true, "users.edit": true, "users.delete": true,
+      "settings.view": true, "settings.edit": true,
+      "treatments.manage": true
+    },
+    doctor: {
+      "patients.view": true, "patients.create": true, "patients.edit": true, "patients.delete": true,
+      "appointments.view": true, "appointments.create": true, "appointments.edit": true, "appointments.delete": true,
+      "finance.view": true, "finance.payment": true, "finance.discount": true, "finance.edit": true,
+      "doctors.view": true, "doctors.create": false, "doctors.edit": false, "doctors.delete": false,
+      "users.view": false, "users.create": false, "users.edit": false, "users.delete": false,
+      "settings.view": true, "settings.edit": true,
+      "treatments.manage": true
+    },
+    assistant: {
+      "patients.view": true, "patients.create": true, "patients.edit": true, "patients.delete": false,
+      "appointments.view": true, "appointments.create": true, "appointments.edit": true, "appointments.delete": false,
+      "finance.view": false, "finance.payment": true, "finance.discount": false, "finance.edit": false,
+      "doctors.view": true, "doctors.create": false, "doctors.edit": false, "doctors.delete": false,
+      "users.view": false, "users.create": false, "users.edit": false, "users.delete": false,
+      "settings.view": false, "settings.edit": false,
+      "treatments.manage": false
+    }
+  };
+// --- YENİ: KLİNİK İZOLASYONU VE HESAP DEĞİŞTİRME MOTORU ---
+  const [switchAccountModal, setSwitchAccountModal] = useState({
+    isOpen: false,
+    targetUsername: null,
+    targetName: "",
+    targetRole: "",
+    password: "",
+    error: "",
+    showPassword: false // YENİ: Şifre gösterme durumu
+  });
+  const [isUsersSubmenuOpen, setIsUsersSubmenuOpen] = useState(false); // YENİ: Tıklanabilir alt menü durumu
+
+  // Geriye Dönük Uyumluluk (Migration) ile Clinic ID Tespiti (SONSUZ DÖNGÜ KORUMALI)
+  const resolveClinicId = (usernameToFind, visited = new Set()) => {
+    // 1. GÜVENLİK ZIRHI: Eğer bu kişiye daha önce baktıysak (Kendi kendini ekleyen hesaplar) hemen döngüyü kır!
+    if (!usernameToFind || visited.has(usernameToFind)) return `clinic_${usernameToFind}`;
+    visited.add(usernameToFind);
+
+    const profile = globalData.userProfiles?.[usernameToFind];
+    if (profile?.clinicId) return profile.clinicId;
+    
+    if (profile?.role === "clinic_owner") return `clinic_${usernameToFind}`;
+    
+    // 2. GÜVENLİK ZIRHI: Ekleyen kişi kendisi DEĞİLSE bir üste çık
+    if (profile?.createdBy && profile.createdBy !== usernameToFind) {
+        return resolveClinicId(profile.createdBy, visited);
+    }
+
+    const docProfile = globalData.doctorProfiles?.[usernameToFind];
+    if (docProfile?.addedBy && docProfile.addedBy !== usernameToFind) {
+        return resolveClinicId(docProfile.addedBy, visited);
+    }
+
+    return `clinic_${usernameToFind}`; // Son çare
+  };
+
+  const currentClinicId = currentUser ? resolveClinicId(currentUser) : null;
+
+  // Sadece Bu Kliniğe Ait ve Aktif Olan Diğer Kullanıcıları Getir
+  const getClinicUsers = () => {
+    if (!currentClinicId) return [];
+    const usersMap = new Map();
+
+    Object.entries(globalData.userProfiles || {}).forEach(([uName, prof]) => {
+      const cId = resolveClinicId(uName);
+      if (cId === currentClinicId && prof.active !== false && uName !== currentUser) {
+        usersMap.set(uName, {
+          username: uName,
+          name: prof.name || uName,
+          role: prof.role || "clinic_owner"
+        });
+      }
+    });
+
+    Object.entries(globalData.doctorProfiles || {}).forEach(([dName, prof]) => {
+      const cId = resolveClinicId(dName);
+      if (cId === currentClinicId && dName !== currentUser && !usersMap.has(dName)) {
+        usersMap.set(dName, {
+          username: dName,
+          name: prof.name || dName,
+          role: "doctor"
+        });
+      }
+    });
+
+    return Array.from(usersMap.values());
+  };
+
+  const handleSwitchAccountSubmit = (e) => {
+    e.preventDefault();
+    const targetUser = switchAccountModal.targetUsername;
+    const targetName = switchAccountModal.targetName;
+    const storedPass = globalData.usersDb?.[targetUser];
+
+    if (!storedPass || storedPass !== switchAccountModal.password) {
+      setSwitchAccountModal(prev => ({ ...prev, error: "Hesap şifresi hatalı!" }));
+      return;
+    }
+
+    // 1. ÖNCE MODALI VE AÇIK MENÜLERİ KAPAT (Ekranda takılı kalmaması için en üste aldık)
+    setSwitchAccountModal({ isOpen: false, targetUsername: null, targetName: "", targetRole: "", password: "", error: "", showPassword: false });
+    setIsUserMenuOpen(false);
+    setIsUsersSubmenuOpen(false);
+    
+    // 2. Diğer olası açık pencereleri ve arama çubuklarını temizle
+    setIsPatientModalOpen(false);
+    setIsModalOpen(false);
+    setIsDoctorDetailsModalOpen(false);
+    setPatientForm(null);
+    setGlobalSearch("");
+    setAptSearchQuery("");
+    setPatientLocalSearch("");
+    setListDoctorFilter("all");
+    setActiveFolderId(null);
+    
+    // 3. Ekrana bildirim bas ve anasayfaya yönlendir
+    setActiveTab("home");
+    showNotification(`${targetName} hesabına başarıyla geçiş yapıldı.`, "success");
+
+    // 4. EN SON OTURUMU AKTAR (Sayfanın yenilenmesini en sona bıraktık)
+    setCurrentUser(targetUser);
+    sessionStorage.setItem("klinikAktifKullanici", targetUser);
+    sessionStorage.setItem("klinikOturumTokeni", "active");
+
+    setSwitchAccountModal({
+                                        isOpen: true, targetUsername: u.username, targetName: u.name, targetRole: u.role, password: "", error: "", showPassword: false
+                                      });
+                                      setIsUserMenuOpen(false);
+                                      setIsUsersSubmenuOpen(false);
+    setActiveTab("home");
+    showNotification(`${switchAccountModal.targetName} hesabına başarıyla geçiş yapıldı.`, "success");
+  };
+  // -----------------------------------------------------------
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+
+  useEffect(() => {
+    if (!currentUser || !globalData) return;
+
+    const profile = globalData.userProfiles?.[currentUser];
+    
+    if (profile) {
+      setCurrentUserProfile({
+        ...profile,
+        permissions: { ...ROLE_PERMISSIONS[profile.role], ...(profile.customPermissions || {}) }
+      });
+    } else {
+      // Eski sistemden kalan kullanıcıları sistemi bozmamak için Klinik Sahibi kabul ediyoruz
+      setCurrentUserProfile({
+        name: globalData.doctorProfiles?.[currentUser]?.name || currentUser,
+        role: "clinic_owner",
+        active: true,
+        assignedDoctors: [currentUser],
+        permissions: ROLE_PERMISSIONS["clinic_owner"]
+      });
+    }
+  }, [currentUser, globalData.userProfiles, globalData.doctorProfiles]);
+
+  const hasPermission = (permissionString) => {
+    if (!currentUserProfile) return false;
+    if (currentUserProfile.active === false) return false;
+    return !!currentUserProfile.permissions?.[permissionString];
+  };
+
+  // 1. GÜVENLİK: Kullanıcı Adı Standardizasyonu (Büyük/Küçük Harf ve Boşluk Temizliği)
+  const normalizeUsername = (username) => {
+    return (username || "").toString().trim().toLowerCase();
+  };
+  // YENİ: CANLI KULLANICI ADI KONTROL MOTORU (Görsel geri bildirim için)
+  const checkUsernameAvailability = (uname, excludeName = null) => {
+    if (!uname || uname.trim().length < 3) return null; // 3 karakterden kısaysa kontrol etme
+    const normalized = normalizeUsername(uname);
+    if (excludeName && normalizeUsername(excludeName) === normalized) return true; // Düzenlerken kendi adıysa sorun yok
+    
+    const isTaken = Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === normalized) ||
+                    Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === normalized) ||
+                    Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === normalized);
+    return !isTaken; // true = uygun (yeşil), false = alınmış (kırmızı)
+  };
+
+  // 2. GÜVENLİK: Mevcut Kliniğin Asıl Sahibini (Patronunu) Bulma
+  const getClinicOwnerId = () => {
+    if (!currentClinicId) return currentUser; // Fallback
+    
+    // Önce aynı clinicId'ye sahip 'clinic_owner' rolündeki kişiyi bul
+    const ownerEntry = Object.entries(globalData.userProfiles || {}).find(([uname, prof]) => 
+       prof.clinicId === currentClinicId && prof.role === "clinic_owner"
+    );
+    if (ownerEntry) return ownerEntry[0];
+
+    // Bulunamazsa eski sisteme göre fallback
+    return (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
+           ? currentUserProfile.createdBy 
+           : currentUser;
+  };
+
+  const getVisibleDoctors = () => {
+    if (!currentClinicId) return [];
+
+    const allSystemDoctors = Array.from(new Set([
+      ...Object.keys(globalData.usersDb || {}),
+      ...Object.keys(globalData.doctorProfiles || {})
+    ])).filter(doc => globalData.userProfiles?.[doc]?.role !== "assistant");
+
+    // Asistan ise SADECE kendisine atanan AMA AYNI ZAMANDA aynı klinikte olan hekimleri görsün
+    if (currentUserProfile?.role === "assistant") {
+      const assigned = currentUserProfile.assignedDoctors || [];
+      return allSystemDoctors.filter(doc => assigned.includes(doc) && resolveClinicId(doc) === currentClinicId);
+    }
+
+    // Klinik Sahibi veya Hekim ise AYNI KLİNİKTEKİ tüm hekimleri görsün (Eski addedBy mantığı iptal!)
+    return allSystemDoctors.filter(doc => resolveClinicId(doc) === currentClinicId);
+  };
+  // ==========================================
 
         const [savedUsernames, setSavedUsernames] = useState(() =>
           JSON.parse(localStorage.getItem("klinikSavedUsers") || "[]")
@@ -1461,9 +1670,10 @@ useEffect(() => {
 
         const [authForm, setAuthForm] = useState({
           username: "",
-
           password: "",
         });
+        
+        const [showSavedUsers, setShowSavedUsers] = useState(false); // YENİ: Kayıtlı kullanıcılar menüsü durumu
 
         const [registerForm, setRegisterForm] = useState({
           username: "",
@@ -1709,14 +1919,11 @@ useEffect(() => {
         const [touchStartX, setTouchStartX] = useState(null);
         const [docStatsActiveFilter, setDocStatsActiveFilter] = useState("all");
         const [commissionRate, setCommissionRate] = useState("");
-        const [newDoctorForm, setNewDoctorForm] = useState({
-          username: "",
-
-          password: "",
-
-          name: "",
-
-          title: "",
+        // YENİ: Klinik Kullanıcıları Yönetimi State'leri
+        const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+        const [editingUsername, setEditingUsername] = useState(null);
+        const [newUserForm, setNewUserForm] = useState({
+          username: "", password: "", name: "", role: "assistant", active: true, assignedDoctors: []
         });
 
         const [isDoctorDetailsModalOpen, setIsDoctorDetailsModalOpen] =
@@ -1782,8 +1989,13 @@ useEffect(() => {
         // AYARLARI OKUMA: Hibrit Motor (Önce Local, Sonra Bulut)
         useEffect(() => {
           if (currentUser) {
-            // 1. Aşama: Sisteme girer girmez cihaz hafızasından anında çek (Silinmeyi / Sıfırlanmayı engeller)
-            const localSaved = localStorage.getItem(`klinikSettings_${currentUser}`);
+            // YENİ: Asistan giriş yaparsa kendi boş ayarlarını değil, onu ekleyen Patronun ayarlarını çeker
+            const ownerId = (globalData.userProfiles?.[currentUser]?.role === "assistant" || globalData.userProfiles?.[currentUser]?.role === "doctor")
+                          ? globalData.userProfiles[currentUser].createdBy 
+                          : currentUser;
+
+            // 1. Aşama: Sisteme girer girmez cihaz hafızasından anında çek
+            const localSaved = localStorage.getItem(`klinikSettings_${ownerId}`);
             if (localSaved) {
               setSettings(JSON.parse(localSaved));
             } else {
@@ -1791,14 +2003,13 @@ useEffect(() => {
             }
 
             // 2. Aşama: Firebase (Bulut) verisi internetten inince, en güncel haliyle kontrol et
-            if (globalData && globalData.settingsDb && globalData.settingsDb[currentUser]) {
-              const cloudSettings = globalData.settingsDb[currentUser];
+            if (globalData && globalData.settingsDb && globalData.settingsDb[ownerId]) {
+              const cloudSettings = globalData.settingsDb[ownerId];
               setSettings(cloudSettings);
-              // LocalStorage'ı buluttaki en güncel veriyle senkronize et
-              localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(cloudSettings));
+              localStorage.setItem(`klinikSettings_${ownerId}`, JSON.stringify(cloudSettings));
             }
           }
-        }, [currentUser, globalData.settingsDb]);
+        }, [currentUser, globalData.settingsDb, globalData.userProfiles]);
 
         const [settingsDraft, setSettingsDraft] = useState(null);
         const [settingsTab, setSettingsTab] = useState("ozet");
@@ -1826,7 +2037,7 @@ useEffect(() => {
         // --- GERÇEK ZAMANLI EKLENTİLER (BELGE, TEDAVİ, TEMA) ---
         const [documentPreview, setDocumentPreview] = useState(null);
         const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
-        const [newTreatmentForm, setNewTreatmentForm] = useState({ name: "", category: "Klinik İşlem", price: "" });
+const [newTreatmentForm, setNewTreatmentForm] = useState({ name: "", category: "Teşhis ve Radyoloji", price: "" });
 
         // --- GERÇEK TDB BELGELERİ ---
         const TDB_DOCUMENTS = [
@@ -1995,25 +2206,42 @@ Tarih: ...../...../202...
            return slots;
         }, [settings.randevu.slotAraligi, settings.calisma]);
 
-        // --- YENİ TEDAVİYİ HER YERE AKTARAN MOTOR ---
+        // --- YENİ TEDAVİYİ HER YERE AKTARAN MOTOR (KUSURSUZ) ---
         const DYNAMIC_PRICING_CATEGORIES = useMemo(() => {
            const cats = JSON.parse(JSON.stringify(INITIAL_PRICING_CATEGORIES));
-           // 5️⃣ GERÇEK SİSTEM BAĞLANTISI: Özel tedavileri sadece o anki kullanıcıya (currentUser) özel getir
-           const userCustomTreatments = globalData.customTreatments?.[currentUser] || [];
-           
+           const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
+                         ? currentUserProfile.createdBy 
+                         : currentUser;
+
+           // Akıllı Fiyat Okuma: Varsa patronun özel listesini al, yoksa eski listeyi, o da yoksa varsayılanı.
+           let legacyPricing = null;
+           if (globalData.pricingDb && globalData.pricingDb["Genel Muayene"] !== undefined) {
+               legacyPricing = globalData.pricingDb;
+           }
+           const activePricing = globalData.pricingDb?.[ownerId] || legacyPricing || DEFAULT_PRICING;
+           const userCustomTreatments = globalData.customTreatments?.[ownerId] || [];
+
+           // 1. ADIM: SİLİNENLERİ TAMAMEN GİZLE (Dirilme Hatası Çözümü)
+           Object.keys(cats).forEach(cat => {
+               cats[cat].items = cats[cat].items.filter(tx => activePricing[tx] !== undefined);
+           });
+
+           // 2. ADIM: YENİ EKLENENLERİ GÖSTER (Tomografi vb.)
            if (userCustomTreatments.length > 0) {
               userCustomTreatments.forEach(t => {
-                 if (cats[t.category] && !cats[t.category].items.includes(t.name)) {
+                 if (cats[t.category] && !cats[t.category].items.includes(t.name) && activePricing[t.name] !== undefined) {
                     cats[t.category].items.push(t.name);
                  }
               });
            }
            return cats;
-        }, [globalData.customTreatments, currentUser]);
+        }, [globalData.customTreatments, globalData.pricingDb, currentUser, currentUserProfile]);
 
         const handleSaveNewCustomTreatment = (e) => {
           e.preventDefault();
-          const userPricing = globalData.pricingDb?.[currentUser] || DEFAULT_PRICING;
+          const ownerId = getClinicOwnerId();
+
+          const userPricing = globalData.pricingDb?.[ownerId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
           const treatmentName = newTreatmentForm.name.trim();
           
           if(!treatmentName) return;
@@ -2023,11 +2251,10 @@ Tarih: ...../...../202...
             [treatmentName]: parseFloat(newTreatmentForm.price) || 0
           };
 
-          // YENİ: Firebase'de eski veriler dizi ([]) olarak kaldıysa çökmeyi önlemek için nesneye çevir
           let existingCustomDb = globalData.customTreatments || {};
           if (Array.isArray(existingCustomDb)) existingCustomDb = {};
 
-          const userCustomTreatments = [...(existingCustomDb[currentUser] || [])];
+          const userCustomTreatments = [...(existingCustomDb[ownerId] || [])];
           if (!userCustomTreatments.some(t => t.name === treatmentName)) {
              userCustomTreatments.push({
                 name: treatmentName,
@@ -2037,20 +2264,19 @@ Tarih: ...../...../202...
 
           const updatedCustomTreatmentsDb = {
             ...existingCustomDb,
-            [currentUser]: userCustomTreatments
+            [ownerId]: userCustomTreatments
           };
 
           saveGlobalData({ 
             ...globalData, 
-            pricingDb: { ...(globalData.pricingDb || {}), [currentUser]: updatedPricing },
+            pricingDb: { ...(globalData.pricingDb || {}), [ownerId]: updatedPricing },
             customTreatments: updatedCustomTreatmentsDb 
           }).then(() => {
-              // Değişikliği anında arayüze de yansıt
               setPricingEditValues(prev => ({ ...prev, [treatmentName]: parseFloat(newTreatmentForm.price) || 0 }));
-              showNotification("Yeni işlem Firebase'e kaydedildi ve listelere eklendi.", "success");
+              showNotification("Yeni işlem başarıyla kaydedildi ve tüm listelere eklendi.", "success");
               setIsAddTreatmentModalOpen(false);
-              setNewTreatmentForm({ name: "", category: "Teşhis ve Radyoloji", price: "" });
-            });
+              setNewTreatmentForm({ name: "", category: "Klinik İşlem", price: "" });
+          });
         };
 
         // 1. OTOMATİK TEMA ALGILAYICI VE DEĞİŞTİRİCİ (Aydınlık/Karanlık)
@@ -2347,14 +2573,13 @@ Tarih: ...../...../202...
             const dbRef = ref(db, "KlinikAnaVeritabani/Veriler");
 
             // AKILLI GÜNCELLEME (DEEP UPDATE) MANTIĞI
-            // Toptan ezmek yerine sadece değişen/eklenen/silinen noktaları bulur.
             const updates = {};
 
             const checkOneLevel = (collectionName) => {
               const oldCol = globalData[collectionName] || {};
               const newCol = newData[collectionName] || {};
 
-              // Yenileri veya değişenleri bul (Deep Equal Kontrolü - Performans Optimizasyonu)
+              // Yenileri veya değişenleri bul
               Object.keys(newCol).forEach((key) => {
                 if (JSON.stringify(oldCol[key]) !== JSON.stringify(newCol[key])) {
                   updates[`${collectionName}/${key}`] = newCol[key];
@@ -2371,13 +2596,14 @@ Tarih: ...../...../202...
 
             // Tek katmanlı verileri kontrol et
             checkOneLevel("usersDb");
+            checkOneLevel("userProfiles"); // EKSİK OLAN HAYATİ SATIR BUYDU! (Rolleri kaydeder)
             checkOneLevel("doctorProfiles");
             checkOneLevel("patientsDb");
             checkOneLevel("pricingDb");
-            checkOneLevel("settingsDb"); // YENİ: Ayarlar artık Firebase'e yazılacak
-            checkOneLevel("customTreatments"); // 5️⃣ GERÇEK SİSTEM BAĞLANTISI: Özel tedavilerin Firebase kalıcılığı
+            checkOneLevel("settingsDb");
+            checkOneLevel("customTreatments"); 
 
-            // İki katmanlı verileri (Randevular: Doctor -> Appointment) kontrol et
+            // İki katmanlı verileri (Randevular) kontrol et
             const oldApts = globalData.appointments || {};
             const newApts = newData.appointments || {};
             const allDocIds = new Set([...Object.keys(oldApts), ...Object.keys(newApts)]);
@@ -2399,7 +2625,6 @@ Tarih: ...../...../202...
               });
             });
 
-            // Eğer veritabanında değişecek bir şey varsa sadece o yolları (path) güncelle
             if (Object.keys(updates).length > 0) {
               await update(dbRef, updates);
             }
@@ -2446,6 +2671,7 @@ Tarih: ...../...../202...
               !userMenuRef.current.contains(event.target)
             ) {
               setIsUserMenuOpen(false);
+              setIsUsersSubmenuOpen(false); // YENİ: Dışarı tıklayınca alt menüyü de kapat
             }
           };
 
@@ -2460,23 +2686,30 @@ Tarih: ...../...../202...
           setIsAptSearchOpen(false);
           setIsHeaderVisible(true);
 
-          if (activeTab === "calendar" && !calendarDoctor)
-            setCalendarDoctor(currentUser);
+          if (activeTab === "calendar" && !calendarDoctor) {
+            // Asistan giriş yaptığında takvim boş yerine ona atanmış İLK HEKİMİ açsın
+            if (currentUserProfile?.role === "assistant" && allDoctors.length > 0) {
+              setCalendarDoctor(allDoctors[0]);
+            } else {
+              setCalendarDoctor(currentUser);
+            }
+          }
 
           if (activeTab === "pricing") {
-            const myPricing = globalData.pricingDb?.[currentUser] || {};
-            const fallbackPricing =
-              typeof globalData.pricingDb === "object" &&
-              globalData.pricingDb["Genel Muayene"]
-                ? globalData.pricingDb
-                : {};
+            const ownerId = (globalData.userProfiles?.[currentUser]?.role === "assistant" || globalData.userProfiles?.[currentUser]?.role === "doctor")
+                          ? globalData.userProfiles[currentUser].createdBy 
+                          : currentUser;
+                          
+            let legacyPricing = null;
+            if (globalData.pricingDb && globalData.pricingDb["Genel Muayene"] !== undefined) {
+                legacyPricing = globalData.pricingDb;
+            }
 
-            // Tüm yeni işlemleri ve eski kayıtları harmanlayarak kayıp verileri önler
-            setPricingEditValues({
-              ...DEFAULT_PRICING,
-              ...fallbackPricing,
-              ...myPricing,
-            });
+            // DÜZELTME: Eğer patron kendi fiyat listesini oluşturduysa SADECE ONU GÖSTER.
+            // DEFAULT_PRICING ile birleştirme ki sildiğin Kompozit Vener geri gelmesin!
+            const activePricing = globalData.pricingDb?.[ownerId] || legacyPricing || DEFAULT_PRICING;
+
+            setPricingEditValues(activePricing);
           }
           // EKLENEN KISIM: globalData.pricingDb eklendi. Böylece anlık fiyat güncellemeleri ekrana yansıyacak.
         }, [activeTab, globalData.pricingDb, currentUser]);
@@ -3105,16 +3338,20 @@ Tarih: ...../...../202...
         const handleSavePatient = (e) => {
           if (e) e.preventDefault();
 
-          const clinicOwner = patientForm.addedBy || currentUser;
+          // YENİ: Ortak Hasta Havuzu Mantığı. 
+          // Hekim veya Asistan kayıt yapsa bile, hasta doğrudan Patronun kliniğine yazılır.
+          const ownerId = getClinicOwnerId();
+                        
+          const clinicOwner = patientForm.addedBy || ownerId;
           
-          // TC'yi sadece rakam kalacak şekilde normalize ediyoruz (Veritabanındaki orijinali değişmez)
+          // TC'yi sadece rakam kalacak şekilde normalize ediyoruz
           const normalizedTc = (patientForm.tc || "").replace(/\D/g, "");
 
           // 1. KLİNİK İÇİ TC KOPYA KONTROLÜ
           if (normalizedTc && normalizedTc.length > 0) {
             const duplicateByTc = Object.values(globalData.patientsDb || {}).find((p) => {
-              // Klinik izolasyonu: Sadece kendi kliniğimizdeki hastaları kontrol et
-              const isSameClinic = p.addedBy === clinicOwner || p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser;
+              // Klinik izolasyonu: Sadece ortak havuza ait hastaları kontrol et
+              const isSameClinic = p.addedBy === clinicOwner || allDoctors.includes(p.addedBy);
               const pTc = (p.tc || "").replace(/\D/g, "");
               
               // Aynı kliniğe ait, TC'si aynı olan ve KENDİSİ OLMAYAN bir hasta var mı?
@@ -3123,16 +3360,13 @@ Tarih: ...../...../202...
 
             if (duplicateByTc) {
               showNotification("Bu TC Kimlik No ile kayıtlı başka bir hasta zaten bulunuyor!", "error");
-              return; // Başka hastanın üzerine yazmayı / kopyayı engelle ve işlemi iptal et
+              return;
             }
           }
 
           // 2. YENİ KİMLİK (ID) OLUŞTURMA VEYA MEVCUTU KORUMA
-          // Eskiden isimle arama yapılıp başka hastanın ID'si çalınıyordu, bu tamamen KALDIRILDI.
-          // Artık kendi ID'si varsa korur (düzenleme), yoksa yepyeni ve benzersiz bir kayıt oluşturur.
           const isNewPatient = !patientForm.id;
-// Firebase push metodu ile asla çakışmayan, Türkçe karakter hatası vermeyen benzersiz kimlik (ID) üretimi
-const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
+          const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
 
           // YENİ: Hasta ilk kez oluşturuluyorsa otomatik "İlk Kayıt" epikrizi at
           let currentHistory = patientForm.clinicalHistory || [];
@@ -3144,7 +3378,7 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
                 time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
                 timestamp: Date.now(),
                 doctorId: currentUser,
-                doctorName: globalData.doctorProfiles?.[currentUser]?.name || currentUser,
+                doctorName: currentUserProfile?.name || globalData.doctorProfiles?.[currentUser]?.name || currentUser,
                 appointmentStatus: "İlk Kayıt",
                 visitType: "İlk Muayene",
                 treatment: "İlk Muayene ve Kayıt",
@@ -3160,7 +3394,7 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
             [pId]: {
               ...patientForm,
               id: pId,
-              addedBy: clinicOwner,
+              addedBy: clinicOwner, // <- HASTA PATRONA (KLİNİĞE) EKLENİYOR
               clinicalHistory: isNewPatient ? currentHistory : patientForm.clinicalHistory
             },
           };
@@ -3169,9 +3403,7 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
 
           setPatientForm({ ...patientForm, id: pId });
 
-          showNotification(
-            "Hasta bilgileri ve planlama başarıyla güncellendi."
-          );
+          showNotification("Hasta bilgileri ve planlama başarıyla güncellendi.");
         };
 
         const handleWholeJawTreatment = () => {
@@ -3208,16 +3440,11 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
             return;
           }
 
-          const userPricing =
-            globalData.pricingDb?.[currentUser] ||
-            (typeof globalData.pricingDb === "object" &&
-            globalData.pricingDb["Genel Muayene"]
-              ? globalData.pricingDb
-              : DEFAULT_PRICING);
-          const txPrice =
-            userPricing?.[activePlanTreatment] !== undefined
-              ? parseFloat(userPricing[activePlanTreatment])
-              : DEFAULT_PRICING[activePlanTreatment] || 0;
+          const ownerId = getClinicOwnerId();
+          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
+          const userPricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+          
+          const txPrice = userPricing[activePlanTreatment] !== undefined ? parseFloat(userPricing[activePlanTreatment]) : 0;
 
           const newTx = {
             id: Date.now() + Math.random().toString(),
@@ -3450,7 +3677,7 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
         const handlePatientNameChange = (val) => {
           setFormData({
             ...formData,
-            patientId: null, // Yeni isim girildiğinde önceki ID referansını kopar
+            patientId: null,
             patientName: val,
             treatment: "",
             price: "",
@@ -3459,27 +3686,25 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
             selectedTreatments: [],
           });
 
+          // YENİ: Hekim ve Asistanın, patronun hastalarını bulabilmesi için patron ID'si
+          const ownerId = getClinicOwnerId();
+
           if (val.trim().length > 0) {
-                const matches = Object.values(globalData.patientsDb || {}).filter(
-                  (p) =>
-                    (p.addedBy === currentUser ||
-                      globalData.doctorProfiles?.[p.addedBy]?.addedBy ===
-                        currentUser) && !p.isDeleted &&
-                    (p.name.toLowerCase().includes(val.toLowerCase()) ||
-                      (p.phone && p.phone.includes(val)) ||
-                      (p.tc && p.tc.includes(val)))
-                );
-                setPatientSuggestions(matches);
-              } else {
-                setPatientSuggestions(
-                  Object.values(globalData.patientsDb || {}).filter(
-                    (p) =>
-                      (p.addedBy === currentUser ||
-                      globalData.doctorProfiles?.[p.addedBy]?.addedBy ===
-                        currentUser) && !p.isDeleted
-                  )
-                );
-              }
+            const matches = Object.values(globalData.patientsDb || {}).filter(
+              (p) =>
+                (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted &&
+                (p.name.toLowerCase().includes(val.toLowerCase()) ||
+                  (p.phone && p.phone.includes(val)) ||
+                  (p.tc && p.tc.includes(val)))
+            );
+            setPatientSuggestions(matches);
+          } else {
+            setPatientSuggestions(
+              Object.values(globalData.patientsDb || {}).filter(
+                (p) => (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted
+              )
+            );
+          }
         };
 
         const selectPatientSuggestion = (p) => {
@@ -3580,25 +3805,24 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
           };
 
           // YENİ HASTA EŞLEŞTİRME MANTIĞI:
-          // 1. Kullanıcı dropdown'dan (önerilerden) seçtiyse formData.patientId mevcuttur, onu kullan.
-          // 2. Sadece isim yazdıysa ve sistemde o kliniğe ait aynı isim + AYNI TELEFONA sahip biri varsa onu kullan.
-          // 3. Aksi halde sırf ismi aynı diye başkasının üzerine YAZMA, yeni benzersiz hasta oluştur.
-          const clinicOwner = currentUser;
+          const ownerId = currentUserProfile?.role === "assistant" ? currentUserProfile.createdBy : currentUser;
+          const clinicOwner = ownerId; // Asistanlar kaydettiğinde de hasta Patron'un kliniğine yazılsın
+          
           const existingPatient = formData.patientId 
             ? globalData.patientsDb?.[formData.patientId] 
             : Object.values(globalData.patientsDb || {}).find(
               (p) => {
-                const isSameClinic = p.addedBy === clinicOwner || globalData.doctorProfiles?.[p.addedBy]?.addedBy === clinicOwner;
+                const isSameClinic = allDoctors.includes(p.addedBy) || p.addedBy === clinicOwner;
                 return isSameClinic && 
                        p.name.toLowerCase() === formData.patientName.toLowerCase().trim() && 
                        p.phone === formData.phone && 
-                       p.phone !== ""; // Sadece isme göre eşleştirme yapılmasını kesinlikle engeller
+                       p.phone !== ""; 
               }
             );
 
           const patientId = existingPatient
-  ? existingPatient.id
-  : push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
+            ? existingPatient.id
+            : push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
 
           let updatedPatientsDb = { ...(globalData.patientsDb || {}) };
 
@@ -3737,10 +3961,14 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
               )
                 return;
               Object.entries(dApts).forEach(([k, apt]) => {
-                const pInfo =
-                  globalData.patientsDb?.[
-                    apt.patientName.toLowerCase().replace(/\s+/g, "")
-                  ];
+                
+                // YENİ: Firebase güvenli ID eşleştirmesi
+                let pInfo = null;
+                if (apt.patientId && globalData.patientsDb?.[apt.patientId]) {
+                    pInfo = globalData.patientsDb[apt.patientId];
+                } else {
+                    pInfo = Object.values(globalData.patientsDb || {}).find(p => p.name.toLowerCase() === apt.patientName.toLowerCase());
+                }
 
                 const matches =
                   apt.patientName.toLowerCase().includes(q) ||
@@ -3956,7 +4184,7 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
         const handleAuthSubmit = async (e) => {
           e.preventDefault();
 
-          // Kaba Kuvvet (Brute Force) Koruması (Aktif Bırakıldı)
+          // Kaba Kuvvet (Brute Force) Koruması
           const attempts = parseInt(
             localStorage.getItem("loginAttempts") || "0"
           );
@@ -3972,9 +4200,16 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
           }
 
           const usersDb = globalData.usersDb || {};
-          const storedPass = usersDb[authForm.username];
+          const loginInput = authForm.username.trim().toLowerCase();
 
-          // DİKKAT: Şifreleme (Kriptolama) devre dışı bırakıldı, düz metin kontrolü yapılıyor.
+          // YENİ DÜZELTME: Firebase'deki büyük/küçük harfli orijinal kullanıcı adını bul
+          // Böylece eski kullanıcılar sisteme sorunsuzca girebilecek
+          const actualUsernameKey = Object.keys(usersDb).find(
+            (key) => key.toLowerCase() === loginInput
+          );
+
+          const storedPass = actualUsernameKey ? usersDb[actualUsernameKey] : null;
+
           if (!storedPass || storedPass !== authForm.password) {
             const newAttempts = attempts + 1;
             if (newAttempts >= 4) {
@@ -3996,12 +4231,15 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
 
           // Başarılı Giriş
           localStorage.setItem("loginAttempts", "0");
-          setCurrentUser(authForm.username);
-          sessionStorage.setItem("klinikAktifKullanici", authForm.username);
+          
+          // DİKKAT: Sisteme küçük harfli girdiğimiz kelimeyle değil, 
+          // Firebase'deki orijinal büyük/küçük harfli adıyla oturum açıyoruz ki eski verileri görebilsin!
+          setCurrentUser(actualUsernameKey);
+          sessionStorage.setItem("klinikAktifKullanici", actualUsernameKey);
           sessionStorage.setItem("klinikOturumTokeni", "active");
 
-          if (!savedUsernames.includes(authForm.username)) {
-            const newSaved = [...savedUsernames, authForm.username];
+          if (!savedUsernames.includes(actualUsernameKey)) {
+            const newSaved = [...savedUsernames, actualUsernameKey];
             setSavedUsernames(newSaved);
             localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
           }
@@ -4181,24 +4419,61 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
                 {authMode === "login" && (
                   <form onSubmit={handleAuthSubmit} className="space-y-2">
                     <div className="relative group">
-                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10"></i>
                       <input
                         type="text"
                         required
-                        list="saved-users"
                         value={authForm.username}
-                        onChange={(e) =>
-                          setAuthForm({ ...authForm, username: e.target.value })
-                        }
-                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        onChange={(e) => setAuthForm({ ...authForm, username: e.target.value })}
+                        onFocus={() => setShowSavedUsers(true)}
+                        onBlur={() => setShowSavedUsers(false)} 
+                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm relative z-0"
                         placeholder="Kullanıcı Adınız"
                         autoComplete="off"
                       />
-                      <datalist id="saved-users">
-                        {savedUsernames.map((uname, idx) => (
-                          <option key={idx} value={uname} />
-                        ))}
-                      </datalist>
+                      
+                      {/* AKILLI VE ZARİF KAYITLI KULLANICILAR MENÜSÜ */}
+                      {showSavedUsers && (() => {
+                         // YENİ: Akıllı Filtre (Klavyeden harf girdikçe listeyi anında daraltır)
+                         const filteredUsers = savedUsernames.filter(u => u.toLowerCase().includes(authForm.username.toLowerCase()));
+                         if (filteredUsers.length === 0) return null;
+                         
+                         return (
+                          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto custom-scrollbar p-1 animate-pop">
+                            {filteredUsers.map((uname, idx) => (
+                              <div key={idx} className="flex justify-between items-center px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer transition-colors group/item">
+                                <div 
+                                  className="flex-1 flex items-center gap-2"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault(); // Input'tan focus'un çıkmasını engeller
+                                    setAuthForm({ ...authForm, username: uname });
+                                    setShowSavedUsers(false);
+                                  }}
+                                >
+                                  <i className="fa-regular fa-circle-user text-slate-300 dark:text-slate-500 group-hover/item:text-indigo-400 transition-colors"></i>
+                                  <span className="font-bold text-[11px] text-slate-600 dark:text-slate-300 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">
+                                    {uname}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const newSaved = savedUsernames.filter(u => u !== uname);
+                                    setSavedUsernames(newSaved);
+                                    localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all opacity-50 group-hover/item:opacity-100"
+                                  title="Bu hesabı listeden sil"
+                                >
+                                  <i className="fa-solid fa-xmark text-[11px]"></i>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                         );
+                      })()}
                     </div>
 
                     <div className="relative group">
@@ -4293,12 +4568,24 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
                         onChange={(e) =>
                           setRegisterForm({
                             ...registerForm,
-                            username: e.target.value,
+                            username: e.target.value.replace(/\s+/g, '').toLowerCase(),
                           })
                         }
-                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        className={`w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border-2 rounded-xl outline-none text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm ${
+                          registerForm.username.length >= 3 
+                            ? (checkUsernameAvailability(registerForm.username) 
+                                ? "border-emerald-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20" 
+                                : "border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 text-rose-600")
+                            : "border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                        }`}
                         placeholder="Kullanıcı Adı Belirleyin"
                       />
+                      {registerForm.username.length >= 3 && (
+                        <div className={`text-[10px] font-bold mt-1.5 flex items-center gap-1 animate-fadeIn ${checkUsernameAvailability(registerForm.username) ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                          <i className={`fa-solid ${checkUsernameAvailability(registerForm.username) ? "fa-check-circle" : "fa-circle-xmark"}`}></i>
+                          {checkUsernameAvailability(registerForm.username) ? "Bu kullanıcı adı kullanılabilir." : "Bu kullanıcı adı maalesef alınmış!"}
+                        </div>
+                      )}
                     </div>
 
                     <div className="relative group">
@@ -4420,16 +4707,9 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
             </div>
           );
 
-        // YENİ: Sisteme giriş yetkisi (usersDb kaydı) olmayan, 
-        // sadece klinikte çalışan hekimlerin de listelenmesi için güncellendi.
-        const allDoctors = Array.from(new Set([
-          ...Object.keys(globalData.usersDb || {}),
-          ...Object.keys(globalData.doctorProfiles || {})
-        ])).filter(
-          (doc) =>
-            doc === currentUser ||
-            globalData.doctorProfiles?.[doc]?.addedBy === currentUser
-        );
+        // Tüm sistemde (Takvim, Hastalar, Finans) görünecek hekimlerin ana listesi
+        // getVisibleDoctors() fonksiyonundan yetkilere göre dinamik çekilir.
+        const allDoctors = getVisibleDoctors();
 
         const visibleListDoctors =
           listDoctorFilter === "all" ? allDoctors : [listDoctorFilter];
@@ -4439,32 +4719,38 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
           let todaysApts = [],
             waitingCount = 0,
             totalApts = 0;
-          if (globalData.appointments && globalData.appointments[currentUser]) {
-            Object.entries(globalData.appointments[currentUser]).forEach(
-              ([key, apt]) => {
-                if (key.startsWith(todayStr)) {
-                  const docId = currentUser;
-                  const dateKey = key.split("-").slice(0, 3).join("-");
-                  const timeStr = key.split("-").slice(3).join(":");
-                  const aptKey = dateKey + "-" + key.split("-")[3];
-                  const endTime = calculateEndTime(
-                    timeStr,
-                    apt.duration || "30"
-                  );
-                  todaysApts.push({
-                    ...apt,
-                    docId: docId,
-                    timeStr: `${timeStr} - ${endTime}`,
-                    sortTime: timeStr,
-                    originalKey: aptKey,
-                    dateKey: dateKey,
-                  });
-                  totalApts++;
-                  if (apt.status === "Yeni Kayıt" || apt.status === "Bekliyor")
-                    waitingCount++;
-                }
+
+          // YENİ: Sadece currentUser değil, yetkili olunan TÜM hekimlerin bugünkü randevularını topla
+          if (globalData.appointments) {
+            allDoctors.forEach((docId) => {
+              if (globalData.appointments[docId]) {
+                Object.entries(globalData.appointments[docId]).forEach(
+                  ([key, apt]) => {
+                    if (key.startsWith(todayStr)) {
+                      // docId artık dışarıdaki döngüden geliyor, o yüzden içeride tekrar tanımlamıyoruz!
+                      const dateKey = key.split("-").slice(0, 3).join("-");
+                      const timeStr = key.split("-").slice(3).join(":");
+                      const aptKey = dateKey + "-" + key.split("-")[3];
+                      const endTime = calculateEndTime(
+                        timeStr,
+                        apt.duration || "30"
+                      );
+                      todaysApts.push({
+                        ...apt,
+                        docId: docId,
+                        timeStr: `${timeStr} - ${endTime}`,
+                        sortTime: timeStr,
+                        originalKey: aptKey,
+                        dateKey: dateKey,
+                      });
+                      totalApts++;
+                      if (apt.status === "Yeni Kayıt" || apt.status === "Bekliyor")
+                        waitingCount++;
+                    }
+                  }
+                );
               }
-            );
+            }); // Yeni açtığımız döngüyü burada düzgünce kapattık
           }
           todaysApts.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
@@ -4702,7 +4988,7 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-3 flex flex-col shrink-0 mt-2 animate-pop min-h-[400px]">
                 {(() => {
                   const allPats = Object.values(globalData.patientsDb || {}).filter(
-                  (p) => (p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser) && !p.isDeleted
+                  (p) => (allDoctors.includes(p.addedBy)) && !p.isDeleted
                 );
 
                  // YENİ AKILLI MANTIK: Gelecekte randevusu olan hastayı masadan gizleyen fonksiyon
@@ -4727,10 +5013,13 @@ const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/p
                     return hasFuture;
                   };
 
-                  // 1. Manuel Etiketli Klasörler (Tamamlandı olanlar Hariç)
-                  // 1. Sadece kullanıcının kendi hastalarını al
+                  // 1. Ortak Havuzdaki (Kliniğe Ait) Hastaları Dosya Masası İçin Al
+                  const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
+                                ? currentUserProfile.createdBy 
+                                : currentUser;
+
                   const myPatientsForHome = Object.values(globalData.patientsDb || {}).filter(p => 
-                    (p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser) && !p.isDeleted
+                    (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted
                   );
 
                   // 2. Tarih ve Randevu Kontrolleri İçin Hazırlık (Son 7 Gün Algılayıcı)
@@ -6120,8 +6409,9 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
         };
 
         const renderPatients = () => {
+          // KLİNİK İZOLASYONU: Hasta ekleyenin clinicId'si, benim clinicId'me eşit mi?
           let patientsList = Object.values(globalData.patientsDb || {}).filter(
-            (p) => p.addedBy === currentUser && !p.isDeleted
+            (p) => resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted
           );
           if (patientLocalSearch)
             patientsList = patientsList.filter(
@@ -6380,93 +6670,117 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
         };
 
         const renderPricing = () => {
+          
           const handleSavePricing = (e) => {
             e.preventDefault();
+            const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
+                          ? currentUserProfile.createdBy 
+                          : currentUser;
 
             let existingDb = { ...(globalData.pricingDb || {}) };
-
-            // Eğer önceki eski "düz (hekim bazlı olmayan)" yapı mevcutsa üzerine yazıp temizleyelim
             if (existingDb["Genel Muayene"] !== undefined) {
-              existingDb = {};
+              existingDb = {}; // Eski bozuk yapıyı tamamen temizle
             }
 
+            // Sadece formdaki fiyatları kaydet, silinenleri geri getirme
             const cleanPricing = {};
-            // Firebase'in çökmesini engellemek için tüm değerleri saf sayı formatına çeviriyoruz
             Object.keys(pricingEditValues).forEach((tx) => {
               cleanPricing[tx] = parseFloat(pricingEditValues[tx]) || 0;
             });
 
-            const updatedPricingDb = {
-              ...existingDb,
-              [currentUser]: cleanPricing,
+            existingDb[ownerId] = cleanPricing;
+
+            saveGlobalData({ ...globalData, pricingDb: existingDb })
+              .then(() => showNotification("Ücretlendirmeleriniz başarıyla kaydedildi."))
+              .catch((err) => showNotification("Kayıt hatası oluştu.", "error"));
+          };
+
+          const handleSaveNewCustomTreatment = (e) => {
+            e.preventDefault();
+            const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
+                          ? currentUserProfile.createdBy 
+                          : currentUser;
+
+            let legacyPricing = null;
+            if (globalData.pricingDb && globalData.pricingDb["Genel Muayene"] !== undefined) {
+                legacyPricing = globalData.pricingDb;
+            }
+            const userPricing = globalData.pricingDb?.[ownerId] || legacyPricing || DEFAULT_PRICING;
+            const treatmentName = newTreatmentForm.name.trim();
+            
+            if(!treatmentName) return;
+
+            const updatedPricing = {
+              ...userPricing,
+              [treatmentName]: parseFloat(newTreatmentForm.price) || 0
             };
 
-            saveGlobalData({ ...globalData, pricingDb: updatedPricingDb })
-              .then(() => {
-                showNotification("Ücretlendirmeleriniz başarıyla kaydedildi.");
-              })
-              .catch((err) => {
-                showNotification(
-                  "Firebase Kayıt Hatası! İşlem isimlerinde geçersiz karakter olabilir.",
-                  "error"
-                );
-                console.error(err);
-              });
+            let existingCustomDb = globalData.customTreatments || {};
+            if (Array.isArray(existingCustomDb)) existingCustomDb = {};
+
+            const userCustomTreatments = [...(existingCustomDb[ownerId] || [])];
+            if (!userCustomTreatments.some(t => t.name === treatmentName)) {
+               userCustomTreatments.push({ name: treatmentName, category: newTreatmentForm.category });
+            }
+
+            const updatedCustomTreatmentsDb = { ...existingCustomDb, [ownerId]: userCustomTreatments };
+
+            let finalPricingDb = { ...(globalData.pricingDb || {}) };
+            if (finalPricingDb["Genel Muayene"] !== undefined) finalPricingDb = {};
+            finalPricingDb[ownerId] = updatedPricing;
+
+            saveGlobalData({ 
+              ...globalData, 
+              pricingDb: finalPricingDb,
+              customTreatments: updatedCustomTreatmentsDb 
+            }).then(() => {
+                setPricingEditValues(prev => ({ ...prev, [treatmentName]: parseFloat(newTreatmentForm.price) || 0 }));
+                showNotification(`${treatmentName} sisteme başarıyla eklendi.`, "success");
+                setIsAddTreatmentModalOpen(false);
+                setNewTreatmentForm({ name: "", category: "Teşhis ve Radyoloji", price: "" });
+            });
           };
 
           return (
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 pb-8 flex flex-col p-2 animate-pop w-full h-full overflow-y-auto">
               <div className="flex justify-between items-center mb-2 pb-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
                 <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
-                  <i className="fa-solid fa-tags text-pink-500"></i> İşlem
-                  Ücretlendirmeleri
+                  <i className="fa-solid fa-tags text-pink-500"></i> İşlem Ücretlendirmeleri
                 </h2>
               </div>
 
               <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-2 font-medium">
-                Klinikte uyguladığınız işlemlere ait standart tutarları aşağıdan
-                güncelleyebilirsiniz. Yeni eklenen işlemleri veya "0" olarak
-                görünenleri doldurup kaydettiğinizde tüm sistemde anında geçerli
-                olacaktır.
+                {hasPermission("treatments.manage") 
+                  ? "Klinikte uyguladığınız işlemlere ait standart tutarları aşağıdan güncelleyebilirsiniz. Yeni eklenen işlemleri veya '0' olarak görünenleri doldurup kaydettiğinizde tüm sistemde anında geçerli olacaktır."
+                  : "Kliniğinizde uygulanan işlemlerin standart ücret kataloğu aşağıdadır. (Sadece Görüntüleme Modu)"}
               </p>
 
               <form onSubmit={handleSavePricing} className="space-y-2">
                 {Object.entries(DYNAMIC_PRICING_CATEGORIES).map(([catName, data]) => (
-                  <div
-                    key={catName}
-                    className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800"
-                  >
+                  <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
                     <h3 className="font-black text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 pb-2 mb-2 text-base flex items-center gap-1">
-                      <i className={`fa-solid ${data.icon} ${data.color}`}></i>{" "}
-                      {catName}
+                      <i className={`fa-solid ${data.icon} ${data.color}`}></i> {catName}
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1.5">
                       {data.items.map((tx) => (
-                        <div
-                          key={tx}
-                          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl flex items-center gap-1.5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
-                        >
+                        <div key={tx} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 rounded-xl flex items-center gap-1.5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                           <div className="flex-1">
                             <label className="font-bold text-slate-700 dark:text-slate-200 text-[13px] leading-tight block mb-1.5">
                               {tx}
                             </label>
                             <div className="relative">
                               <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                                <span className="text-slate-400 text-[13px] font-black dark:text-slate-500">
-                                  ₺
-                                </span>
+                                <span className="text-slate-400 text-[13px] font-black dark:text-slate-500">₺</span>
                               </div>
                               <input
                                 type="number"
                                 required
                                 value={pricingEditValues[tx] ?? ""}
+                                disabled={!hasPermission("treatments.manage")} // YENİ: Asistan değiştiremez
                                 onChange={(e) =>
-                                  setPricingEditValues({
-                                    ...pricingEditValues,
-                                    [tx]: e.target.value,
-                                  })
+                                  setPricingEditValues({ ...pricingEditValues, [tx]: e.target.value })
                                 }
-                                className="w-full text-right pr-3 pl-7 py-2 rounded-lg border border-slate-200 dark:border-slate-600 focus:border-indigo-500 focus:ring-2 outline-none font-black text-base text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900 transition-all"
+                                className={`w-full text-right pr-3 pl-7 py-2 rounded-lg border border-slate-200 dark:border-slate-600 focus:border-indigo-500 focus:ring-2 outline-none font-black text-base text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900 transition-all ${!hasPermission("treatments.manage") ? "opacity-80 cursor-not-allowed" : ""}`}
                                 placeholder="0"
                               />
                             </div>
@@ -6477,14 +6791,17 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                   </div>
                 ))}
 
-                <div className="sticky bottom-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md pt-3 border-t border-slate-200 dark:border-slate-700 mt-2 flex justify-end">
-                  <button
-                    type="submit"
-                    className="bg-indigo-600 text-white px-3 py-2 rounded-xl font-black shadow-lg hover:bg-indigo-700 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
-                  >
-                    <i className="fa-solid fa-save mr-1.5"></i> Ücretleri Kaydet
-                  </button>
-                </div>
+                {/* YENİ: Kaydet Butonunu Sadece Yetkili Görür */}
+                {hasPermission("treatments.manage") && (
+                  <div className="sticky bottom-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md pt-3 border-t border-slate-200 dark:border-slate-700 mt-2 flex justify-end">
+                    <button
+                      type="submit"
+                      className="bg-indigo-600 text-white px-3 py-2 rounded-xl font-black shadow-lg hover:bg-indigo-700 hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+                    >
+                      <i className="fa-solid fa-save mr-1.5"></i> Ücretleri Kaydet
+                    </button>
+                  </div>
+                )}
               </form>
             </div>
           );
@@ -6494,15 +6811,14 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
           const handleAddDoctor = (e) => {
             e.preventDefault();
 
-            // undefined/null hatalarını önlemek için güvenli tanımlamalar
             const safeNewName = newDoctorForm.name || "";
-            const normalizedNewName = safeNewName.trim().toLowerCase();
+            const normalizedNewName = normalizeUsername(safeNewName);
 
             // 1. KLİNİK BAZLI İSİM BENZERSİZLİK KONTROLÜ
             const isDuplicateName = allDoctors.some((docId) => {
               const docProfile = globalData.doctorProfiles?.[docId];
-              const profileName = docProfile?.name || "";
-              return profileName.trim().toLowerCase() === normalizedNewName;
+              const profileName = docProfile?.name || docId;
+              return normalizeUsername(profileName) === normalizedNewName;
             });
 
             if (isDuplicateName) {
@@ -6510,11 +6826,19 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
               return;
             }
 
-            // 2. SADECE HEKİM PROFİLİ İÇİN BENZERSİZ KİMLİK (ID) OLUŞTURMA (usersDb'den bağımsız)
-            let baseId = safeNewName.toLowerCase().replace(/\s+/g, "");
+            // 2. SADECE HEKİM PROFİLİ İÇİN BENZERSİZ KİMLİK (ID) OLUŞTURMA
+            let baseId = safeNewName.toLowerCase().replace(/[^a-z0-9ğüşöçı]/gi, "");
+            if (!baseId) baseId = "hekim";
+            
             let autoDoctorId = baseId;
             let counter = 1;
-            while (globalData.doctorProfiles?.[autoDoctorId]) {
+            
+            // GLOBAL BENZERSİZLİK DÖNGÜSÜ:
+            while (
+               Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === normalizeUsername(autoDoctorId)) ||
+               Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === normalizeUsername(autoDoctorId)) ||
+               Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === normalizeUsername(autoDoctorId))
+            ) {
               autoDoctorId = baseId + counter;
               counter++;
             }
@@ -6524,57 +6848,56 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
               [autoDoctorId]: {
                 name: safeNewName.trim(),
                 title: newDoctorForm.title || "",
-                addedBy: currentUser,
+                addedBy: currentUser // Geriye dönük uyumluluk için duruyor ama esas izolasyon clinicId'den yapılacak
               },
+            };
+
+            const updatedUserProfiles = {
+               ...globalData.userProfiles,
+               [autoDoctorId]: {
+                  name: safeNewName.trim(),
+                  role: "doctor",
+                  active: true,
+                  clinicId: currentClinicId, // YENİ: KLİNİĞE ZIMBALA
+                  createdBy: currentUser
+               }
             };
 
             saveGlobalData({
               ...globalData,
-              // DİKKAT: usersDb güncellenmiyor. Yeni hekime sisteme giriş (login) kaydı açılmıyor.
               doctorProfiles: updatedProfiles,
+              userProfiles: updatedUserProfiles
+            }).then(() => {
+              setIsAddDoctorModalOpen(false);
+              setNewDoctorForm({ name: "", title: "" });
+              showNotification("Yeni hekim kaydı başarıyla oluşturuldu.");
             });
-
-            setIsAddDoctorModalOpen(false);
-
-            setNewDoctorForm({
-              username: "",
-              password: "",
-              name: "",
-              title: "",
-            });
-
-            showNotification("Yeni hekim kaydı başarıyla oluşturuldu.");
           };
 
           const openDoctorDetails = (docUsername) => {
             setSelectedDoctorId(docUsername);
-
             setDoctorEditForm(
               globalData.doctorProfiles?.[docUsername] || {
                 name: docUsername,
-
                 title: "Hekim",
               }
             );
-
-            setDocModalTab("profile");
-
+            // YENİ: Asistansa Ajanda sekmesini, Patron/Hekimse Profil sekmesini aç
+            const defaultTab = currentUserProfile?.role === "assistant" ? "agenda" : "profile";
+            setDocModalTab(defaultTab);
+            
             setDocStatsStart("");
-
             setDocStatsEnd("");
-
             setDocStatsSelectedTreatment(null);
-
             setIsDoctorDetailsModalOpen(true);
           };
 
           const handleUpdateDoctor = (e) => {
             e.preventDefault();
 
-            // KLİNİK BAZLI İSİM BENZERSİZLİK KONTROLÜ (DÜZENLEME İÇİN)
             const normalizedEditName = doctorEditForm.name.trim().toLowerCase();
             const isDuplicateName = allDoctors.some((docId) => {
-              if (docId === selectedDoctorId) return false; // Kendisini kontrol dışı bırak
+              if (docId === selectedDoctorId) return false;
               const docProfile = globalData.doctorProfiles?.[docId];
               return docProfile?.name?.trim().toLowerCase() === normalizedEditName;
             });
@@ -6584,55 +6907,43 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
               return;
             }
 
-            // İsim alanındaki gereksiz boşlukları temizleyerek kaydet
             const finalEditForm = { ...doctorEditForm, name: doctorEditForm.name.trim() };
-
             const updatedProfiles = {
               ...globalData.doctorProfiles,
               [selectedDoctorId]: finalEditForm,
             };
 
             saveGlobalData({ ...globalData, doctorProfiles: updatedProfiles });
-
             showNotification("Hekim profili güncellendi.");
-
             setIsDoctorDetailsModalOpen(false);
           };
 
           const handleDeleteDoctor = () => {
-          if (selectedDoctorId === currentUser) {
-            showNotification(
-              "Şu an aktif olan hesabınızı silemezsiniz!",
-              "error"
-            );
-            return;
-          }
-
-          showConfirm(
-            `${selectedDoctorId} adlı hekimi pasife almak istediğinize emin misiniz? (Geçmiş randevuları ve ciroları korunacaktır)`,
-            () => {
-              const updatedUsers = { ...globalData.usersDb };
-              delete updatedUsers[selectedDoctorId]; // Sisteme giriş yetkisi kaldırılır
-
-              const updatedProfiles = { ...globalData.doctorProfiles };
-              delete updatedProfiles[selectedDoctorId]; // Hekim listeden kaldırılır
-
-              // DİKKAT: updatedAppointments (randevular ve geçmiş cirolar) silinmiyor!
-              // Böylece geçmiş bilanço ve finans raporlarınız asla bozulmaz.
-
-              saveGlobalData({
-                ...globalData,
-                usersDb: updatedUsers,
-                doctorProfiles: updatedProfiles,
-                // appointments objesine dokunulmuyor, geçmiş veriler saklanıyor.
-              });
-
-              showNotification("Hekim pasife alındı. Geçmiş randevu ve ciro kayıtları korundu.", "error");
-
-              setIsDoctorDetailsModalOpen(false);
+            if (selectedDoctorId === currentUser) {
+              showNotification("Şu an aktif olan hesabınızı silemezsiniz!", "error");
+              return;
             }
-          );
-        };
+
+            showConfirm(
+              `${selectedDoctorId} adlı hekimi pasife almak istediğinize emin misiniz? (Geçmiş randevuları ve ciroları korunacaktır)`,
+              () => {
+                const updatedUsers = { ...globalData.usersDb };
+                delete updatedUsers[selectedDoctorId];
+
+                const updatedProfiles = { ...globalData.doctorProfiles };
+                delete updatedProfiles[selectedDoctorId];
+
+                saveGlobalData({
+                  ...globalData,
+                  usersDb: updatedUsers,
+                  doctorProfiles: updatedProfiles,
+                });
+
+                showNotification("Hekim pasife alındı. Geçmiş randevu ve ciro kayıtları korundu.", "error");
+                setIsDoctorDetailsModalOpen(false);
+              }
+            );
+          };
 
           const getDoctorFilteredStats = (docId) => {
             let stats = {
@@ -6659,7 +6970,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                 if (a.status === "Yeni Kayıt" || a.status === "Bekliyor") stats.waiting++;
                 if (a.status === "Geldi") stats.done++;
 
-                // Hastayı bul (Planlarındaki indirimli fiyatlara erişmek için)
                 let pId = a.patientId;
                 if (!pId) {
                   const pObj = Object.values(globalData.patientsDb || {}).find(p => p.name === a.patientName);
@@ -6667,7 +6977,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                 }
                 const pData = pId ? globalData.patientsDb[pId] : null;
 
-                // İşlemleri parçala (Birden fazla işlem varsa ayrı satırlara bölmek için)
                 let txList = [];
                 if (a.selectedTreatments && a.selectedTreatments.length > 0) {
                     txList = a.selectedTreatments;
@@ -6682,17 +6991,13 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                     txList = [{ treatment: "İşlem Kaydı", tooth: "" }];
                 }
 
-                // Toplam manuel fiyat varsa ve işlem parçalanamıyorsa
                 let aptOverallPrice = parseFloat(a.price) || 0;
                 let useOverallPrice = aptOverallPrice > 0 && txList.length <= 1;
 
-                // Her bir işlem için fiyat hesapla ve listeye AYRI AYRI ekle
                 txList.forEach((tx) => {
                     stats.treatments[tx.treatment] = (stats.treatments[tx.treatment] || 0) + 1;
                     
                     let itemPrice = 0;
-
-                    // 1. Eğer hastanın planında bu işlem varsa, oradaki (indirimli) fiyatı al
                     let matchedPlan = null;
                     if (pData && pData.plannedTreatments) {
                         matchedPlan = pData.plannedTreatments.find(pt => 
@@ -6704,11 +7009,9 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                     if (matchedPlan) {
                         itemPrice = parseFloat(matchedPlan.price) || 0;
                     } 
-                    // 2. Eğer randevuya manuel GİRİLMİŞ toplam bir fiyat varsa ve tek işlemse onu al
                     else if (useOverallPrice) {
                         itemPrice = aptOverallPrice;
                     } 
-                    // 3. Aksi halde hekimin standart fiyat listesinden al
                     else {
                         const docPricing = globalData.pricingDb?.[docId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
                         const matchedStandardTx = Object.keys(docPricing).find(t => tx.treatment.includes(t));
@@ -6717,7 +7020,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                         }
                     }
 
-                    // Sadece Geldi olduğunda hekim cirosuna ekle
                     if (a.status === "Geldi" && itemPrice > 0) {
                         stats.revenue += itemPrice;
                     }
@@ -6737,7 +7039,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
               }
             });
 
-            // 2. Planlanan ve bu hekim tarafından (Epikriz ekranından vb.) TAMAMLANAN işlemleri de istatistiklere ekle
             Object.values(globalData.patientsDb || {}).forEach((p) => {
                 if (p.plannedTreatments) {
                     p.plannedTreatments.forEach((tx) => {
@@ -6750,7 +7051,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                             if (docStatsEnd && txDateStr > docStatsEnd) inRange = false;
                             
                             if (inRange) {
-                                // Çifte sayım kontrolü: Bu planlı işlem zaten yukarıda bir randevu üzerinden eklendi mi?
                                 const alreadyAdded = stats.ptList.some(listItem => 
                                     listItem.patient === p.name && 
                                     listItem.rawTreatment === tx.treatment && 
@@ -6786,7 +7086,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
             });
 
             stats.ptList.sort((a, b) => b.timestamp - a.timestamp);
-
             return stats;
           };
 
@@ -6796,10 +7095,8 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 pb-8 flex flex-col p-2 w-full h-full overflow-y-auto">
                   <div className="flex justify-between items-center mb-2 pb-3 border-b border-slate-100 dark:border-slate-700 shrink-0">
                     <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
-                      <i className="fa-solid fa-user-doctor text-indigo-500"></i>{" "}
-                      Hekim Yönetimi
+                      <i className="fa-solid fa-user-doctor text-indigo-500"></i> Hekim Yönetimi
                     </h2>
-
                     <button
                       onClick={() => setIsAddDoctorModalOpen(true)}
                       className="bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-2 rounded-xl text-[13px] font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
@@ -6816,9 +7113,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                         <div
                           key={doc}
                           onClick={() => openDoctorDetails(doc)}
-                          onContextMenu={(e) =>
-                            handleContextMenu(e, "doctor", doc)
-                          }
                           className="border border-slate-200 dark:border-slate-700 rounded-xl p-2 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:border-indigo-200 dark:hover:border-indigo-700 hover:shadow-md transition cursor-pointer group relative"
                         >
                           <div className="w-14 h-9 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center text-slate-400 text-base shadow-sm group-hover:text-indigo-500 transition-colors overflow-hidden relative shrink-0">
@@ -6827,9 +7121,7 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                                 src={prof.avatar}
                                 style={{
                                   transform: `scale(${prof.zoom || 1})`,
-                                  objectPosition: `${prof.x || 50}% ${
-                                    prof.y || 50
-                                  }%`,
+                                  objectPosition: `${prof.x || 50}% ${prof.y || 50}%`,
                                 }}
                                 className="w-full h-full object-cover"
                               />
@@ -6862,10 +7154,8 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                   <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-pop">
                     <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
                       <h3 className="font-black">
-                        <i className="fa-solid fa-user-plus mr-2"></i>Yeni Hekim
-                        Ekle
+                        <i className="fa-solid fa-user-plus mr-2"></i>Yeni Hekim Ekle
                       </h3>
-
                       <button
                         onClick={() => setIsAddDoctorModalOpen(false)}
                         className="text-slate-400 hover:text-white"
@@ -6879,14 +7169,12 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                           Ad Soyad / Görünen İsim
                         </label>
-
                         <input
                           required
                           value={newDoctorForm.name}
                           onChange={(e) =>
                             setNewDoctorForm({
                               ...newDoctorForm,
-
                               name: e.target.value,
                             })
                           }
@@ -6898,14 +7186,12 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                           Unvan
                         </label>
-
                         <input
                           required
                           value={newDoctorForm.title}
                           onChange={(e) =>
                             setNewDoctorForm({
                               ...newDoctorForm,
-
                               title: e.target.value,
                             })
                           }
@@ -6930,22 +7216,17 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                   const stats = getDoctorFilteredStats(selectedDoctorId);
                   let displayedPtList = stats.ptList;
 
-                  // Hangi karta tıklandıysa listeyi ona göre daraltıyoruz
                   if (docStatsActiveFilter === "done")
-                    displayedPtList = displayedPtList.filter(
-                      (pt) => pt.status === "Geldi"
-                    );
+                    displayedPtList = displayedPtList.filter((pt) => pt.status === "Geldi");
                   if (docStatsActiveFilter === "waiting")
                     displayedPtList = displayedPtList.filter(
-                      (pt) =>
-                        pt.status === "Yeni Kayıt" || pt.status === "Bekliyor"
+                      (pt) => pt.status === "Yeni Kayıt" || pt.status === "Bekliyor"
                     );
                   if (docStatsActiveFilter === "revenue")
                     displayedPtList = displayedPtList.filter(
                       (pt) => pt.price > 0 && pt.status === "Geldi"
                     );
 
-                  // Üzerine bir de işlem seçildiyse onu da filtreliyoruz (Tam Eşleşme Mantığı)
                   if (docStatsSelectedTreatment) {
                     displayedPtList = displayedPtList.filter((pt) => {
                       if (pt.selectedTreatments && pt.selectedTreatments.length > 0) {
@@ -6976,28 +7257,12 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
 
                           <div className="flex items-center gap-1.5">
                             <div className="w-12 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base shadow-md overflow-hidden relative">
-                              {globalData.doctorProfiles?.[selectedDoctorId]
-                                ?.avatar ? (
+                              {globalData.doctorProfiles?.[selectedDoctorId]?.avatar ? (
                                 <img
-                                  src={
-                                    globalData.doctorProfiles[selectedDoctorId]
-                                      .avatar
-                                  }
+                                  src={globalData.doctorProfiles[selectedDoctorId].avatar}
                                   style={{
-                                    transform: `scale(${
-                                      globalData.doctorProfiles[
-                                        selectedDoctorId
-                                      ].zoom || 1
-                                    })`,
-                                    objectPosition: `${
-                                      globalData.doctorProfiles[
-                                        selectedDoctorId
-                                      ].x || 50
-                                    }% ${
-                                      globalData.doctorProfiles[
-                                        selectedDoctorId
-                                      ].y || 50
-                                    }%`,
+                                    transform: `scale(${globalData.doctorProfiles[selectedDoctorId].zoom || 1})`,
+                                    objectPosition: `${globalData.doctorProfiles[selectedDoctorId].x || 50}% ${globalData.doctorProfiles[selectedDoctorId].y || 50}%`,
                                   }}
                                   className="w-full h-full object-cover"
                                 />
@@ -7007,14 +7272,10 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                             </div>
                             <div>
                               <h3 className="font-black text-slate-800 dark:text-white text-base leading-tight">
-                                {
-                                  globalData.doctorProfiles?.[selectedDoctorId]
-                                    ?.name
-                                }
+                                {globalData.doctorProfiles?.[selectedDoctorId]?.name}
                               </h3>
                               <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mt-0.5 bg-indigo-50 dark:bg-indigo-900/30 inline-block px-1.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800">
-                                {globalData.doctorProfiles?.[selectedDoctorId]
-                                  ?.title || "Hekim Profili"}
+                                {globalData.doctorProfiles?.[selectedDoctorId]?.title || "Hekim Profili"}
                               </div>
                             </div>
                           </div>
@@ -7028,31 +7289,292 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                         </div>
                       </div>
 
-                      <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 px-2.5 pt-3 gap-2 shrink-0">
-                        <button
-                          onClick={() => setDocModalTab("profile")}
-                          className={`pb-2 font-bold text-[13px] border-b-2 transition-all ${
-                            docModalTab === "profile"
-                              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
-                              : "border-transparent text-slate-500 dark:text-slate-400"
-                          }`}
-                        >
-                          Profil Düzenle
-                        </button>
+                      <div className="flex border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30 px-2.5 pt-3 gap-2 shrink-0 overflow-x-auto custom-scrollbar">
+                        {/* Patron ve Hekim "Profil Düzenle" Görür */}
+                        {currentUserProfile?.role !== "assistant" && (
+                          <button
+                            onClick={() => setDocModalTab("profile")}
+                            className={`pb-2 font-bold text-[13px] border-b-2 transition-all whitespace-nowrap ${
+                              docModalTab === "profile"
+                                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                                : "border-transparent text-slate-500 dark:text-slate-400"
+                            }`}
+                          >
+                            Profil Düzenle
+                          </button>
+                        )}
 
-                        <button
-                          onClick={() => setDocModalTab("stats")}
-                          className={`pb-2 font-bold text-[13px] border-b-2 transition-all ${
-                            docModalTab === "stats"
-                              ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
-                              : "border-transparent text-slate-500 dark:text-slate-400"
-                          }`}
-                        >
-                          Detaylı Performans & Hastalar
-                        </button>
+                        {/* Asistan Sadece "Çalışma Özeti" Görür */}
+                        {currentUserProfile?.role === "assistant" && (
+                          <button
+                            onClick={() => setDocModalTab("agenda")}
+                            className={`pb-2 font-bold text-[13px] border-b-2 transition-all whitespace-nowrap flex items-center gap-1 ${
+                              docModalTab === "agenda"
+                                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                                : "border-transparent text-slate-500 dark:text-slate-400"
+                            }`}
+                          >
+                            <i className="fa-solid fa-clipboard-list"></i> Günlük Çalışma Özeti
+                          </button>
+                        )}
+
+                        {hasPermission("finance.view") && (
+                          <button
+                            onClick={() => setDocModalTab("stats")}
+                            className={`pb-2 font-bold text-[13px] border-b-2 transition-all ${
+                              docModalTab === "stats"
+                                ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                                : "border-transparent text-slate-500 dark:text-slate-400"
+                            }`}
+                          >
+                            Detaylı Performans & Hastalar
+                          </button>
+                        )}
                       </div>
 
                       <div className="p-2 overflow-y-auto flex-1">
+                        {docModalTab === "agenda" && (() => {
+                          const todayStr = formatDateKey(new Date());
+                          const nowMs = new Date().getTime();
+                          const docApts = globalData.appointments?.[selectedDoctorId] || {};
+
+                          let todaysAptsList = [];
+                          let upcomingAptsList = [];
+                          let pastAptsList = [];
+                          let upcoming7DaysLoad = { "1":0, "2":0, "3":0, "4":0, "5":0, "6":0, "7":0 };
+                          let treatmentStats = {};
+
+                          // 7 Günlük süreyi hesapla
+                          const oneWeekLaterMs = nowMs + 7 * 24 * 60 * 60 * 1000;
+
+                          Object.entries(docApts).forEach(([k, apt]) => {
+                             if(!apt || apt.status === "İptal") return; 
+                             
+                             const parts = k.split("-");
+                             const y = parts[0] || "";
+                             const m = parts[1] || "";
+                             const d = parts[2] || "";
+                             const timeStr = parts[3] || "00:00";
+                             
+                             const aptTimeMs = new Date(`${y}-${m}-${d}T${timeStr}:00`).getTime();
+                             const safeAptTimeMs = isNaN(aptTimeMs) ? 0 : aptTimeMs;
+                             const isToday = k.startsWith(todayStr);
+
+                             // ZIRH 1: Hasta adı veya veritabanı kaydı bozuksa çökmeyi engelle
+                             const pData = Object.values(globalData.patientsDb || {}).find(p => 
+                               p?.name && apt?.patientName && p.name.toLowerCase() === apt.patientName.toLowerCase()
+                             );
+
+                             const aptData = { 
+                               key: k, 
+                               time: timeStr, 
+                               aptTimeMs: safeAptTimeMs, 
+                               patientId: pData?.id || null,
+                               phone: pData?.phone || apt.phone || null,
+                               anamnesis: pData?.anamnesis || null,
+                               ...apt 
+                             };
+
+                             if (isToday) {
+                                todaysAptsList.push(aptData);
+                                // Günlük işlem dağılımı
+                                if (apt.treatment && apt.status === "Geldi") {
+                                   const txBase = apt.treatment.split(' ')[0]; 
+                                   treatmentStats[txBase] = (treatmentStats[txBase] || 0) + 1;
+                                }
+                             } else if (safeAptTimeMs > nowMs) {
+                                upcomingAptsList.push(aptData);
+                             } else {
+                                pastAptsList.push(aptData);
+                             }
+
+                             // Gelecek 7 gün yoğunluk haritası
+                             if (safeAptTimeMs > nowMs && safeAptTimeMs <= oneWeekLaterMs) {
+                                const diffDays = Math.ceil((safeAptTimeMs - nowMs) / (1000 * 60 * 60 * 24));
+                                if(diffDays >= 1 && diffDays <= 7) {
+                                   upcoming7DaysLoad[diffDays.toString()]++;
+                                }
+                             }
+                          });
+
+                          // ZIRH 2: time parametresi boşsa sort fonksiyonunun çökmesini engelle
+                          todaysAptsList.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+                          upcomingAptsList.sort((a, b) => a.aptTimeMs - b.aptTimeMs);
+                          pastAptsList.sort((a, b) => b.aptTimeMs - a.aptTimeMs); 
+
+                          const totalToday = todaysAptsList.length;
+                          const waitingToday = todaysAptsList.filter(a => a.status === "Yeni Kayıt" || a.status === "Bekliyor").length;
+                          const doneToday = todaysAptsList.filter(a => a.status === "Geldi").length;
+                          const cancelledToday = todaysAptsList.filter(a => a.status === "İptal" || a.status === "Gelmedi").length;
+
+                          const displayedApts = todaysAptsList.filter(a => {
+                             if(docStatsActiveFilter === "all") return true;
+                             if(docStatsActiveFilter === "waiting") return a.status === "Yeni Kayıt" || a.status === "Bekliyor";
+                             if(docStatsActiveFilter === "done") return a.status === "Geldi";
+                             if(docStatsActiveFilter === "cancelled") return a.status === "İptal" || a.status === "Gelmedi";
+                             return true;
+                          });
+
+                          const getPrepDetails = (treatment) => {
+                             const t = (treatment || "").toLowerCase();
+                             if(t.includes("implant")) return { label: "İmplant Cerrahi Seti & Fizyodispanser", icon: "fa-screwdriver-wrench", color: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800" };
+                             if(t.includes("kanal")) return { label: "Endomotor & İrrigasyon İğneleri", icon: "fa-tooth", color: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800" };
+                             if(t.includes("çekim") || t.includes("gömülü")) return { label: "Cerrahi Set & Davye/Elevatör", icon: "fa-pliers", color: "text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800" };
+                             if(t.includes("dolgu") || t.includes("kompozit") || t.includes("vener")) return { label: "Kompozit Seti & Işın Cihazı", icon: "fa-fill-drip", color: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" };
+                             if(t.includes("ölçü") || t.includes("protez") || t.includes("kron") || t.includes("zirkonyum")) return { label: "Ölçü Maddesi & Kaşık Hazırlığı", icon: "fa-cubes", color: "text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800" };
+                             if(t.includes("detertraj") || t.includes("küretaj")) return { label: "Kavitron & Polisaj Patı", icon: "fa-sparkles", color: "text-teal-600 bg-teal-50 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800" };
+                             return { label: "Standart Muayene Seti (Ayna, Sond, Presel)", icon: "fa-kit-medical", color: "text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" };
+                          };
+
+                          return (
+                            <div className="flex flex-col h-full animate-pop">
+                               {/* 1. ÜST TIKLANABİLİR İSTATİSTİK KARTLARI (FİLTRELER) */}
+                               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 shrink-0 mb-3">
+                                  <div onClick={() => setDocStatsActiveFilter("all")} className={`cursor-pointer border p-2.5 rounded-xl text-center flex flex-col justify-center h-16 transition-all hover:scale-105 ${docStatsActiveFilter === "all" ? "bg-indigo-600 text-white shadow-lg border-indigo-700" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"}`}>
+                                     <div className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${docStatsActiveFilter === "all" ? "text-indigo-200" : "text-slate-400"}`}>Tüm Randevular</div>
+                                     <div className="text-xl font-black leading-none">{totalToday}</div>
+                                  </div>
+                                  <div onClick={() => setDocStatsActiveFilter("waiting")} className={`cursor-pointer border p-2.5 rounded-xl text-center flex flex-col justify-center h-16 transition-all hover:scale-105 ${docStatsActiveFilter === "waiting" ? "bg-amber-500 text-white shadow-lg border-amber-600" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"}`}>
+                                     <div className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${docStatsActiveFilter === "waiting" ? "text-amber-200" : "text-amber-500"}`}>Bekleyen</div>
+                                     <div className="text-xl font-black leading-none">{waitingToday}</div>
+                                  </div>
+                                  <div onClick={() => setDocStatsActiveFilter("done")} className={`cursor-pointer border p-2.5 rounded-xl text-center flex flex-col justify-center h-16 transition-all hover:scale-105 ${docStatsActiveFilter === "done" ? "bg-emerald-500 text-white shadow-lg border-emerald-600" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"}`}>
+                                     <div className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${docStatsActiveFilter === "done" ? "text-emerald-200" : "text-emerald-500"}`}>Biten</div>
+                                     <div className="text-xl font-black leading-none">{doneToday}</div>
+                                  </div>
+                                  <div onClick={() => setDocStatsActiveFilter("cancelled")} className={`cursor-pointer border p-2.5 rounded-xl text-center flex flex-col justify-center h-16 transition-all hover:scale-105 ${docStatsActiveFilter === "cancelled" ? "bg-rose-500 text-white shadow-lg border-rose-600" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"}`}>
+                                     <div className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${docStatsActiveFilter === "cancelled" ? "text-rose-200" : "text-rose-500"}`}>İptal / Gelmedi</div>
+                                     <div className="text-xl font-black leading-none">{cancelledToday}</div>
+                                  </div>
+                               </div>
+
+                               <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-hidden">
+                                  {/* SOL BÜYÜK SÜTUN: Gelişmiş Randevu Akışı */}
+                                  <div className="flex-[2] bg-slate-50/50 dark:bg-slate-900/30 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner flex flex-col overflow-hidden">
+                                     <div className="p-2 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-slate-800 shrink-0">
+                                        <h4 className="font-black text-[12px] text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                                          <i className="fa-solid fa-list-check text-indigo-500"></i> İşlem Sırası ve Oda Hazırlığı
+                                        </h4>
+                                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-lg">{displayedApts.length} Kayıt Gösteriliyor</span>
+                                     </div>
+                                     
+                                     <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                                        {displayedApts.length > 0 ? displayedApts.map((apt, i) => {
+                                           const prep = getPrepDetails(apt.treatment);
+                                           const isDone = apt.status === "Geldi";
+                                           
+                                           // ZIRH 3: selectedTeeth dizisini güvenli yazdır
+                                           const toothText = Array.isArray(apt.selectedTeeth) ? apt.selectedTeeth.join(", ") : apt.selectedTeeth;
+
+                                           return (
+                                           <div key={i} className={`bg-white dark:bg-slate-800 rounded-xl border p-2.5 shadow-sm transition-all relative overflow-hidden group ${isDone ? "opacity-60 border-slate-200 dark:border-slate-700" : "border-indigo-100 dark:border-indigo-800 hover:shadow-md hover:border-indigo-300"}`}>
+                                              <div className={`absolute left-0 top-0 bottom-0 w-1 ${isDone ? "bg-slate-300 dark:bg-slate-600" : "bg-indigo-500"}`}></div>
+                                              
+                                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 pl-1">
+                                                 <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                    <div className="text-[14px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-lg shrink-0">
+                                                       {apt.time}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                       <div className="font-black text-[14px] text-slate-800 dark:text-slate-200 leading-none mb-1 flex items-center gap-1.5">
+                                                          {apt.patientName || "İsimsiz Kayıt"}
+                                                          {apt.anamnesis && (
+                                                             <div className="group/tooltip relative">
+                                                                <i className="fa-solid fa-triangle-exclamation text-rose-500 animate-pulse cursor-help"></i>
+                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/tooltip:block w-48 p-2 bg-rose-600 text-white text-[10px] font-bold rounded-lg shadow-xl z-50 whitespace-pre-wrap">
+                                                                  Hastanın Özel Durumu/Alerjisi Var: {apt.anamnesis}
+                                                                </div>
+                                                             </div>
+                                                          )}
+                                                       </div>
+                                                       <div className="text-[11px] font-bold text-slate-500 flex items-center gap-2">
+                                                          <span><i className="fa-solid fa-stethoscope"></i> {apt.treatment || "Belirtilmedi"}</span>
+                                                          {toothText && <span>| <i className="fa-solid fa-tooth"></i> Diş: {toothText}</span>}
+                                                       </div>
+                                                    </div>
+                                                 </div>
+
+                                                 <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end sm:justify-start pl-12 sm:pl-0">
+                                                    {apt.phone && apt.phone.length > 8 && !isDone && (
+                                                       <a href={`https://wa.me/${apt.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="w-7 h-7 flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg transition-colors border border-emerald-200 dark:border-emerald-800" title="WhatsApp Mesajı">
+                                                          <i className="fa-brands fa-whatsapp text-[13px]"></i>
+                                                       </a>
+                                                    )}
+                                                    <div className="scale-95 origin-right">{getStatusBadge(apt.status, (e) => handleStatusCycle(e, selectedDoctorId, apt.key, apt))}</div>
+                                                 </div>
+                                              </div>
+
+                                              {!isDone && (
+                                                 <div className={`mt-2 ml-1 p-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 ${prep.color}`}>
+                                                    <div className="w-5 h-5 rounded-md bg-white/50 flex items-center justify-center shrink-0">
+                                                       <i className={`fa-solid ${prep.icon}`}></i>
+                                                    </div>
+                                                    <span>Oda Hazırlığı: {prep.label}</span>
+                                                 </div>
+                                              )}
+                                              
+                                              {apt.notes && (
+                                                 <div className="mt-1.5 ml-1 text-[10px] font-semibold text-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-1.5 rounded-lg border border-amber-200 dark:border-amber-800 flex items-start gap-1">
+                                                    <i className="fa-solid fa-note-sticky mt-0.5"></i> {apt.notes}
+                                                 </div>
+                                              )}
+                                           </div>
+                                        )}) : (
+                                           <div className="flex flex-col items-center justify-center h-40 text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-600">
+                                              <i className="fa-regular fa-folder-open text-2xl mb-2 opacity-50"></i>
+                                              <span className="text-[12px] font-bold">Bu filtreye uygun randevu bulunmuyor.</span>
+                                           </div>
+                                        )}
+                                     </div>
+                                  </div>
+
+                                  {/* SAĞ DAR SÜTUN: Analiz ve Yoğunluk */}
+                                  <div className="flex-1 flex flex-col gap-3 min-w-[250px] overflow-y-auto custom-scrollbar">
+                                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm">
+                                        <h5 className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-3 border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                                           <i className="fa-solid fa-chart-bar text-indigo-500 mr-1"></i> Önümüzdeki 7 Günlük Yoğunluk
+                                        </h5>
+                                        <div className="space-y-2">
+                                           {[1,2,3,4,5,6,7].map(dayOffset => {
+                                              const d = new Date(nowMs + dayOffset * 24 * 60 * 60 * 1000);
+                                              const dayName = DAYS[d.getDay() === 0 ? 6 : d.getDay() - 1];
+                                              const count = upcoming7DaysLoad[dayOffset.toString()] || 0;
+                                              const maxCount = Math.max(...Object.values(upcoming7DaysLoad), 1); 
+                                              const percentage = Math.round((count / maxCount) * 100);
+                                              
+                                              return (
+                                                 <div key={dayOffset} className="flex items-center gap-2 text-[10px] font-bold">
+                                                    <div className="w-8 text-slate-500 dark:text-slate-400">{dayName}</div>
+                                                    <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                                                       <div className={`h-full rounded-full transition-all duration-1000 ${count > 0 ? "bg-indigo-500" : "bg-transparent"}`} style={{ width: `${percentage}%` }}></div>
+                                                    </div>
+                                                    <div className="w-5 text-right text-slate-800 dark:text-white">{count}</div>
+                                                 </div>
+                                              )
+                                           })}
+                                        </div>
+                                     </div>
+
+                                     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm flex-1">
+                                        <h5 className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-3 border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                                           <i className="fa-solid fa-chart-pie text-emerald-500 mr-1"></i> Bugünkü Tedavi Dağılımı (Biten)
+                                        </h5>
+                                        <div className="space-y-1.5">
+                                           {Object.keys(treatmentStats).length > 0 ? Object.entries(treatmentStats).sort((a, b) => b[1] - a[1]).map(([tx, count], i) => (
+                                              <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                                 <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate pr-2">{tx}</span>
+                                                 <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-400 px-1.5 py-0.5 rounded shadow-sm shrink-0">{count} Kez</span>
+                                              </div>
+                                           )) : (
+                                              <div className="text-center text-[10px] text-slate-400 font-bold italic py-4">Henüz tamamlanan bir işlem yok.</div>
+                                           )}
+                                        </div>
+                                     </div>
+                                  </div>
+                               </div>
+                            </div>
+                          );
+                        })()}
                         {docModalTab === "profile" && (
                           <form
                             onSubmit={handleUpdateDoctor}
@@ -7060,21 +7582,18 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                           >
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
                             <h4 className="font-black text-[13px] uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-1">
-                              <i className="fa-solid fa-id-card text-indigo-500"></i>{" "}
-                              Temel Bilgiler & Yetkiler
+                              <i className="fa-solid fa-id-card text-indigo-500"></i> Temel Bilgiler & Yetkiler
                             </h4>
                             <div>
                               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                                 Hekim Adı
                               </label>
-
                               <input
                                 required
                                 value={doctorEditForm.name}
                                 onChange={(e) =>
                                   setDoctorEditForm({
                                     ...doctorEditForm,
-
                                     name: e.target.value,
                                   })
                                 }
@@ -7086,13 +7605,11 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                                 Unvan
                               </label>
-
                               <input
                                 value={doctorEditForm.title}
                                 onChange={(e) =>
                                   setDoctorEditForm({
                                     ...doctorEditForm,
-
                                     title: e.target.value,
                                   })
                                 }
@@ -7127,7 +7644,6 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                                 Profil Fotoğrafı
                               </label>
-
                               <div className="flex items-center gap-1.5 mt-1.5">
                                 <div
                                   onClick={() =>
@@ -7147,12 +7663,8 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                                       <img
                                         src={doctorEditForm.avatar}
                                         style={{
-                                          transform: `scale(${
-                                            doctorEditForm.zoom || 1
-                                          })`,
-                                          objectPosition: `${
-                                            doctorEditForm.x || 50
-                                          }% ${doctorEditForm.y || 50}%`,
+                                          transform: `scale(${doctorEditForm.zoom || 1})`,
+                                          objectPosition: `${doctorEditForm.x || 50}% ${doctorEditForm.y || 50}%`,
                                         }}
                                         className="w-full h-full object-cover"
                                       />
@@ -7165,53 +7677,46 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                                   )}
                                 </div>
                                 <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                                  Fotoğraf eklemek veya hizalamak için
-                                  <br />
-                                  yandaki yuvaya tıklayın.
+                                  Fotoğraf eklemek veya hizalamak için<br />yandaki yuvaya tıklayın.
                                 </div>
                               </div>
                             </div>
                             <div className="flex gap-1 pt-3 border-t border-slate-100 dark:border-slate-700 mt-1.5">
-                              {selectedDoctorId !== currentUser && (
+                              {hasPermission("doctors.delete") && selectedDoctorId !== currentUser && (
                                 <button
                                   type="button"
                                   onClick={handleDeleteDoctor}
                                   className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 font-bold rounded-xl transition border border-rose-100 dark:border-rose-800/50 flex items-center gap-1"
                                 >
-                                  <i className="fa-solid fa-trash"></i> Hekimi
-                                  Sil
+                                  <i className="fa-solid fa-trash"></i> Hekimi Sil
                                 </button>
                               )}
 
-                              <button
-                                type="submit"
-                                className="flex-1 py-1.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md"
-                              >
-                                Değişiklikleri Kaydet
-                              </button>
+                              {hasPermission("doctors.edit") && (
+                                <button
+                                  type="submit"
+                                  className="flex-1 py-1.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md"
+                                >
+                                  Değişiklikleri Kaydet
+                                </button>
+                              )}
                             </div>
                           </form>
                         )}
 
-                        {docModalTab === "stats" && (
+                        {docModalTab === "stats" && hasPermission("finance.view") && (
                           <div className="space-y-2 flex flex-col pb-3">
                             <div className="flex justify-end gap-1 items-center bg-white dark:bg-slate-800 p-1.5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 shrink-0">
                               <span className="text-[11px] font-bold text-slate-500 mr-1.5">
-                                <i className="fa-regular fa-calendar mr-1"></i>{" "}
-                                Tarih Aralığı:
+                                <i className="fa-regular fa-calendar mr-1"></i> Tarih Aralığı:
                               </span>
-
                               <input
                                 type="date"
                                 value={docStatsStart}
-                                onChange={(e) =>
-                                  setDocStatsStart(e.target.value)
-                                }
+                                onChange={(e) => setDocStatsStart(e.target.value)}
                                 className="relative text-[13px] font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-1.5 py-0.5 outline-none cursor-pointer dark:text-white"
                               />
-
                               <span className="text-slate-400">-</span>
-
                               <input
                                 type="date"
                                 value={docStatsEnd}
@@ -7229,12 +7734,8 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                                     : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700"
                                 }`}
                               >
-                                <div className="text-[10px] font-bold text-slate-500 uppercase">
-                                  Toplam Randevu
-                                </div>
-                                <div className="text-base font-black text-indigo-600 dark:text-indigo-400">
-                                  {stats.total}
-                                </div>
+                                <div className="text-[10px] font-bold text-slate-500 uppercase">Toplam Randevu</div>
+                                <div className="text-base font-black text-indigo-600 dark:text-indigo-400">{stats.total}</div>
                               </div>
 
                               <div
@@ -7245,120 +7746,69 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                                     : "bg-emerald-50/30 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50"
                                 }`}
                               >
-                                <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
-                                  İşlemi Biten
-                                </div>
-                                <div className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                                  {stats.done}
-                                </div>
+                                <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">İşlemi Biten</div>
+                                <div className="text-base font-black text-emerald-600 dark:text-emerald-400">{stats.done}</div>
                               </div>
 
                               <div
-                                onClick={() =>
-                                  setDocStatsActiveFilter("waiting")
-                                }
+                                onClick={() => setDocStatsActiveFilter("waiting")}
                                 className={`p-2 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
                                   docStatsActiveFilter === "waiting"
                                     ? "bg-amber-100 border-amber-500 dark:bg-amber-900/50 ring-2 ring-amber-500"
                                     : "bg-amber-50/30 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50"
                                 }`}
                               >
-                                <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">
-                                  Bekleyen Aktif
-                                </div>
-                                <div className="text-base font-black text-amber-600 dark:text-amber-400">
-                                  {stats.waiting}
-                                </div>
+                                <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">Bekleyen Aktif</div>
+                                <div className="text-base font-black text-amber-600 dark:text-amber-400">{stats.waiting}</div>
                               </div>
 
                               <div
-                                onClick={() =>
-                                  setDocStatsActiveFilter("revenue")
-                                }
+                                onClick={() => setDocStatsActiveFilter("revenue")}
                                 className={`p-2 rounded-xl border shadow-sm text-center cursor-pointer transition-all hover:scale-105 ${
                                   docStatsActiveFilter === "revenue"
                                     ? "bg-blue-100 border-blue-500 dark:bg-blue-900/50 ring-2 ring-blue-500"
                                     : "bg-blue-50/30 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50"
                                 }`}
                               >
-                                <div className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase">
-                                  Üretilen Ciro
-                                </div>
+                                <div className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase">Üretilen Ciro</div>
                                 <div className="text-base font-black text-blue-600 dark:text-blue-400">
-                                {renderMoney(stats.revenue)} {isPrivacyMode ? "" : "₺"}
-                              </div>
-                              <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 bg-white/50 dark:bg-black/20 rounded py-0.5">
-                                Hakediş:{" "}
-                                {renderMoney(
-                                  (stats.revenue *
-                                    (globalData.doctorProfiles?.[
-                                      selectedDoctorId
-                                    ]?.commissionRate || 0)) /
-                                  100
-                                )}{" "}
-                                {isPrivacyMode ? "" : "₺"}
-                              </div>
+                                  {renderMoney(stats.revenue)} {isPrivacyMode ? "" : "₺"}
+                                </div>
+                                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 bg-white/50 dark:bg-black/20 rounded py-0.5">
+                                  Hakediş: {renderMoney((stats.revenue * (globalData.doctorProfiles?.[selectedDoctorId]?.commissionRate || 0)) / 100)} {isPrivacyMode ? "" : "₺"}
+                                </div>
                               </div>
                             </div>
 
                             <div className="flex flex-col md:flex-row gap-2 min-h-[400px]">
                               <div className="flex-1 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col min-h-0 h-full">
                                 <h4 className="font-black text-[11px] text-slate-500 uppercase mb-2 tracking-wider shrink-0">
-                                  İşlem Dağılımı{" "}
-                                  <span className="text-[9px] font-normal text-slate-400 normal-case block mt-0.5">
-                                    Detay için işleme tıklayın
-                                  </span>
+                                  İşlem Dağılımı <span className="text-[9px] font-normal text-slate-400 normal-case block mt-0.5">Detay için işleme tıklayın</span>
                                 </h4>
 
                                 <div className="space-y-1.5 overflow-y-auto flex-1">
-                                  {Object.entries(stats.treatments).length >
-                                  0 ? (
-                                    Object.entries(stats.treatments).map(
-                                      ([t, count]) => {
-                                        const isSelected =
-                                          docStatsSelectedTreatment === t;
-
-                                        return (
-                                          <div
-                                            key={t}
-                                            onClick={() =>
-                                              setDocStatsSelectedTreatment(
-                                                isSelected ? null : t
-                                              )
-                                            }
-                                            className={`flex justify-between items-center text-[11px] p-1.5 rounded-lg font-bold border cursor-pointer transition ${
-                                              isSelected
-                                                ? "bg-indigo-50 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-600 ring-1 ring-indigo-500"
-                                                : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                            }`}
-                                          >
-                                            <span
-                                              className={
-                                                isSelected
-                                                  ? "text-indigo-800 dark:text-indigo-300"
-                                                  : "text-slate-700 dark:text-slate-300"
-                                              }
-                                            >
-                                              {t}
-                                            </span>
-
-                                            <span
-                                              className={`px-1.5 py-0.5 rounded shadow-sm ${
-                                                isSelected
-                                                  ? "bg-indigo-600 text-white"
-                                                  : "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300"
-                                              }`}
-                                            >
-                                              {count} Kez
-                                            </span>
-                                          </div>
-                                        );
-                                      }
-                                    )
+                                  {Object.entries(stats.treatments).length > 0 ? (
+                                    Object.entries(stats.treatments).map(([t, count]) => {
+                                      const isSelected = docStatsSelectedTreatment === t;
+                                      return (
+                                        <div
+                                          key={t}
+                                          onClick={() => setDocStatsSelectedTreatment(isSelected ? null : t)}
+                                          className={`flex justify-between items-center text-[11px] p-1.5 rounded-lg font-bold border cursor-pointer transition ${
+                                            isSelected
+                                              ? "bg-indigo-50 dark:bg-indigo-900/50 border-indigo-300 dark:border-indigo-600 ring-1 ring-indigo-500"
+                                              : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                          }`}
+                                        >
+                                          <span className={isSelected ? "text-indigo-800 dark:text-indigo-300" : "text-slate-700 dark:text-slate-300"}>{t}</span>
+                                          <span className={`px-1.5 py-0.5 rounded shadow-sm ${isSelected ? "bg-indigo-600 text-white" : "bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300"}`}>
+                                            {count} Kez
+                                          </span>
+                                        </div>
+                                      );
+                                    })
                                   ) : (
-                                    <div className="text-[11px] text-slate-400 font-medium text-center py-2">
-                                      Kayıtlı işlem yok.
-                                    </div>
+                                    <div className="text-[11px] text-slate-400 font-medium text-center py-2">Kayıtlı işlem yok.</div>
                                   )}
                                 </div>
                               </div>
@@ -7368,63 +7818,28 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                                   <h4 className="font-black text-[11px] text-slate-500 uppercase tracking-wider">
                                     Randevu Geçmişi Detayı{" "}
                                     <span className="text-indigo-600 dark:text-indigo-400 ml-1">
-                                      [
-                                      {docStatsActiveFilter === "all"
-                                        ? "Tüm Randevular"
-                                        : docStatsActiveFilter === "done"
-                                        ? "İşlemi Bitenler"
-                                        : docStatsActiveFilter === "waiting"
-                                        ? "Bekleyen Aktifler"
-                                        : "Ciroya Dahil Biten İşlemler"}
-                                      ]
+                                      [{docStatsActiveFilter === "all" ? "Tüm Randevular" : docStatsActiveFilter === "done" ? "İşlemi Bitenler" : docStatsActiveFilter === "waiting" ? "Bekleyen Aktifler" : "Ciroya Dahil Biten İşlemler"}]
                                     </span>
-                                    {docStatsSelectedTreatment && (
-                                      <span className="text-purple-600 dark:text-purple-400 ml-1">
-                                        ({docStatsSelectedTreatment})
-                                      </span>
-                                    )}{" "}
-                                    <span className="ml-1 text-slate-400">
-                                      ({displayedPtList.length} Kayıt)
-                                    </span>
+                                    {docStatsSelectedTreatment && <span className="text-purple-600 dark:text-purple-400 ml-1">({docStatsSelectedTreatment})</span>}{" "}
+                                    <span className="ml-1 text-slate-400">({displayedPtList.length} Kayıt)</span>
                                   </h4>
-
                                   {docStatsSelectedTreatment && (
-                                    <button
-                                      onClick={() =>
-                                        setDocStatsSelectedTreatment(null)
-                                      }
-                                      className="text-[10px] bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold transition"
-                                    >
-                                      Filtreyi Temizle
-                                    </button>
+                                    <button onClick={() => setDocStatsSelectedTreatment(null)} className="text-[10px] bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-bold transition">Filtreyi Temizle</button>
                                   )}
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto pr-1.5 space-y-1.5">
                                   {displayedPtList.map((pt, i) => (
-                                    <div
-                                      key={i}
-                                      className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-indigo-200 transition"
-                                    >
+                                    <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-1.5 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-indigo-200 transition">
                                       <div>
-                                        <div className="font-black text-slate-800 dark:text-slate-200 text-[13px]">
-                                          {pt.patient}
-                                        </div>
-
-                                        <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
-                                          {pt.date} - {pt.time} •{" "}
-                                          {pt.treatment || "Belirtilmedi"}
-                                        </div>
+                                        <div className="font-black text-slate-800 dark:text-slate-200 text-[13px]">{pt.patient}</div>
+                                        <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">{pt.date} - {pt.time} • {pt.treatment || "Belirtilmedi"}</div>
                                       </div>
-
                                       <div>{getStatusBadge(pt.status)}</div>
                                     </div>
                                   ))}
-
                                   {displayedPtList.length === 0 && (
-                                    <div className="text-[11px] text-slate-400 font-medium text-center py-2">
-                                      Bu kriterlere uygun randevu yok.
-                                    </div>
+                                    <div className="text-[11px] text-slate-400 font-medium text-center py-2">Bu kriterlere uygun randevu yok.</div>
                                   )}
                                 </div>
                               </div>
@@ -7435,6 +7850,339 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                     </div>
                   );
                 })()}
+            </div>
+          );
+        };
+        // ==========================================
+        // YENİ: KLİNİK KULLANICILARI (EKİP) YÖNETİMİ
+        // ==========================================
+        // ==========================================
+        // YENİ: KLİNİK KULLANICILARI (EKİP) YÖNETİMİ
+        // ==========================================
+        const renderUsers = () => {
+          // Eski ve yeni sistemdeki tüm kullanıcıları harmanlayıp listele ve FİLTRELE
+          const usersList = Object.keys(globalData.usersDb || {}).map(username => {
+            const profile = globalData.userProfiles?.[username] || {};
+            const docProfile = globalData.doctorProfiles?.[username] || {};
+            const handleDeleteUser = (usernameToDelete) => {
+            showConfirm(
+              `${usernameToDelete} adlı kullanıcıyı sistemden tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz ve kullanıcının sisteme girişi anında engellenir.`,
+              () => {
+                const updatedUsersDb = { ...globalData.usersDb };
+                delete updatedUsersDb[usernameToDelete];
+
+                const updatedUserProfiles = { ...globalData.userProfiles };
+                delete updatedUserProfiles[usernameToDelete];
+
+                saveGlobalData({
+                  ...globalData,
+                  usersDb: updatedUsersDb,
+                  userProfiles: updatedUserProfiles,
+                }).then(() => {
+                  showNotification("Kullanıcı başarıyla sistemden silindi.");
+                });
+              }
+            );
+          };
+            return {
+              username,
+              name: profile.name || docProfile.name || username,
+              role: profile.role || "clinic_owner", // Eski kayıtlar klinik sahibi sayılır
+              active: profile.active !== false,
+              assignedDoctors: profile.assignedDoctors || []
+            };
+          }).filter(usr => {
+            // İZOLASYON FİLTRESİ: Sadece kendi kliniğine ait kullanıcıları göster
+            return usr.username === currentUser || 
+                   globalData.userProfiles?.[usr.username]?.createdBy === currentUser ||
+                   globalData.doctorProfiles?.[usr.username]?.addedBy === currentUser;
+          });
+
+          const handleSaveUser = (e) => {
+            e.preventDefault();
+            const uname = normalizeUsername(newUserForm.username);
+            if (!uname) return;
+
+            if (!editingUsername && !newUserForm.password) {
+              showNotification("Yeni kullanıcı için şifre belirlemek zorunludur!", "error");
+              return;
+            }
+
+            // --- GLOBAL BENZERSİZLİK KONTROLÜ (TÜM KLİNİKLER İÇİN) ---
+            const oldUname = normalizeUsername(editingUsername);
+            const isEditing = !!editingUsername;
+            
+            // Eğer yeni kayıt yapılıyorsa VEYA düzenleme yapılıp kullanıcı adı değiştirildiyse kontrol et
+            if (!isEditing || uname !== oldUname) {
+               const isTaken = Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === uname) ||
+                               Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === uname) ||
+                               Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === uname);
+               
+               if (isTaken) {
+                  showNotification("Bu kullanıcı adı başka bir hesap tarafından kullanılıyor. Lütfen farklı bir ad seçin.", "error");
+                  return; // Hata var, kaydı İPTAL ET. Veri bozulmaz.
+               }
+            }
+
+            // Kayıt İşlemi...
+            const updatedUsersDb = { ...globalData.usersDb };
+            if (newUserForm.password) {
+              updatedUsersDb[newUserForm.username.trim()] = newUserForm.password; // Gerçek ismi kaydet (Formatı bozmadan)
+            }
+
+            const updatedUserProfiles = { ...globalData.userProfiles };
+            updatedUserProfiles[newUserForm.username.trim()] = {
+              name: newUserForm.name,
+              role: newUserForm.role,
+              active: newUserForm.active,
+              clinicId: currentClinicId, // YENİ: Doğrudan kliniğe bağlanır
+              assignedDoctors: newUserForm.role === "assistant" ? newUserForm.assignedDoctors : [newUserForm.username.trim()],
+              createdAt: updatedUserProfiles[newUserForm.username.trim()]?.createdAt || Date.now(),
+              createdBy: updatedUserProfiles[newUserForm.username.trim()]?.createdBy || currentUser
+            };
+
+            const updatedDoctorProfiles = { ...globalData.doctorProfiles };
+            if (newUserForm.role === "doctor" || newUserForm.role === "clinic_owner") {
+              if (!updatedDoctorProfiles[newUserForm.username.trim()]) {
+                updatedDoctorProfiles[newUserForm.username.trim()] = {
+                  name: newUserForm.name,
+                  title: newUserForm.role === "clinic_owner" ? "Başhekim" : "Hekim",
+                  addedBy: currentUser
+                };
+              }
+            }
+
+            saveGlobalData({
+              ...globalData,
+              usersDb: updatedUsersDb,
+              userProfiles: updatedUserProfiles,
+              ...(newUserForm.role !== "assistant" && { doctorProfiles: updatedDoctorProfiles })
+            }).then(() => {
+              showNotification(isEditing ? "Kullanıcı güncellendi." : "Yeni kullanıcı eklendi.");
+              setIsUserModalOpen(false);
+            });
+          };
+
+          const handleToggleActive = (uname, currentStatus) => {
+            if (uname === currentUser) {
+              showNotification("Şu an kullandığınız kendi hesabınızı pasifleştiremezsiniz!", "error");
+              return;
+            }
+            showConfirm(`${uname} kullanıcısını ${currentStatus ? 'pasife almak' : 'aktifleştirmek'} istediğinize emin misiniz?`, () => {
+              const updatedUserProfiles = { ...globalData.userProfiles };
+              const profile = updatedUserProfiles[uname] || { role: "clinic_owner" };
+              updatedUserProfiles[uname] = { ...profile, active: !currentStatus };
+              saveGlobalData({ ...globalData, userProfiles: updatedUserProfiles }).then(() => {
+                showNotification("Kullanıcı durumu değiştirildi.");
+              });
+            });
+          };
+
+          return (
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-full flex flex-col animate-pop w-full">
+              <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900 rounded-t-xl shrink-0">
+                <div>
+                  <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    <i className="fa-solid fa-users-gear text-teal-500"></i> Klinik Ekibi ve Yetkiler
+                  </h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Sisteme giriş yapabilen tüm personeli buradan yönetin.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingUsername(null);
+                    setNewUserForm({ username: "", password: "", name: "", role: "assistant", active: true, assignedDoctors: [] });
+                    setIsUserModalOpen(true);
+                  }}
+                  className="bg-teal-600 text-white px-3 py-2 rounded-xl text-[12px] font-bold shadow-md hover:bg-teal-700 transition"
+                >
+                  <i className="fa-solid fa-plus mr-1"></i> Yeni Kullanıcı
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {usersList.map((usr) => (
+                    <div key={usr.username} className={`border rounded-xl p-3 flex flex-col gap-2 transition-all ${usr.active ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-md" : "bg-slate-50 dark:bg-slate-900/50 border-dashed border-slate-300 dark:border-slate-600 opacity-70"}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${usr.role === 'clinic_owner' ? 'bg-amber-100 text-amber-600' : usr.role === 'doctor' ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            <i className={`fa-solid ${usr.role === 'clinic_owner' ? 'fa-crown' : usr.role === 'doctor' ? 'fa-user-doctor' : 'fa-headset'}`}></i>
+                          </div>
+                          <div>
+                            <div className="font-black text-[14px] text-slate-800 dark:text-white leading-tight">{usr.name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">@{usr.username}</div>
+                          </div>
+                        </div>
+                        <div className={`text-[10px] px-2 py-0.5 rounded-md font-bold border ${usr.active ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30" : "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800"}`}>
+                          {usr.active ? "Aktif" : "Pasif"}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg text-[11px] mt-1 flex flex-col gap-1 border border-slate-100 dark:border-slate-700/50">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-slate-500">Rol:</span>
+                          <span className="text-slate-700 dark:text-slate-300">{usr.role === 'clinic_owner' ? 'Klinik Sahibi' : usr.role === 'doctor' ? 'Hekim' : 'Asistan'}</span>
+                        </div>
+                        {usr.role === 'assistant' && (
+                          <div className="flex justify-between font-bold border-t border-slate-200 dark:border-slate-700 pt-1 mt-1">
+                            <span className="text-slate-500">Bağlı Hekim(ler):</span>
+                            <span className="text-indigo-600 dark:text-indigo-400 text-right">
+                              {usr.assignedDoctors.length > 0 ? usr.assignedDoctors.map(d => globalData.doctorProfiles?.[d]?.name || d).join(', ') : 'Atanmadı'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-1.5 mt-auto pt-2">
+  <button 
+    onClick={(e) => {
+      e.preventDefault();
+      setEditingUsername(usr.username);
+      setNewUserForm({ ...usr, password: "" }); 
+      setIsUserModalOpen(true);
+    }} 
+    className="flex-1 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[11px] font-bold hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-200"
+  >
+    <i className="fa-solid fa-pen mr-1"></i> Düzenle
+  </button>
+  
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const usernameToDelete = usr.username;
+
+      // 1. Kendi kendini silme koruması
+      if (usernameToDelete === currentUser) {
+        showNotification("Şu an açık olan kendi hesabınızı silemezsiniz!", "error");
+        return;
+      }
+
+      // 2. Sistemin Kendi Şık Uyarı Penceresi (showConfirm)
+      showConfirm(`${usernameToDelete} adlı kullanıcıyı sistemden silmek istediğinize emin misiniz?`, () => {
+        
+        // 3. Veritabanından kazıma işlemi
+        const updatedUsersDb = { ...globalData.usersDb };
+        delete updatedUsersDb[usernameToDelete];
+
+        const updatedUserProfiles = { ...globalData.userProfiles };
+        delete updatedUserProfiles[usernameToDelete];
+
+        saveGlobalData({
+          ...globalData,
+          usersDb: updatedUsersDb,
+          userProfiles: updatedUserProfiles,
+        }).then(() => {
+          showNotification(`${usernameToDelete} başarıyla silindi.`);
+        }).catch((err) => {
+          showNotification("Silme başarısız oldu.", "error");
+        });
+        
+      }); // showConfirm kapanışı
+    }} 
+    className="px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[11px] font-bold hover:bg-rose-100 transition shadow-sm border border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 ml-1.5"
+    title="Kullanıcıyı Sil"
+  >
+    <i className="fa-solid fa-trash mr-1"></i> Sil
+  </button>
+                        <button onClick={() => handleToggleActive(usr.username, usr.active)} className={`w-8 flex items-center justify-center rounded-lg transition ${usr.active ? "bg-rose-50 text-rose-500 hover:bg-rose-100 dark:bg-rose-900/30" : "bg-emerald-50 text-emerald-500 hover:bg-emerald-100 dark:bg-emerald-900/30"}`} title={usr.active ? "Pasifleştir" : "Aktifleştir"}>
+                          <i className={`fa-solid ${usr.active ? "fa-ban" : "fa-check"}`}></i>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {isUserModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2">
+                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-pop">
+                    <div className="px-3 py-2 bg-[#0f172a] text-white flex justify-between items-center">
+                      <h3 className="font-black text-[13px]"><i className="fa-solid fa-user-plus mr-1"></i> {editingUsername ? "Kullanıcıyı Düzenle" : "Yeni Kullanıcı Oluştur"}</h3>
+                      <button onClick={() => setIsUserModalOpen(false)} className="text-slate-400 hover:text-white"><i className="fa-solid fa-xmark text-base"></i></button>
+                    </div>
+                    <form onSubmit={handleSaveUser} className="p-3 space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ad Soyad</label>
+                        <input required type="text" value={newUserForm.name} onChange={e => setNewUserForm({...newUserForm, name: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-teal-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sisteme Giriş Adı (Boşluksuz)</label>
+                        <input 
+                          required 
+                          type="text" 
+                          disabled={!!editingUsername} 
+                          value={newUserForm.username} 
+                          onChange={e => setNewUserForm({...newUserForm, username: e.target.value.replace(/\s+/g, '').toLowerCase()})} 
+                          className={`w-full p-2 border-2 rounded-lg text-[13px] font-bold outline-none dark:text-white transition-all ${
+                            editingUsername 
+                              ? "bg-slate-200 dark:bg-slate-700 text-slate-500 border-slate-200 dark:border-slate-600 cursor-not-allowed" 
+                              : newUserForm.username.length >= 3 
+                                ? (checkUsernameAvailability(newUserForm.username, editingUsername) 
+                                    ? "bg-white dark:bg-slate-900 border-emerald-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" 
+                                    : "bg-rose-50 dark:bg-rose-900/20 border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 text-rose-600")
+                                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 focus:border-teal-500"
+                          }`} 
+                        />
+                        {!editingUsername && newUserForm.username.length >= 3 && (
+                          <div className={`text-[10px] font-bold mt-1 flex items-center gap-1 animate-fadeIn ${checkUsernameAvailability(newUserForm.username, editingUsername) ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                            <i className={`fa-solid ${checkUsernameAvailability(newUserForm.username, editingUsername) ? "fa-check-circle" : "fa-circle-xmark"}`}></i>
+                            {checkUsernameAvailability(newUserForm.username, editingUsername) ? "Kullanıcı adı uygun." : "Kullanıcı adı mevcut, lütfen değiştirin!"}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{editingUsername ? "Şifreyi Değiştir (İsteğe Bağlı)" : "Giriş Şifresi Belirle"}</label>
+                        <input type="text" placeholder={editingUsername ? "Değiştirmek istemiyorsanız boş bırakın" : "En az 6 karakter"} minLength="6" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-[13px] font-bold outline-none focus:border-teal-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white" />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kullanıcı Rolü</label>
+                          <select value={newUserForm.role} onChange={e => setNewUserForm({...newUserForm, role: e.target.value, assignedDoctors: []})} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[12px] font-bold outline-none cursor-pointer dark:bg-slate-800 dark:border-slate-700 dark:text-white">
+                            <option value="assistant">Asistan / Sekreter</option>
+                            <option value="doctor">Hekim</option>
+                            <option value="clinic_owner">Klinik Sahibi</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Durum</label>
+                          <select value={newUserForm.active} onChange={e => setNewUserForm({...newUserForm, active: e.target.value === "true"})} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[12px] font-bold outline-none cursor-pointer dark:bg-slate-800 dark:border-slate-700 dark:text-white">
+                            <option value="true">Aktif (Girebilir)</option>
+                            <option value="false">Pasif (Giremez)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* ASİSTAN İSE HEKİM SEÇİM ALANI AÇILIR */}
+                      {newUserForm.role === "assistant" && (
+                        <div className="p-2 border border-teal-200 bg-teal-50 dark:bg-teal-900/20 dark:border-teal-800 rounded-xl">
+                          <label className="block text-[10px] font-black text-teal-700 dark:text-teal-400 uppercase mb-2"><i className="fa-solid fa-link mr-1"></i> Asistan Hangi Hekimlerin Verilerini Görebilsin?</label>
+                          <div className="max-h-24 overflow-y-auto space-y-1 custom-scrollbar">
+                            {allDoctors.map(docId => (
+                              <label key={docId} className="flex items-center gap-2 text-[12px] font-bold text-slate-700 dark:text-slate-300 cursor-pointer p-1 hover:bg-teal-100 dark:hover:bg-teal-900/50 rounded transition">
+                                <input type="checkbox" checked={newUserForm.assignedDoctors.includes(docId)} onChange={e => {
+                                  const isChecked = e.target.checked;
+                                  setNewUserForm(prev => ({
+                                    ...prev, 
+                                    assignedDoctors: isChecked ? [...prev.assignedDoctors, docId] : prev.assignedDoctors.filter(id => id !== docId)
+                                  }));
+                                }} className="accent-teal-600 w-3.5 h-3.5" />
+                                {globalData.doctorProfiles?.[docId]?.name || docId}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <button type="submit" className="w-full py-2.5 bg-[#0f172a] dark:bg-teal-600 text-white rounded-xl font-black text-[13px] shadow-lg hover:-translate-y-0.5 transition mt-2">
+                        {editingUsername ? "Değişiklikleri Kaydet" : "Kullanıcıyı Oluştur"}
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           );
         };
@@ -7914,7 +8662,8 @@ const renderSettings = () => {
                 )}
 
                 {settingsTab === "tedavi" && (() => {
-                  const basePricing = globalData.pricingDb?.[currentUser] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                  const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") ? currentUserProfile.createdBy : currentUser;
+                  const basePricing = globalData.pricingDb?.[ownerId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
                   // Değişiklikleri anlık tabloya yansıtmak için:
                   const userPricing = { ...basePricing, ...pricingEditValues };
                   const allTreatments = Object.keys(userPricing);
@@ -7980,23 +8729,31 @@ const renderSettings = () => {
                                            : `"${tx}" işlemini tamamen silmek istediğinize emin misiniz? (Listelerden kalkacaktır.)`;
 
                                         showConfirm(confirmMsg, () => {
-                                           const currentPrices = globalData.pricingDb?.[currentUser] || DEFAULT_PRICING;
-                                           const newPrices = { ...currentPrices };
-                                           delete newPrices[tx]; // Fiyatı sil, yeni atamalarda çıkmasın (Soft Delete)
+                                           const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") ? currentUserProfile.createdBy : currentUser;
                                            
-                                           // Kullanıcının Özel Tedavi sözlüğünden de temizle
+                                           let legacyPricing = null;
+                                           if (globalData.pricingDb && globalData.pricingDb["Genel Muayene"] !== undefined) legacyPricing = globalData.pricingDb;
+                                           
+                                           const currentPrices = globalData.pricingDb?.[ownerId] || legacyPricing || DEFAULT_PRICING;
+                                           const newPrices = { ...currentPrices };
+                                           delete newPrices[tx]; 
+                                           
                                            let existingCustomDb = globalData.customTreatments || {};
                                            if (Array.isArray(existingCustomDb)) existingCustomDb = {};
-                                           const userCustomTreatments = (existingCustomDb[currentUser] || []).filter(t => t.name !== tx);
-                                           const updatedCustomTreatmentsDb = { ...existingCustomDb, [currentUser]: userCustomTreatments };
+                                           const userCustomTreatments = (existingCustomDb[ownerId] || []).filter(t => t.name !== tx);
+                                           const updatedCustomTreatmentsDb = { ...existingCustomDb, [ownerId]: userCustomTreatments };
 
                                            const newEdits = { ...pricingEditValues };
                                            delete newEdits[tx];
                                            setPricingEditValues(newEdits);
 
+                                           let finalPricingDb = { ...(globalData.pricingDb || {}) };
+                                           if (finalPricingDb["Genel Muayene"] !== undefined) finalPricingDb = {};
+                                           finalPricingDb[ownerId] = newPrices;
+
                                            saveGlobalData({
                                               ...globalData,
-                                              pricingDb: { ...(globalData.pricingDb || {}), [currentUser]: newPrices },
+                                              pricingDb: finalPricingDb,
                                               customTreatments: updatedCustomTreatmentsDb
                                            }).then(() => showNotification(usageCount > 0 ? "İşlem pasife alındı. Eski kayıtlar güvenle korundu." : "İşlem kalıcı olarak silindi.", "success"));
                                         });
@@ -8142,7 +8899,7 @@ const renderSettings = () => {
                          </div>
                          <button onClick={() => {
     // 1. Hastaları bul
-    const myPats = Object.values(globalData.patientsDb || {}).filter(p => (p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser) && !p.isDeleted);
+    const myPats = Object.values(globalData.patientsDb || {}).filter(p => (allDoctors.includes(p.addedBy)) && !p.isDeleted);
     if(myPats.length === 0) return showNotification("Dışa aktarılacak hasta bulunamadı.", "error");
     
     // 2. Türkçe Excel Uyumlu CSV Oluştur
@@ -8179,7 +8936,7 @@ const renderSettings = () => {
                                  let errors = [];
                                  
                                  // Hastaları Tara
-                                 const myPats = Object.values(globalData.patientsDb || {}).filter(p => p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser);
+                                 const myPats = Object.values(globalData.patientsDb || {}).filter(p => allDoctors.includes(p.addedBy));
                                  pCount = myPats.length;
                                  myPats.forEach(p => {
                                     if(!p.name) errors.push(`ID: ${p.id} - İsimsiz hasta kaydı tespit edildi.`);
@@ -8500,7 +9257,7 @@ const renderSettings = () => {
 
           if (globalData.patientsDb) {
             Object.values(globalData.patientsDb)
-              .filter(p => p.addedBy === currentUser || globalData.doctorProfiles?.[p.addedBy]?.addedBy === currentUser)
+              .filter(p => allDoctors.includes(p.addedBy))
               .forEach((p) => {
                 if (p.plannedTreatments) {
                   p.plannedTreatments.forEach((tx) => {
@@ -9467,57 +10224,42 @@ const renderSettings = () => {
               </div>
 
               <div className="flex-1 px-2 py-1.5 flex flex-col gap-1 overflow-y-auto">
-                <SidebarItem
-                  icon="fa-chart-pie text-sky-500"
-                  label="Anasayfa (Özet)"
-                  id="home"
-                />
+                <SidebarItem icon="fa-chart-pie text-sky-500" label="Anasayfa (Özet)" id="home" />
 
-                <SidebarItem
-                  icon="fa-calendar-days text-indigo-500"
-                  label="Randevu Takvimi"
-                  id="calendar"
-                />
+                {hasPermission("appointments.view") && (
+                  <>
+                    <SidebarItem icon="fa-calendar-days text-indigo-500" label="Randevu Takvimi" id="calendar" />
+                    <SidebarItem icon="fa-table-columns text-purple-500" label="Randevu Listesi" id="list" />
+                  </>
+                )}
 
-                <SidebarItem
-                  icon="fa-table-columns text-purple-500"
-                  label="Randevu Listesi"
-                  id="list"
-                />
+                {hasPermission("patients.view") && (
+                  <SidebarItem icon="fa-hospital-user text-emerald-500" label="Hastalar & Veri" id="patients" />
+                )}
 
-                <SidebarItem
-                  icon="fa-hospital-user text-emerald-500"
-                  label="Hastalar & Veri"
-                  id="patients"
-                />
+                {/* YENİ: Fiyat listesini herkes görebilir, düzenleme yetkisi içeride kontrol edilecek */}
+                <SidebarItem icon="fa-tags text-pink-500" label="Ücretlendirme" id="pricing" />
 
-                <SidebarItem
-                  icon="fa-tags text-pink-500"
-                  label="Ücretlendirme"
-                  id="pricing"
-                />
+                {hasPermission("doctors.view") && (
+                  <SidebarItem icon="fa-user-doctor text-amber-500" label="Hekim Yönetimi" id="doctors" />
+                )}
 
-                <SidebarItem
-                  icon="fa-user-doctor text-amber-500"
-                  label="Hekim Yönetimi"
-                  id="doctors"
-                />
+                {hasPermission("finance.view") && (
+                  <SidebarItem icon="fa-vault text-rose-500" label="Finans (Bilanço)" id="finance" />
+                )}
 
-                <SidebarItem
-                  icon="fa-vault text-rose-500"
-                  label="Finans (Bilanço)"
-                  id="finance"
-                />
+                {/* YENİ: KLİNİK KULLANICILARI MENÜSÜ */}
+                {hasPermission("users.view") && (
+                  <SidebarItem icon="fa-users-gear text-teal-500" label="Klinik Kullanıcıları" id="users" />
+                )}
               </div>
               
               {/* KLİNİK AYARLARI BUTONU (EN ALTTA SABİT) */}
-              <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-transparent">
-                <SidebarItem
-                  icon="fa-gear text-slate-500 dark:text-slate-400"
-                  label="Klinik Ayarları"
-                  id="settings"
-                />
-              </div>
+              {hasPermission("settings.view") && (
+                <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-transparent">
+                  <SidebarItem icon="fa-gear text-slate-500 dark:text-slate-400" label="Klinik Ayarları" id="settings" />
+                </div>
+              )}
             </aside>
 
             {/* YENİ: Mobil için Pürüzsüz Glassmorphism Alt Menü */}
@@ -9531,21 +10273,15 @@ const renderSettings = () => {
             >
               {[
                 "home",
-
-                "calendar",
-
-                "list",
-
-                "patients",
-
-                "pricing",
-
-                "doctors",
-
-                "finance",
-
-                "settings",
-              ].map((tab) => (
+                hasPermission("appointments.view") && "calendar",
+                hasPermission("appointments.view") && "list",
+                hasPermission("patients.view") && "patients",
+                "pricing", // YENİ: Fiyat sekmesi mobilde herkes için açık
+                hasPermission("doctors.view") && "doctors",
+                hasPermission("finance.view") && "finance",
+                hasPermission("users.view") && "users",
+                hasPermission("settings.view") && "settings",
+              ].filter(Boolean).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => {
@@ -9574,6 +10310,8 @@ const renderSettings = () => {
                         ? "fa-user-doctor"
                         : tab === "finance"
                         ? "fa-vault"
+                        : tab === "users"
+                        ? "fa-users-gear"
                         : "fa-gear"
                     } text-lg transition-transform ${
                       activeTab === tab ? "scale-110 -translate-y-0.5" : ""
@@ -9688,18 +10426,13 @@ const renderSettings = () => {
 
                       <div className="max-h-56 overflow-y-auto">
                         {Object.values(globalData.patientsDb || {})
-                            .filter(
-                              (p) =>
-                                (p.addedBy === currentUser ||
-                                  globalData.doctorProfiles?.[p.addedBy]
-                                    ?.addedBy === currentUser) && !p.isDeleted &&
-                                (p.name
-                                  .toLowerCase()
-                                  .includes(globalSearch.toLowerCase()) ||
-                                  (p.phone && p.phone.includes(globalSearch)) ||
-                                  (p.tc && p.tc.includes(globalSearch)))
-                            )
-
+                            .filter((p) => {
+                              // KLİNİK İZOLASYONU
+                              return resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted &&
+                                (p.name.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                                (p.phone && p.phone.includes(globalSearch)) ||
+                                (p.tc && p.tc.includes(globalSearch)));
+                            })
                           .slice(0, 8)
 
                           .map((p, i) => (
@@ -9740,6 +10473,7 @@ const renderSettings = () => {
 
                 <div className="flex items-center gap-1 lg:gap-1.5 shrink-0">
                   {/* YENİ: Şifreli Hasta Mahremiyeti / Gizlilik Modu Butonu */}
+                {hasPermission("finance.view") && (
                   <button
                     onClick={() => {
                       if (isPrivacyMode) {
@@ -9761,6 +10495,7 @@ const renderSettings = () => {
                       }`}
                     ></i>
                   </button>
+                )}
 
                   <button
                     onClick={() => setIsDarkMode(!isDarkMode)}
@@ -9816,16 +10551,14 @@ const renderSettings = () => {
                     </div>
 
                     {isUserMenuOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-56 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-200/50 dark:border-slate-700/50 overflow-hidden z-50 animate-pop ring-1 ring-black/5 dark:ring-white/10">
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] border border-slate-200/50 dark:border-slate-700/50 z-50 animate-pop ring-1 ring-black/5 dark:ring-white/10">
                         {/* Menü İçi Kullanıcı Özeti */}
-                        <div className="p-2.5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50">
+                        <div className="p-2.5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50 rounded-t-xl">
                           <div className="font-black text-[13px] text-slate-800 dark:text-white truncate">
-                            {globalData.doctorProfiles?.[currentUser]?.name ||
-                              currentUser}
+                            {currentUserProfile?.name || globalData.doctorProfiles?.[currentUser]?.name || currentUser}
                           </div>
                           <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
-                            {globalData.doctorProfiles?.[currentUser]?.title ||
-                              "Klinik Hekimi"}
+                            {currentUserProfile?.role === 'assistant' ? 'Klinik Asistanı' : (globalData.doctorProfiles?.[currentUser]?.title || "Klinik Hekimi")}
                           </div>
                         </div>
 
@@ -9840,6 +10573,55 @@ const renderSettings = () => {
                             <i className="fa-solid fa-key w-4 text-center text-slate-400 group-hover:text-indigo-500 transition-colors"></i>
                             Şifre Değiştir
                           </button>
+                          {/* YENİ: KULLANICILAR (HESAP DEĞİŞTİRME) ALT MENÜSÜ */}
+                          <div className="relative">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation(); // Tıklamanın dışarı taşıp menüyü kapatmasını engeller
+                                setIsUsersSubmenuOpen(!isUsersSubmenuOpen);
+                              }}
+                              className={`w-full text-left px-2.5 py-2 text-[11px] font-bold transition-colors rounded-xl flex items-center justify-between group/btn ${isUsersSubmenuOpen ? "bg-slate-100 dark:bg-slate-700/50 text-indigo-600 dark:text-indigo-400" : "hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300"}`}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <i className={`fa-solid fa-right-left w-4 text-center transition-colors ${isUsersSubmenuOpen ? "text-indigo-500" : "text-slate-400 group-hover/btn:text-indigo-500"}`}></i> 
+                                Kullanıcılar
+                              </div>
+                              <i className={`fa-solid fa-chevron-right text-[9px] transition-transform ${isUsersSubmenuOpen ? "rotate-90 opacity-100 text-indigo-500" : "opacity-50 group-hover/btn:translate-x-0.5"}`}></i>
+                            </button>
+                            
+                            <div className={`absolute top-0 right-full mr-2 w-64 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200/50 dark:border-slate-700/50 overflow-hidden transition-all duration-200 origin-top-right z-50 ${isUsersSubmenuOpen ? "opacity-100 visible scale-100 pointer-events-auto" : "opacity-0 invisible scale-95 pointer-events-none"}`}>
+                              <div className="p-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/80 dark:bg-slate-900/80 font-black text-[10px] uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
+                                <i className="fa-solid fa-users text-indigo-400"></i> Hızlı Hesap Geçişi
+                              </div>
+                              <div className="max-h-60 overflow-y-auto custom-scrollbar p-1.5 space-y-1">
+                                {getClinicUsers().map(u => (
+                                  <div 
+                                    key={u.username} 
+                                    onClick={() => {
+                                      setSwitchAccountModal({
+                                        isOpen: true, targetUsername: u.username, targetName: u.name, targetRole: u.role, password: "", error: ""
+                                      });
+                                      setIsUserMenuOpen(false);
+                                    }} 
+                                    className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg cursor-pointer flex items-center gap-2.5 group/user transition-colors border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800/50"
+                                  >
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] shrink-0 border shadow-sm ${u.role === 'clinic_owner' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800' : u.role === 'doctor' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-900/30 dark:border-indigo-800' : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800'}`}>
+                                      <i className={`fa-solid ${u.role === 'clinic_owner' ? 'fa-crown' : u.role === 'doctor' ? 'fa-user-doctor' : 'fa-headset'}`}></i>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-bold text-[12px] text-slate-800 dark:text-slate-200 truncate group-hover/user:text-indigo-600 dark:group-hover/user:text-indigo-400 transition-colors">{u.name}</div>
+                                      <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{u.role === 'clinic_owner' ? 'Klinik Sahibi' : u.role === 'doctor' ? 'Hekim' : 'Klinik Asistanı'}</div>
+                                    </div>
+                                    <i className="fa-solid fa-arrow-right-to-bracket text-[11px] text-slate-300 opacity-0 group-hover/user:opacity-100 group-hover/user:text-indigo-500 transition-all -translate-x-2 group-hover/user:translate-x-0 pr-1"></i>
+                                  </div>
+                                ))}
+                                {getClinicUsers().length === 0 && (
+                                  <div className="p-4 text-center text-[10px] font-bold text-slate-400 italic">Bu klinikte başka aktif kullanıcı yok.</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {/* YENİ BİTİŞ */}
 
                           <button
                             onClick={triggerInstall}
@@ -9898,6 +10680,8 @@ const renderSettings = () => {
                 {activeTab === "finance" && renderFinance()}
 
                 {activeTab === "settings" && renderSettings()}
+
+                {activeTab === "users" && renderUsers()}
               </div>
             </main>
 
@@ -10045,6 +10829,69 @@ const renderSettings = () => {
                       </button>
                     </div>
 
+                  </form>
+                </div>
+              </div>
+            )}
+            {/* YENİ: HESAP DEĞİŞTİRME ŞİFRE DOĞRULAMA MODALI */}
+            {switchAccountModal.isOpen && (
+              <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[9999] p-3 animate-fadeIn" onClick={() => setSwitchAccountModal({...switchAccountModal, isOpen: false, password: "", error: ""})}>
+                <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-pop border border-slate-100 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
+                  
+                  <div className="px-4 py-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-center relative">
+                    <div className="absolute right-3 top-3">
+                      <button onClick={() => setSwitchAccountModal({...switchAccountModal, isOpen: false, password: "", error: ""})} className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center transition">
+                        <i className="fa-solid fa-xmark text-sm"></i>
+                      </button>
+                    </div>
+                    
+                    <div className="flex justify-center mb-3">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-md border-2 border-white dark:border-slate-800 ring-4 ${switchAccountModal.targetRole === 'clinic_owner' ? 'bg-amber-100 text-amber-600 ring-amber-50 dark:bg-amber-900/40 dark:ring-amber-900/20' : switchAccountModal.targetRole === 'doctor' ? 'bg-indigo-100 text-indigo-600 ring-indigo-50 dark:bg-indigo-900/40 dark:ring-indigo-900/20' : 'bg-emerald-100 text-emerald-600 ring-emerald-50 dark:bg-emerald-900/40 dark:ring-emerald-900/20'}`}>
+                        <i className={`fa-solid ${switchAccountModal.targetRole === 'clinic_owner' ? 'fa-crown' : switchAccountModal.targetRole === 'doctor' ? 'fa-user-doctor' : 'fa-headset'}`}></i>
+                      </div>
+                    </div>
+                    <h3 className="font-black text-lg text-slate-800 dark:text-white leading-tight">{switchAccountModal.targetName}</h3>
+                    <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mt-1">{switchAccountModal.targetRole === 'clinic_owner' ? 'Klinik Sahibi' : switchAccountModal.targetRole === 'doctor' ? 'Hekim' : 'Klinik Asistanı'}</div>
+                  </div>
+
+                  <form onSubmit={handleSwitchAccountSubmit} className="p-5 space-y-4">
+                    <p className="text-[12px] text-slate-600 dark:text-slate-300 font-medium text-center leading-relaxed">
+                      Bu hesaba geçiş yapmak için güvenlik gereği hedefin <b>hesap giriş şifresini</b> girmelisiniz.
+                    </p>
+                    
+                    <div>
+                      <div className="relative group">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <i className="fa-solid fa-lock text-sm"></i>
+                        </span>
+                        <input
+                          required
+                          type={switchAccountModal.showPassword ? "text" : "password"}
+                          autoFocus
+                          value={switchAccountModal.password}
+                          onChange={(e) => setSwitchAccountModal({ ...switchAccountModal, password: e.target.value, error: "" })}
+                          className={`w-full pl-10 pr-10 py-3 bg-white dark:bg-slate-900 border-2 rounded-xl text-sm font-black tracking-widest outline-none focus:ring-4 transition-all shadow-inner dark:text-white ${switchAccountModal.error ? "border-rose-500 focus:ring-rose-500/10 text-rose-600" : "border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-indigo-500/10"}`}
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSwitchAccountModal({ ...switchAccountModal, showPassword: !switchAccountModal.showPassword })}
+                          className="absolute right-3.5 top-3.5 text-slate-400 hover:text-indigo-500 transition-colors"
+                        >
+                          <i className={`fa-solid ${switchAccountModal.showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                        </button>
+                      </div>
+                      {switchAccountModal.error && (
+                        <div className="text-[11px] font-black text-rose-500 mt-2 text-center animate-pop"><i className="fa-solid fa-triangle-exclamation mr-1"></i> {switchAccountModal.error}</div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 flex gap-2">
+                      <button type="button" onClick={() => setSwitchAccountModal({...switchAccountModal, isOpen: false, password: "", error: ""})} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 rounded-xl font-bold text-[13px] transition shadow-sm">Vazgeç</button>
+                      <button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[13px] shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-1.5">
+                        Hesaba Geç <i className="fa-solid fa-arrow-right-to-bracket"></i>
+                      </button>
+                    </div>
                   </form>
                 </div>
               </div>
@@ -10339,17 +11186,14 @@ const renderSettings = () => {
                               handlePatientNameChange(e.target.value)
                             }
                             onFocus={() => {
-                              if (!formData.patientName)
+                              if (!formData.patientName) {
+                                const ownerId = currentUserProfile?.role === "assistant" ? currentUserProfile.createdBy : currentUser;
                                 setPatientSuggestions(
-                                  Object.values(
-                                    globalData.patientsDb || {}
-                                  ).filter(
-                                    (p) =>
-                                      p.addedBy === currentUser ||
-                                      globalData.doctorProfiles?.[p.addedBy]
-                                        ?.addedBy === currentUser
+                                  Object.values(globalData.patientsDb || {}).filter(
+                                    (p) => (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted
                                   )
                                 );
+                              }
                             }}
                             autoComplete="off"
                             className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-black text-slate-800 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-sm transition-all dark:bg-slate-900 dark:text-white"
@@ -11677,96 +12521,98 @@ const renderSettings = () => {
                                     )}
 
                                     {/* YENİ: Toplu Yüzde İndirim Modülü */}
-                                    <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-700">
-                                       <div className="flex justify-between items-center mb-1.5">
-                                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tüm İşlemlere Yüzde İndirim</label>
-                                       </div>
-                                       <div className="flex items-center gap-1.5">
-                                          <div className="relative flex-1">
-                                             <i className="fa-solid fa-percent absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
-                                             <input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                placeholder="İndirim Oranı (Örn: 10)"
-                                                value={discountPercent}
-                                                onChange={(e) => setDiscountPercent(e.target.value)}
-                                                className="w-full pl-7 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white shadow-inner"
-                                             />
-                                          </div>
-                                          <button
-                                             type="button"
-                                             onClick={() => {
-                                                const discount = parseFloat(discountPercent);
-                                                if (isNaN(discount) || discount < 0 || discount > 100) {
-                                                   showNotification("Lütfen %0 ile %100 arasında geçerli bir oran girin.", "error");
-                                                   return;
-                                                }
+                                    {hasPermission("finance.discount") && (
+                                      <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-700">
+                                         <div className="flex justify-between items-center mb-1.5">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tüm İşlemlere Yüzde İndirim</label>
+                                         </div>
+                                         <div className="flex items-center gap-1.5">
+                                            <div className="relative flex-1">
+                                               <i className="fa-solid fa-percent absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
+                                               <input
+                                                  type="number"
+                                                  min="0"
+                                                  max="100"
+                                                  placeholder="İndirim Oranı (Örn: 10)"
+                                                  value={discountPercent}
+                                                  onChange={(e) => setDiscountPercent(e.target.value)}
+                                                  className="w-full pl-7 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white shadow-inner"
+                                               />
+                                            </div>
+                                            <button
+                                               type="button"
+                                               onClick={() => {
+                                                  const discount = parseFloat(discountPercent);
+                                                  if (isNaN(discount) || discount < 0 || discount > 100) {
+                                                     showNotification("Lütfen %0 ile %100 arasında geçerli bir oran girin.", "error");
+                                                     return;
+                                                  }
 
-                                                showConfirm(
-                                                   discount === 0 
-                                                   ? "İndirimi sıfırlamak (orijinal fiyatlara dönmek) istediğinize emin misiniz?"
-                                                   : `Tüm işlemlere %${discount} indirim uygulamak istediğinize emin misiniz?`, 
-                                                   () => {
-                                                      const multiplier = (100 - discount) / 100;
-                                                      
-                                                      let updatedPatient = { ...patientForm };
-                                                      let isPatientUpdated = false;
+                                                  showConfirm(
+                                                     discount === 0 
+                                                     ? "İndirimi sıfırlamak (orijinal fiyatlara dönmek) istediğinize emin misiniz?"
+                                                     : `Tüm işlemlere %${discount} indirim uygulamak istediğinize emin misiniz?`, 
+                                                     () => {
+                                                        const multiplier = (100 - discount) / 100;
+                                                        
+                                                        let updatedPatient = { ...patientForm };
+                                                        let isPatientUpdated = false;
 
-                                                      if (updatedPatient.plannedTreatments && updatedPatient.plannedTreatments.length > 0) {
-                                                         updatedPatient.plannedTreatments = updatedPatient.plannedTreatments.map(t => {
-                                                            const orig = t.originalPrice !== undefined ? t.originalPrice : parseFloat(t.price);
-                                                            return { ...t, originalPrice: orig, price: orig * multiplier };
-                                                         });
-                                                         isPatientUpdated = true;
-                                                      }
+                                                        if (updatedPatient.plannedTreatments && updatedPatient.plannedTreatments.length > 0) {
+                                                           updatedPatient.plannedTreatments = updatedPatient.plannedTreatments.map(t => {
+                                                              const orig = t.originalPrice !== undefined ? t.originalPrice : parseFloat(t.price);
+                                                              return { ...t, originalPrice: orig, price: orig * multiplier };
+                                                           });
+                                                           isPatientUpdated = true;
+                                                        }
 
-                                                      let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
-                                                      let isAptUpdated = false;
+                                                        let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
+                                                        let isAptUpdated = false;
 
-                                                      Object.keys(updatedAppointments).forEach(docId => {
-                                                         Object.keys(updatedAppointments[docId]).forEach(aptKey => {
-                                                            const apt = updatedAppointments[docId][aptKey];
-                                                            if (apt.patientName === patientForm.name && apt.price > 0 && !apt.linkedPlanId) {
-                                                               const orig = apt.originalPrice !== undefined ? apt.originalPrice : parseFloat(apt.price);
-                                                               updatedAppointments[docId][aptKey].originalPrice = orig;
-                                                               updatedAppointments[docId][aptKey].price = orig * multiplier;
-                                                               isAptUpdated = true;
-                                                            }
-                                                         });
-                                                      });
+                                                        Object.keys(updatedAppointments).forEach(docId => {
+                                                           Object.keys(updatedAppointments[docId]).forEach(aptKey => {
+                                                              const apt = updatedAppointments[docId][aptKey];
+                                                              if (apt.patientName === patientForm.name && apt.price > 0 && !apt.linkedPlanId) {
+                                                                 const orig = apt.originalPrice !== undefined ? apt.originalPrice : parseFloat(apt.price);
+                                                                 updatedAppointments[docId][aptKey].originalPrice = orig;
+                                                                 updatedAppointments[docId][aptKey].price = orig * multiplier;
+                                                                 isAptUpdated = true;
+                                                              }
+                                                           });
+                                                        });
 
-                                                      const newData = { ...globalData };
-                                                      if (isPatientUpdated) {
-                                                         newData.patientsDb = { ...newData.patientsDb, [patientForm.id]: updatedPatient };
-                                                         setPatientForm(updatedPatient);
-                                                      }
-                                                      if (isAptUpdated) {
-                                                         newData.appointments = updatedAppointments;
-                                                      }
+                                                        const newData = { ...globalData };
+                                                        if (isPatientUpdated) {
+                                                           newData.patientsDb = { ...newData.patientsDb, [patientForm.id]: updatedPatient };
+                                                           setPatientForm(updatedPatient);
+                                                        }
+                                                        if (isAptUpdated) {
+                                                           newData.appointments = updatedAppointments;
+                                                        }
 
-                                                      if (isPatientUpdated || isAptUpdated) {
-                                                         saveGlobalData(newData);
-                                                         showNotification(discount === 0 ? "İndirim sıfırlandı." : `%${discount} indirim uygulandı.`);
-                                                      } else {
-                                                         showNotification("İndirim uygulanacak işlem bulunamadı.", "error");
-                                                      }
-                                                      setDiscountPercent("");
-                                                   }
-                                                );
-                                             }}
-                                             className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm hover:bg-indigo-700 transition"
-                                          >
-                                             Uygula
-                                          </button>
-                                       </div>
-                                       {discountPercent > 0 && discountPercent <= 100 && (
-                                          <div className="mt-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/50 flex justify-between">
-                                             <span>İndirim Tutarı: -{renderMoney((fin.totalOriginalBilled * discountPercent) / 100)} ₺</span>
-                                             <span>Yeni Toplam: {renderMoney(fin.totalOriginalBilled - (fin.totalOriginalBilled * discountPercent) / 100)} ₺</span>
-                                          </div>
-                                       )}
-                                    </div>
+                                                        if (isPatientUpdated || isAptUpdated) {
+                                                           saveGlobalData(newData);
+                                                           showNotification(discount === 0 ? "İndirim sıfırlandı." : `%${discount} indirim uygulandı.`);
+                                                        } else {
+                                                           showNotification("İndirim uygulanacak işlem bulunamadı.", "error");
+                                                        }
+                                                        setDiscountPercent("");
+                                                     }
+                                                  );
+                                               }}
+                                               className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm hover:bg-indigo-700 transition"
+                                            >
+                                               Uygula
+                                            </button>
+                                         </div>
+                                         {discountPercent > 0 && discountPercent <= 100 && (
+                                            <div className="mt-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/50 flex justify-between">
+                                               <span>İndirim Tutarı: -{renderMoney((fin.totalOriginalBilled * discountPercent) / 100)} ₺</span>
+                                               <span>Yeni Toplam: {renderMoney(fin.totalOriginalBilled - (fin.totalOriginalBilled * discountPercent) / 100)} ₺</span>
+                                            </div>
+                                         )}
+                                      </div>
+                                    )}
 
                                     <div className="flex justify-between items-center text-base sm:text-base pt-3 border-t mt-1.5 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 -mx-2.5 px-2.5 -mb-2.5 pb-3 rounded-b-2xl">
                                       <span className="text-slate-800 font-black dark:text-white flex items-center gap-1">
@@ -11958,7 +12804,7 @@ const renderSettings = () => {
                                   </div>
                                   <div className="text-right text-[10px] font-semibold text-gray-600 mt-1">
                                     <p>Tarih: {new Date().toLocaleDateString("tr-TR")}</p>
-                                    <p>Hekim: {globalData.doctorProfiles?.[currentUser]?.name || currentUser}</p>
+                                    <p>Hekim: {currentUserProfile?.name || globalData.doctorProfiles?.[currentUser]?.name || currentUser}</p>
                                   </div>
                                 </div>
                                 <div className="bg-gray-50 border border-gray-300 p-1.5 rounded-lg flex justify-between items-center text-[10px]">
@@ -12052,8 +12898,14 @@ const renderSettings = () => {
                                       </h4>
                                       <div className="flex flex-col gap-1 flex-1">
                                         {data.items.map((tx) => {
-                                          const txPrice = userPricing[tx] !== undefined ? parseFloat(userPricing[tx]) : DEFAULT_PRICING[tx] || 0;
+                                          // YENİ: ZIRHLI PATRON FİYAT OKUYUCU (Asistanın ekranına kliniğin güncel fiyatlarını basar)
+                                          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                                          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
+                                          const safePricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+                                          
+                                          const txPrice = safePricing[tx] !== undefined ? parseFloat(safePricing[tx]) : 0;
                                           const isSelected = activePlanTreatment === tx;
+                                          
                                           return (
                                             <button
                                               key={tx}
@@ -12134,9 +12986,11 @@ const renderSettings = () => {
                                                   </span>
                                                 )}
                                                 <span>{parseFloat(tx.price).toLocaleString("tr-TR")} ₺</span>
-                                                <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
-                                                  <i className="fa-solid fa-pen text-[11px]"></i>
-                                                </button>
+                                                {hasPermission("finance.discount") && (
+                                                  <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
+                                                    <i className="fa-solid fa-pen text-[11px]"></i>
+                                                  </button>
+                                                )}
                                               </div>
                                             )}
                                             </td>
