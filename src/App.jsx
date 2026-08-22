@@ -1450,13 +1450,22 @@ useEffect(() => {
       "treatments.manage": true
     },
     doctor: {
-      "patients.view": true, "patients.create": true, "patients.edit": true, "patients.delete": true,
-      "appointments.view": true, "appointments.create": true, "appointments.edit": true, "appointments.delete": true,
-      "finance.view": true, "finance.payment": true, "finance.discount": true, "finance.edit": true,
+      "patients.view": true, "patients.create": true, "patients.edit": true, "patients.delete": false,
+      "appointments.view": true, "appointments.create": true, "appointments.edit": true, "appointments.delete": false,
+      "finance.view": true, "finance.payment": true, "finance.discount": false, "finance.edit": false,
       "doctors.view": true, "doctors.create": false, "doctors.edit": false, "doctors.delete": false,
       "users.view": false, "users.create": false, "users.edit": false, "users.delete": false,
-      "settings.view": true, "settings.edit": true,
-      "treatments.manage": true
+      "settings.view": false, "settings.edit": false,
+      "treatments.manage": false
+    },
+    head_assistant: { // YENİ: BAŞASİSTAN ROLÜ
+      "patients.view": true, "patients.create": true, "patients.edit": true, "patients.delete": false,
+      "appointments.view": true, "appointments.create": true, "appointments.edit": true, "appointments.delete": true,
+      "finance.view": true, "finance.payment": true, "finance.discount": true, "finance.edit": false,
+      "doctors.view": true, "doctors.create": false, "doctors.edit": false, "doctors.delete": false,
+      "users.view": true, "users.create": false, "users.edit": false, "users.delete": false,
+      "settings.view": false, "settings.edit": false,
+      "treatments.manage": false
     },
     assistant: {
       "patients.view": true, "patients.create": true, "patients.edit": true, "patients.delete": false,
@@ -1467,6 +1476,34 @@ useEffect(() => {
       "settings.view": false, "settings.edit": false,
       "treatments.manage": false
     }
+  };
+
+  // YENİ: KLİNİK KARA KUTUSU (AUDIT LOG MOTORU)
+  const logSystemAction = (actionTitle, details, severity = "info") => {
+    if (!currentUser) return;
+    // getClinicOwnerId fonksiyonu aşağıda tanımlı olduğu için doğrudan resolveClinicId kullanalım
+    const cId = currentUserProfile?.clinicId || resolveClinicId(currentUser);
+    const patron = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === cId && v.role === "clinic_owner")?.[0] || currentUserProfile?.createdBy || currentUser;
+    
+    const timestamp = Date.now();
+    const userName = globalData.doctorProfiles?.[currentUser]?.name || globalData.userProfiles?.[currentUser]?.name || currentUser;
+
+    const newLog = {
+      id: `log_${timestamp}_${Math.random().toString(36).substr(2, 5)}`,
+      time: timestamp,
+      user: userName,
+      userId: currentUser,
+      action: actionTitle,
+      details: details,
+      severity: severity // "info", "warning", "danger", "success"
+    };
+
+    let currentLogs = globalData.auditLogs?.[patron] || [];
+    currentLogs = [newLog, ...currentLogs].slice(0, 500); // Son 500 işlemi tutar (Şişmeyi önler)
+
+    // Arka planda sessizce kaydeder
+    const dbRef = ref(db, `KlinikAnaVeritabani/Veriler/auditLogs/${patron}`);
+    set(dbRef, currentLogs).catch(e => console.error("Log kayıt hatası", e));
   };
 // --- YENİ: KLİNİK İZOLASYONU VE HESAP DEĞİŞTİRME MOTORU ---
   const [switchAccountModal, setSwitchAccountModal] = useState({
@@ -1589,9 +1626,17 @@ useEffect(() => {
     const profile = globalData.userProfiles?.[currentUser];
     
     if (profile) {
+      // Patronun özel yetki tablosunu (Matrix) bul
+      const cId = profile.clinicId;
+      const patronId = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === cId && v.role === "clinic_owner")?.[0] || profile.createdBy;
+      
+      // Ayarlardaki yetki tablosunu al, yoksa varsayılan ROLE_PERMISSIONS kullan
+      const customMatrix = globalData.settingsDb?.[patronId]?.yetkiler?.[profile.role] || ROLE_PERMISSIONS[profile.role];
+
       setCurrentUserProfile({
         ...profile,
-        permissions: { ...ROLE_PERMISSIONS[profile.role], ...(profile.customPermissions || {}) }
+        // Klinik sahibi her zaman Full yetkilidir, diğerleri matrix'e göre çalışır
+        permissions: profile.role === "clinic_owner" ? ROLE_PERMISSIONS["clinic_owner"] : { ...customMatrix }
       });
     } else {
       // Eski sistemden kalan kullanıcıları sistemi bozmamak için Klinik Sahibi kabul ediyoruz
@@ -1978,10 +2023,16 @@ useEffect(() => {
           },
           randevu: { varsayilanSure: "30", slotAraligi: "15", cakismaKontrolu: true, gecmisTarihUyarisi: true },
           gorunum: { tema: "Sistem", renk: "indigo", yogunluk: "standart", animasyonlar: true },
-  bildirim: { smsAktif: false, whatsappAktif: true, randevuHatirlatma: "24" },
+          bildirim: { smsAktif: false, whatsappAktif: true, randevuHatirlatma: "24" },
           guvenlik: { oturumZamanAsimi: "120", hassasEkranUyarisi: true, finansSifresi: "0000" }, // Varsayılan PIN: 0000
           otomasyon: { aktifKural: 4 },
-          dosya: { acil: true, kontrol: true, tedavi: true, lab: true, evrak: true, yeni: true }
+          dosya: { acil: true, kontrol: true, tedavi: true, lab: true, evrak: true, yeni: true },
+          // YENİ EKLENEN KISIM: VARSAYILAN YETKİ MATRİSİ 
+          yetkiler: {
+             doctor: ROLE_PERMISSIONS.doctor,
+             head_assistant: ROLE_PERMISSIONS.head_assistant,
+             assistant: ROLE_PERMISSIONS.assistant
+          }
         };
 
         const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -2602,6 +2653,7 @@ Tarih: ...../...../202...
             checkOneLevel("pricingDb");
             checkOneLevel("settingsDb");
             checkOneLevel("customTreatments"); 
+            checkOneLevel("auditLogs"); // YENİ: Logları da veritabanında tut
 
             // İki katmanlı verileri (Randevular) kontrol et
             const oldApts = globalData.appointments || {};
@@ -3500,6 +3552,9 @@ Tarih: ...../...../202...
           setPaymentInput("");
 
           showNotification(`Tahsilat eklendi: ${newPayment.amount} ₺`);
+          
+          // YENİ: KARA KUTUYA YAZ (LOG)
+          logSystemAction("Tahsilat İşlemi", `${patientForm.name} adlı hastadan ${paymentMethod} yöntemiyle ${newPayment.amount} TL tahsilat alındı.`, "success");
         };
 
         const handleDeletePatient = () => {
@@ -3542,6 +3597,9 @@ Tarih: ...../...../202...
                 setIsPatientModalOpen(false);
                 setPatientForm(null); // Hafızayı temizle
                 showNotification("Hasta ve ona bağlı tüm sistem kayıtları başarıyla silindi.", "success");
+                
+                // YENİ: KARA KUTUYA YAZ (LOG)
+                logSystemAction("Hasta Silindi", `${patientForm.name} adlı hastanın dosyası kalıcı olarak silindi.`, "danger");
               });
             }
           );
@@ -3940,6 +3998,9 @@ Tarih: ...../...../202...
 
             setIsModalOpen(false);
             showNotification("Randevu silindi. Varsa bağlı işlemler tekrar plana alındı.", "error");
+            
+            // YENİ: KARA KUTUYA YAZ (LOG)
+            logSystemAction("Randevu İptali", `${aptToDelete.patientName} isimli hastanın ${selectedSlot} saatindeki randevusu iptal edildi veya silindi.`, "warning");
           });
         };
 
@@ -8142,6 +8203,7 @@ const isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slot
                           <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Kullanıcı Rolü</label>
                           <select value={newUserForm.role} onChange={e => setNewUserForm({...newUserForm, role: e.target.value, assignedDoctors: []})} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-[12px] font-bold outline-none cursor-pointer dark:bg-slate-800 dark:border-slate-700 dark:text-white">
                             <option value="assistant">Asistan / Sekreter</option>
+                            <option value="head_assistant">Başasistan (Yönetici)</option>
                             <option value="doctor">Hekim</option>
                             <option value="clinic_owner">Klinik Sahibi</option>
                           </select>
@@ -8199,7 +8261,9 @@ const renderSettings = () => {
             { id: "otomasyon", icon: "fa-robot", label: "Otomasyon" },
             { id: "gorunum", icon: "fa-palette", label: "Görünüm" },
             { id: "guvenlik", icon: "fa-shield-halved", label: "Güvenlik" },
-            { id: "veri", icon: "fa-database", label: "Veri" }
+            { id: "veri", icon: "fa-database", label: "Veri" },
+            { id: "yetki", icon: "fa-user-shield", label: "Yetki Matrisi" },
+            { id: "log", icon: "fa-list-check", label: "Sistem Kayıtları" }
           ];
 
           const currentData = settingsDraft || settings;
@@ -9079,15 +9143,117 @@ const renderSettings = () => {
                                    }
                                  );
                                }} className="shrink-0 px-3 py-1.5 bg-rose-600 text-white hover:bg-rose-700 rounded-lg text-[11px] font-bold transition-colors shadow-sm">Sistemi Sıfırla</button>
-                             </div>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-                )}
-              </div>
+                            </div>
+                          </div>
+                       </div>
+                    </div>
+                </div>
+              )}
 
-              {/* SABİT KAYDETME ÇUBUĞU (DEĞİŞİKLİK VARSA ÇIKAR) */}
+              {/* --- YENİ MODÜL 1: DİNAMİK YETKİ MATRİSİ --- */}
+              {settingsTab === "yetki" && (
+                <div className="animate-pop max-w-5xl space-y-4">
+                   <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base"><i className="fa-solid fa-user-shield text-indigo-500 mr-1.5"></i> Gelişmiş Yetki Matrisi (RBAC)</h3>
+                   </div>
+                   <p className="text-[11px] text-slate-500 dark:text-slate-400">Klinik Sahibi her şeye tam yetkilidir. Diğer rollerin ("Hekim", "Başasistan", "Asistan") sistem içinde neleri yapabileceğini buradan piksel piksel belirleyebilirsiniz.</p>
+                   
+                   <div className="overflow-x-auto bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm custom-scrollbar">
+                     <table className="w-full text-left text-[12px] min-w-[700px]">
+                       <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                         <tr>
+                           <th className="p-3 font-black uppercase tracking-wider">Sistem İzinleri</th>
+                           <th className="p-3 text-center border-l border-slate-200 dark:border-slate-700 font-black text-indigo-600 dark:text-indigo-400"><i className="fa-solid fa-user-doctor block mb-1 text-base"></i> Hekim</th>
+                           <th className="p-3 text-center border-l border-slate-200 dark:border-slate-700 font-black text-purple-600 dark:text-purple-400"><i className="fa-solid fa-user-tie block mb-1 text-base"></i> Başasistan</th>
+                           <th className="p-3 text-center border-l border-slate-200 dark:border-slate-700 font-black text-emerald-600 dark:text-emerald-400"><i className="fa-solid fa-headset block mb-1 text-base"></i> Asistan</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {[
+                           { cat: "Hasta Yönetimi", perms: [{id: "patients.view", name: "Hastaları ve Verileri Görme"}, {id: "patients.create", name: "Yeni Hasta Ekleme"}, {id: "patients.edit", name: "Hasta Bilgilerini Düzenleme"}, {id: "patients.delete", name: "Hasta Kaydı Silme", danger: true}] },
+                           { cat: "Randevu & Takvim", perms: [{id: "appointments.view", name: "Takvimi Görme"}, {id: "appointments.create", name: "Randevu Verme"}, {id: "appointments.delete", name: "Randevu Silme / İptal Etme"}, {id: "treatments.manage", name: "Fiyat Listesini Değiştirme"}] },
+                           { cat: "Finans & Bilanço", perms: [{id: "finance.view", name: "Bilanço ve Ciroları Görme"}, {id: "finance.payment", name: "Tahsilat Ekleme"}, {id: "finance.discount", name: "Toplu İndirim Uygulama", danger: true}] },
+                           { cat: "Klinik Ayarları", perms: [{id: "users.view", name: "Klinik Ekibini Görme/Yönetme"}, {id: "doctors.view", name: "Hekim Yönetimine Erişim"}] }
+                         ].map((group, gIdx) => (
+                           <React.Fragment key={gIdx}>
+                             <tr className="bg-slate-100 dark:bg-slate-800/80"><td colSpan="4" className="p-2 font-black text-[10px] text-slate-400 uppercase tracking-widest pl-4">{group.cat}</td></tr>
+                             {group.perms.map((p) => (
+                               <tr key={p.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors">
+                                 <td className={`p-3 font-bold flex items-center gap-1.5 ${p.danger ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                   {p.danger && <i className="fa-solid fa-triangle-exclamation"></i>} {p.name}
+                                 </td>
+                                 {["doctor", "head_assistant", "assistant"].map(role => {
+                                    const isChecked = currentData.yetkiler?.[role]?.[p.id] ?? ROLE_PERMISSIONS[role]?.[p.id] ?? false;
+                                    return (
+                                      <td key={role} className="p-3 text-center border-l border-slate-100 dark:border-slate-700/50">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                          <input type="checkbox" className="sr-only peer" checked={isChecked} onChange={(e) => {
+                                             const yeniYetkiler = JSON.parse(JSON.stringify(currentData.yetkiler || {}));
+                                             if(!yeniYetkiler[role]) yeniYetkiler[role] = { ...ROLE_PERMISSIONS[role] };
+                                             yeniYetkiler[role][p.id] = e.target.checked;
+                                             handleSettingChange("yetkiler", role, yeniYetkiler[role]);
+                                          }} />
+                                          <div className="w-9 h-5 bg-slate-200 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                                        </label>
+                                      </td>
+                                    )
+                                 })}
+                               </tr>
+                             ))}
+                           </React.Fragment>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                </div>
+              )}
+
+              {/* --- YENİ MODÜL 2: KLİNİK KARA KUTUSU (AUDIT LOGS) --- */}
+              {settingsTab === "log" && (
+                <div className="animate-pop max-w-5xl space-y-4 h-full flex flex-col min-h-[500px]">
+                   <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2 shrink-0">
+                     <h3 className="font-black text-slate-800 dark:text-white text-base"><i className="fa-solid fa-user-secret text-rose-500 mr-1.5"></i> Sistem İşlem Kayıtları (Kara Kutu)</h3>
+                   </div>
+                   <p className="text-[11px] text-slate-500 dark:text-slate-400 shrink-0">Sistem üzerindeki hassas değişiklikler (silme, fiyat güncelleme, ödeme alma) saniye saniye kaydedilir. Bu kayıtlar silinemez.</p>
+                   
+                   <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm flex flex-col">
+                      <div className="overflow-y-auto flex-1 p-2 custom-scrollbar">
+                         {(() => {
+                            const logs = globalData.auditLogs?.[currentUser] || [];
+                            if(logs.length === 0) return <div className="text-center text-slate-400 py-10 font-bold text-[12px]"><i className="fa-solid fa-check-double text-2xl mb-2 block opacity-50"></i> Henüz sistemde kaydedilmiş hassas bir işlem bulunmuyor.</div>;
+                            
+                            return (
+                              <table className="w-full text-left text-[12px]">
+                                <tbody>
+                                  {logs.map(log => (
+                                    <tr key={log.id} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
+                                      <td className="p-3 w-32 whitespace-nowrap align-top">
+                                        <div className="font-black text-slate-600 dark:text-slate-400">{new Date(log.time).toLocaleDateString("tr-TR")}</div>
+                                        <div className="text-[10px] text-slate-400">{new Date(log.time).toLocaleTimeString("tr-TR")}</div>
+                                      </td>
+                                      <td className="p-3 w-40 font-bold text-slate-700 dark:text-slate-300 align-top">
+                                        <div className="flex items-center gap-1.5"><i className="fa-regular fa-user text-slate-400"></i> {log.user}</div>
+                                      </td>
+                                      <td className="p-3 align-top">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider inline-block mb-1 ${log.severity === 'danger' ? 'bg-rose-100 text-rose-700' : log.severity === 'warning' ? 'bg-amber-100 text-amber-700' : log.severity === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                                          {log.action}
+                                        </span>
+                                        <div className="text-[11px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed">{log.details}</div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )
+                         })()}
+                      </div>
+                   </div>
+                </div>
+              )}
+
+            </div> {/* Bu div "İçerik Alanı"nın (flex-1 bg-white...) ana kapanışıdır */}
+
+            {/* SABİT KAYDETME ÇUBUĞU (DEĞİŞİKLİK VARSA ÇIKAR) */}
               {settingsDraft && JSON.stringify(settings) !== JSON.stringify(settingsDraft) && (
                 <div className="fixed bottom-24 sm:bottom-8 left-0 right-0 mx-auto w-[92%] sm:w-max bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-5 py-3.5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-row items-center justify-between gap-4 animate-[modalPop_0.3s_ease-out_forwards] z-[9999] border border-white/10">
                    <div className="flex items-center gap-2 hidden sm:flex">
