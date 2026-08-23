@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase, ref, set, update, onValue, push, child } from 'firebase/database';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
 const MONTHS = [
         "Ocak",
 
@@ -176,22 +177,30 @@ const MONTHS = [
 const useFirebase = () => {
   const [fbUser, setFbUser] = useState(null);
   const [db, setDb] = useState(null);
+  const [auth, setAuth] = useState(null); // YENİ: Auth eklendi
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const init = async () => {
       try {
+        // DİKKAT: Buradaki bilgileri Firebase'den aldığın kendi bilgilerinle doldur!
         const firebaseConfig = {
-          // Kendi veritabanı URL'iniz
-          databaseURL: "https://klinikrandevusistemi-adaee-default-rtdb.firebaseio.com/",
-        };
+  apiKey: "AIzaSyBpn_3CS_NMIh1VO-Ao0_NhTHesC6jndtQ",
+  authDomain: "klinikrandevusistemi-adaee.firebaseapp.com",
+  databaseURL: "https://klinikrandevusistemi-adaee-default-rtdb.firebaseio.com",
+  projectId: "klinikrandevusistemi-adaee",
+  storageBucket: "klinikrandevusistemi-adaee.firebasestorage.app",
+  messagingSenderId: "277717252835",
+  appId: "1:277717252835:web:f63c4624a63835ed4fe3d6",
+  measurementId: "G-JGFSCVVZ9K"
+};
 
-        // window.FirebaseModules KULLANMIYORUZ!
-        // Doğrudan en yukarıda import ettiğimiz fonksiyonları kullanıyoruz.
-        const app = initializeApp(firebaseConfig);
+        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         const database = getDatabase(app);
+        const firebaseAuth = getAuth(app); // YENİ: Auth motoru çalıştırıldı
 
         setDb(database);
+        setAuth(firebaseAuth); // YENİ: Auth state'e kaydedildi
         setIsReady(true);
       } catch (err) {
         console.error("Firebase Kurulum Hatası", err);
@@ -202,7 +211,7 @@ const useFirebase = () => {
     init();
   }, []);
 
-  return { fbUser, db, isReady };
+  return { fbUser, auth, db, isReady }; // YENİ: auth dışarı aktarıldı
 };
 
       const RealtimeClock = () => {
@@ -1345,7 +1354,7 @@ const useFirebase = () => {
         return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
       };
       function App() {
-  const { fbUser, db, isReady } = useFirebase();
+  const { fbUser, auth, db, isReady } = useFirebase();
 
         const appId =
           typeof __app_id !== "undefined" ? __app_id : "default-klinik-app";
@@ -4181,69 +4190,47 @@ useEffect(() => {
           </div>
         );
 
-        // ★★★ DÜZELTİLEN GİRİŞ / KAYIT / ŞİFRE FONKSİYONLARI ★★★
+        // ★★★ YENİ: FIREBASE AUTHENTICATION SİSTEMİ ★★★
 
         const handleAuthSubmit = async (e) => {
           e.preventDefault();
+          setAuthError("");
 
-          // Kaba Kuvvet (Brute Force) Koruması
-          const attempts = parseInt(
-            localStorage.getItem("loginAttempts") || "0"
-          );
+          const attempts = parseInt(localStorage.getItem("loginAttempts") || "0");
           const lockTime = parseInt(localStorage.getItem("lockTime") || "0");
 
           if (lockTime > Date.now()) {
-            setAuthError(
-              `Güvenlik Kalkanı: Çok fazla hatalı giriş yaptınız. Lütfen ${Math.ceil(
-                (lockTime - Date.now()) / 1000
-              )} saniye bekleyin.`
-            );
+            setAuthError(`Güvenlik Kalkanı: Lütfen ${Math.ceil((lockTime - Date.now()) / 1000)} saniye bekleyin.`);
             return;
           }
 
-          const usersDb = globalData.usersDb || {};
           const loginInput = authForm.username.trim().toLowerCase();
+          const fakeEmail = `${loginInput}@klinik.com`; // Arkada otomatik email oluşturuyoruz
 
-          // YENİ DÜZELTME: Firebase'deki büyük/küçük harfli orijinal kullanıcı adını bul
-          // Böylece eski kullanıcılar sisteme sorunsuzca girebilecek
-          const actualUsernameKey = Object.keys(usersDb).find(
-            (key) => key.toLowerCase() === loginInput
-          );
+          try {
+            // FIREBASE İLE GÜVENLİ GİRİŞ
+            await signInWithEmailAndPassword(auth, fakeEmail, authForm.password);
 
-          const storedPass = actualUsernameKey ? usersDb[actualUsernameKey] : null;
+            localStorage.setItem("loginAttempts", "0");
+            setCurrentUser(loginInput);
+            sessionStorage.setItem("klinikAktifKullanici", loginInput);
+            sessionStorage.setItem("klinikOturumTokeni", "active");
 
-          if (!storedPass || storedPass !== authForm.password) {
+            if (!savedUsernames.includes(loginInput)) {
+              const newSaved = [...savedUsernames, loginInput];
+              setSavedUsernames(newSaved);
+              localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
+            }
+          } catch (error) {
             const newAttempts = attempts + 1;
             if (newAttempts >= 4) {
               localStorage.setItem("lockTime", Date.now() + 30000);
               localStorage.setItem("loginAttempts", "0");
-              setAuthError(
-                "4 kez hatalı giriş denemesi! Sistem 30 saniye kilitlendi."
-              );
+              setAuthError("Çok fazla hatalı deneme! Sistem 30 saniye kilitlendi.");
             } else {
               localStorage.setItem("loginAttempts", newAttempts.toString());
-              setAuthError(
-                `Kullanıcı adı veya şifre hatalı! (Kalan deneme hakkı: ${
-                  4 - newAttempts
-                })`
-              );
+              setAuthError(`Kullanıcı adı veya şifre hatalı! (Kalan hak: ${4 - newAttempts})`);
             }
-            return;
-          }
-
-          // Başarılı Giriş
-          localStorage.setItem("loginAttempts", "0");
-          
-          // DİKKAT: Sisteme küçük harfli girdiğimiz kelimeyle değil, 
-          // Firebase'deki orijinal büyük/küçük harfli adıyla oturum açıyoruz ki eski verileri görebilsin!
-          setCurrentUser(actualUsernameKey);
-          sessionStorage.setItem("klinikAktifKullanici", actualUsernameKey);
-          sessionStorage.setItem("klinikOturumTokeni", "active");
-
-          if (!savedUsernames.includes(actualUsernameKey)) {
-            const newSaved = [...savedUsernames, actualUsernameKey];
-            setSavedUsernames(newSaved);
-            localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
           }
         };
 
@@ -4254,88 +4241,81 @@ useEffect(() => {
           setAuthError("");
 
           if (registerForm.password.length < 6) {
-            setAuthError(
-              "Güvenlik Uyarısı: Şifreniz en az 6 karakterden oluşmalıdır."
-            );
+            setAuthError("Şifreniz en az 6 karakterden oluşmalıdır.");
             if (btn) btn.disabled = false;
             return;
           }
 
-          const usersDb = globalData.usersDb || {};
-          if (usersDb[registerForm.username]) {
-            setAuthError("Bu hekim hesabı zaten alınmış!");
-            if (btn) btn.disabled = false;
-            return;
-          }
-
-          // DİKKAT: Kriptolama iptal edildi, şifre düz metin (plain text) olarak kaydediliyor.
-          const updatedUsers = {
-            ...usersDb,
-            [registerForm.username]: registerForm.password,
-          };
-
-          const updatedProfiles = {
-            ...(globalData.doctorProfiles || {}),
-            [registerForm.username]: {
-              name: registerForm.name,
-              title: registerForm.title,
-              addedBy: registerForm.username,
-            },
-          };
-
-          if (!savedUsernames.includes(registerForm.username)) {
-            const newSaved = [...savedUsernames, registerForm.username];
-            setSavedUsernames(newSaved);
-            localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
-          }
+          const usernameInput = registerForm.username.trim().toLowerCase();
+          const fakeEmail = `${usernameInput}@klinik.com`;
 
           try {
+            // FIREBASE'E ŞİFRELİ KAYIT
+            await createUserWithEmailAndPassword(auth, fakeEmail, registerForm.password);
+
+            // Kullanıcı profilini kendi veritabanımıza ekliyoruz (Artık şifre yok!)
+            const updatedProfiles = {
+              ...(globalData.doctorProfiles || {}),
+              [usernameInput]: {
+                name: registerForm.name,
+                title: registerForm.title,
+                addedBy: usernameInput,
+              },
+            };
+
+            const updatedUserProfiles = {
+               ...(globalData.userProfiles || {}),
+               [usernameInput]: {
+                  name: registerForm.name,
+                  role: "clinic_owner", // İlk kayıt olan kişi patron sayılır
+                  active: true,
+                  clinicId: `clinic_${usernameInput}`,
+                  createdBy: usernameInput
+               }
+            };
+
             await saveGlobalData({
               ...globalData,
-              usersDb: updatedUsers,
               doctorProfiles: updatedProfiles,
+              userProfiles: updatedUserProfiles
             });
 
-            showNotification("Hesap test modunda (şifresiz) oluşturuldu.");
-            setCurrentUser(registerForm.username);
-            sessionStorage.setItem("klinikAktifKullanici", registerForm.username);
+            if (!savedUsernames.includes(usernameInput)) {
+              const newSaved = [...savedUsernames, usernameInput];
+              setSavedUsernames(newSaved);
+              localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
+            }
+
+            showNotification("Hesabınız güvenli bir şekilde oluşturuldu.");
+            setCurrentUser(usernameInput);
+            sessionStorage.setItem("klinikAktifKullanici", usernameInput);
             sessionStorage.setItem("klinikOturumTokeni", "active");
 
             if (btn) btn.disabled = false;
           } catch (error) {
-            setAuthError("Kayıt sırasında hata oluştu, lütfen tekrar deneyin.");
+            if (error.code === 'auth/email-already-in-use') {
+               setAuthError("Bu kullanıcı adı zaten alınmış!");
+            } else {
+               setAuthError("Kayıt olurken bir hata oluştu: " + error.message);
+            }
             if (btn) btn.disabled = false;
           }
         };
 
         const handleForgotSubmit = async (e) => {
           e.preventDefault();
-          const usersDb = globalData.usersDb || {};
-
-          if (!usersDb[forgotForm.username]) {
-            setAuthError("Sistemde böyle bir hekim bulunamadı!");
-            return;
-          }
-
-          if (forgotForm.newPassword.length < 6) {
-            setAuthError("Yeni şifreniz en az 6 karakter olmalıdır.");
-            return;
-          }
-
-          // DİKKAT: Yeni şifre düz metin olarak kaydediliyor.
-          const updatedUsers = {
-            ...usersDb,
-            [forgotForm.username]: forgotForm.newPassword,
-          };
+          const usernameInput = forgotForm.username.trim().toLowerCase();
+          const fakeEmail = `${usernameInput}@klinik.com`;
 
           try {
-            await saveGlobalData({ ...globalData, usersDb: updatedUsers });
-            showNotification("Şifreniz test modunda yenilendi.");
+            // FIREBASE OTOMATİK ŞİFRE SIFIRLAMA LİNKİ
+            await sendPasswordResetEmail(auth, fakeEmail);
+            showNotification("Sistem yöneticinize (veya bu mail adresine) şifre sıfırlama linki gönderildi.", "success");
             setAuthMode("login");
             setForgotForm({ username: "", newPassword: "" });
             setAuthError("");
           } catch (error) {
-            setAuthError("Şifre sıfırlama hatası, lütfen tekrar deneyin.");
+             setAuthError("Sistemde böyle bir kullanıcı bulunamadı!");
           }
         };
 
@@ -11061,7 +11041,8 @@ const renderSettings = () => {
 
                         <div className="p-1.5 border-t border-slate-100 dark:border-slate-700/50">
                           <button
-                            onClick={() => {
+                            onClick={async () => {
+                              if(auth) await signOut(auth); // FIREBASE ÇIKIŞI
                               sessionStorage.removeItem("klinikAktifKullanici");
                               sessionStorage.removeItem("klinikOturumTokeni");
                               window.location.reload();
