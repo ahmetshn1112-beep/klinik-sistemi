@@ -1589,7 +1589,7 @@ useEffect(() => {
       return;
     }
 
-    // 1. ÖNCE MODALI VE AÇIK MENÜLERİ KAPAT (Ekranda takılı kalmaması için en üste aldık)
+    // 1. ÖNCE MODALI VE AÇIK MENÜLERİ KAPAT
     setSwitchAccountModal({ isOpen: false, targetUsername: null, targetName: "", targetRole: "", password: "", error: "", showPassword: false });
     setIsUserMenuOpen(false);
     setIsUsersSubmenuOpen(false);
@@ -1609,18 +1609,10 @@ useEffect(() => {
     setActiveTab("home");
     showNotification(`${targetName} hesabına başarıyla geçiş yapıldı.`, "success");
 
-    // 4. EN SON OTURUMU AKTAR (Sayfanın yenilenmesini en sona bıraktık)
+    // 4. EN SON OTURUMU AKTAR (Aşağıdaki fazlalık ve u.username çağıran hatalı kodlar silindi)
     setCurrentUser(targetUser);
     sessionStorage.setItem("klinikAktifKullanici", targetUser);
     sessionStorage.setItem("klinikOturumTokeni", "active");
-
-    setSwitchAccountModal({
-                                        isOpen: true, targetUsername: u.username, targetName: u.name, targetRole: u.role, password: "", error: "", showPassword: false
-                                      });
-                                      setIsUserMenuOpen(false);
-                                      setIsUsersSubmenuOpen(false);
-    setActiveTab("home");
-    showNotification(`${switchAccountModal.targetName} hesabına başarıyla geçiş yapıldı.`, "success");
   };
   // -----------------------------------------------------------
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -1783,18 +1775,28 @@ useEffect(() => {
         const [dragOverTargetKey, setDragOverTargetKey] = useState(null);
 
         const [globalSearch, setGlobalSearch] = useState("");
+        const [globalSearchInput, setGlobalSearchInput] = useState(""); // YENİ: Anlık yazım için
 
         const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
-
         const searchRef = useRef(null);
-
         const [patientSuggestions, setPatientSuggestions] = useState([]);
 
         const [aptSearchQuery, setAptSearchQuery] = useState("");
+        const [aptSearchInput, setAptSearchInput] = useState(""); // YENİ: Anlık yazım için
 
         const [isAptSearchOpen, setIsAptSearchOpen] = useState(false);
-
         const aptSearchRef = useRef(null);
+
+        // YENİ: DEBOUNCE MOTORU (Klavye donmalarını engeller, yazma bitince arar)
+        useEffect(() => {
+          const globalTimer = setTimeout(() => setGlobalSearch(globalSearchInput), 300);
+          return () => clearTimeout(globalTimer);
+        }, [globalSearchInput]);
+
+        useEffect(() => {
+          const aptTimer = setTimeout(() => setAptSearchQuery(aptSearchInput), 300);
+          return () => clearTimeout(aptTimer);
+        }, [aptSearchInput]);
 
         const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -1959,6 +1961,7 @@ useEffect(() => {
         const [editingTxPrice, setEditingTxPrice] = useState("");
 
         const [isAddDoctorModalOpen, setIsAddDoctorModalOpen] = useState(false);
+        const [newDoctorForm, setNewDoctorForm] = useState({ name: "", title: "Hekim" });
         const [avatarModalInfo, setAvatarModalInfo] = useState({
           isOpen: false,
           docId: null,
@@ -2416,6 +2419,7 @@ Tarih: ...../...../202...
         };
 
         // AYARLARI KAYDETME: Hibrit Motor (Hem Local Hem Bulut)
+        // AYARLARI KAYDETME: Hibrit Motor (Hem Local Hem Bulut)
         const saveSettings = () => {
           if (!settingsDraft) return;
           
@@ -2425,13 +2429,16 @@ Tarih: ...../...../202...
           if (!finalSettings.meta) finalSettings.meta = {};
           finalSettings.meta.lastSavedAt = Date.now();
 
+          // YENİ DÜZELTME: Ayarları işlemi yapan kişiye değil, Kliniğin Ana Sahibine (Owner) kaydet
+          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+
           const updatedSettingsDb = {
             ...(globalData.settingsDb || {}),
-            [currentUser]: finalSettings
+            [ownerId]: finalSettings
           };
 
-          // 1. Aşama: Cihaza kaydet
-          localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(finalSettings));
+          // 1. Aşama: Cihaza kaydet (Patronun ID'si ile)
+          localStorage.setItem(`klinikSettings_${ownerId}`, JSON.stringify(finalSettings));
           setSettings(finalSettings); 
 
           // 2. Aşama: Ayarları Buluta (Firebase) Yolla
@@ -2660,11 +2667,8 @@ Tarih: ...../...../202...
             checkOneLevel("settingsDb");
             checkOneLevel("customTreatments"); 
             checkOneLevel("auditLogs");
+            checkOneLevel("patientsDb"); // YENİ: Hastalar artık tüm listeyi ezmeden, tek tek kendi ID'leriyle güvenle güncellenecek!
 
-            // patientsDb silme ve eklemelerini doğrudan ana düğüm üzerinden güvene al
-            if (JSON.stringify(globalData.patientsDb) !== JSON.stringify(newData.patientsDb)) {
-              updates["patientsDb"] = newData.patientsDb || null;
-            }
 
             // İki katmanlı verileri (Randevular) kontrol et
             const oldApts = globalData.appointments || {};
@@ -3061,17 +3065,18 @@ Tarih: ...../...../202...
             }
             
             // 4️⃣ GERÇEK SİSTEM BAĞLANTISI: OTOMATİK EPİKRİZ AYARI KONTROLÜ
+            const historyArray = updatedPatientsDb[pId].clinicalHistory || [];
+            const historyIndex = historyArray.findIndex((h) => h.appointmentId === aptKey);
+
             if (newStatus === "Geldi" && settings?.otomasyon?.otoEpikriz !== false) {
-              const historyArray = updatedPatientsDb[pId].clinicalHistory || [];
-              const historyExists = historyArray.some((h) => h.appointmentId === aptKey);
-              
-              if (!historyExists) {
+              if (historyIndex === -1) {
+                // Kayıt yoksa yeni epikriz oluştur
                 const [y, m, d, ...timeArr] = aptKey.split("-");
                 const timeStr = timeArr.join(":");
                 const newHistory = {
                   id: "hist_" + Date.now(),
                   appointmentId: aptKey,
-                  date: `${d}.${m}.${y}`, // Türkçe okunaklı tarih
+                  date: `${d}.${m}.${y}`,
                   time: timeStr,
                   timestamp: Date.now(),
                   doctorId: docId,
@@ -3084,11 +3089,17 @@ Tarih: ...../...../202...
                   createdAt: Date.now(),
                   createdBy: currentUser
                 };
-                // En yeni kayıt en üste gelecek şekilde ekliyoruz
                 updatedPatientsDb[pId].clinicalHistory = [newHistory, ...historyArray];
+              } else {
+                // Zaten varsa (Örn: Gelmedi'den tekrar Geldi'ye çekildiyse) durumunu düzelt
+                updatedPatientsDb[pId].clinicalHistory[historyIndex].appointmentStatus = "Geldi";
+                updatedPatientsDb[pId].clinicalHistory[historyIndex].visitType = "Gerçekleşen Klinik İşlem";
               }
+            } else if (newStatus !== "Geldi" && historyIndex > -1) {
+              // YENİ ÇÖZÜM: Geldi'den İptal veya Gelmedi'ye çekildiyse epikrizi SILME, durumunu güncelle!
+              updatedPatientsDb[pId].clinicalHistory[historyIndex].appointmentStatus = newStatus;
+              updatedPatientsDb[pId].clinicalHistory[historyIndex].visitType = newStatus === "İptal" ? "İptal Edilen Randevu" : "Gerçekleşmeyen Randevu";
             }
-            // "Geldi" durumundan "Bekliyor" veya "İptal"e dönülürse geçmiş silinmez, kalıcıdır!
           }
 
           saveGlobalData({
@@ -3853,7 +3864,7 @@ Tarih: ...../...../202...
                 // Kendi kendini düzenliyorsa (aynı yuvaysa) çakışma sayma
                 if (exKey === key) return;
 
-                const exTimeStr = exKey.split("-")[3]; 
+                const exTimeStr = exKey.split("-").slice(3).join(":"); 
                 // İptal edilen randevuları çakışma listesinden hariç tut
                 if (exTimeStr && existingApt.status !== "İptal") {
                   const [exStartH, exStartM] = exTimeStr.split(":").map(Number);
@@ -4233,23 +4244,22 @@ Tarih: ...../...../202...
               <input
                 type="text"
                 placeholder="İsim, Tel, TC ile Ara..."
-                value={aptSearchQuery}
+                value={aptSearchInput}
                 onChange={(e) => {
-                  setAptSearchQuery(e.target.value);
-
+                  setAptSearchInput(e.target.value);
                   setIsAptSearchOpen(true);
                 }}
                 onFocus={() => {
-                  if (aptSearchQuery.length > 1) setIsAptSearchOpen(true);
+                  if (aptSearchInput.length > 1) setIsAptSearchOpen(true);
                 }}
                 className="w-full pl-9 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 dark:focus:ring-indigo-900/50 shadow-inner transition-all"
               />
 
-              {aptSearchQuery && (
+              {aptSearchInput && (
                 <button
                   onClick={() => {
+                    setAptSearchInput("");
                     setAptSearchQuery("");
-
                     setIsAptSearchOpen(false);
                   }}
                   className="absolute right-2.5 top-2.5 text-slate-400 hover:text-rose-500 transition"
@@ -4984,13 +4994,12 @@ Tarih: ...../...../202...
                 <div className="space-y-1.5 pr-1.5">
                   {todaysApts.length > 0 ? (
                     todaysApts.map((apt, i) => {
-                      const pId = apt.patientName
-
-                        .toLowerCase()
-
-                        .replace(/\s+/g, "");
-
-                      const anamnesis = globalData.patientsDb?.[pId]?.anamnesis;
+                      let pId = apt.patientId;
+                      if (!pId) {
+                        const match = Object.values(globalData.patientsDb || {}).find(p => p.name.toLowerCase() === apt.patientName.toLowerCase().trim());
+                        if (match) pId = match.id;
+                      }
+                      const anamnesis = pId ? globalData.patientsDb?.[pId]?.anamnesis : null;
 
                       return (
                         <div
@@ -5595,13 +5604,12 @@ let isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slotHo
 // SİHİRLİ SATIR: Eğer gün kapalıysa, o günün tüm saatlerini "geçmiş/pasif" olarak işaretle!
 if (isDayClosed) isPastSlot = true;
 
-                      let pId = apt
-                        ? apt.patientName.toLowerCase().replace(/\s+/g, "")
-                        : null;
-
-                      let anamnesis = pId
-                        ? globalData.patientsDb?.[pId]?.anamnesis
-                        : null;
+                      let pId = apt?.patientId;
+                      if (apt && !pId) {
+                        const match = Object.values(globalData.patientsDb || {}).find(p => p.name.toLowerCase() === apt.patientName.toLowerCase().trim());
+                        if (match) pId = match.id;
+                      }
+                      let anamnesis = pId ? globalData.patientsDb?.[pId]?.anamnesis : null;
 
                       const isHighlighted = highlightedAptId === fullKey;
 
@@ -6973,12 +6981,19 @@ if (isDayClosed) isPastSlot = true;
 
           const openDoctorDetails = (docUsername) => {
             setSelectedDoctorId(docUsername);
-            setDoctorEditForm(
-              globalData.doctorProfiles?.[docUsername] || {
-                name: docUsername,
-                title: "Hekim",
-              }
-            );
+            
+            // YENİ: Var olan profili güvenle al ve TÜM state'leri eksiksiz başlat
+            const existingProfile = globalData.doctorProfiles?.[docUsername] || {};
+            setDoctorEditForm({
+              name: existingProfile.name || docUsername,
+              title: existingProfile.title || "Hekim",
+              commissionRate: existingProfile.commissionRate || "", // Hakediş oranı eklendi!
+              avatar: existingProfile.avatar || null,
+              zoom: existingProfile.zoom || 1,
+              x: existingProfile.x || 50,
+              y: existingProfile.y || 50
+            });
+
             // YENİ: Asistansa Ajanda sekmesini, Patron/Hekimse Profil sekmesini aç
             const defaultTab = currentUserProfile?.role === "assistant" ? "agenda" : "profile";
             setDocModalTab(defaultTab);
@@ -7004,7 +7019,12 @@ if (isDayClosed) isPastSlot = true;
               return;
             }
 
-            const finalEditForm = { ...doctorEditForm, name: doctorEditForm.name.trim() };
+            // YENİ: commissionRate'i güvenlik için (Number) formatına çevir, boşsa 0 yap
+            const finalEditForm = { 
+              ...doctorEditForm, 
+              name: doctorEditForm.name.trim(),
+              commissionRate: parseFloat(doctorEditForm.commissionRate) || 0 
+            };
             const updatedProfiles = {
               ...globalData.doctorProfiles,
               [selectedDoctorId]: finalEditForm,
@@ -7055,7 +7075,8 @@ if (isDayClosed) isPastSlot = true;
             const apts = globalData.appointments?.[docId] || {};
 
             Object.entries(apts).forEach(([key, a]) => {
-              const [y, m, d] = key.split("-").map(Number);
+              const parts = key.split("-");
+              const y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
               const aptDateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
               let inRange = true;
@@ -7463,13 +7484,13 @@ if (isDayClosed) isPastSlot = true;
                              );
 
                              const aptData = { 
+                               ...apt,
                                key: k, 
                                time: timeStr, 
                                aptTimeMs: safeAptTimeMs, 
-                               patientId: pData?.id || null,
-                               phone: pData?.phone || apt.phone || null,
-                               anamnesis: pData?.anamnesis || null,
-                               ...apt 
+                               patientId: pData?.id || apt?.patientId || null,
+                               phone: pData?.phone || apt?.phone || null,
+                               anamnesis: pData?.anamnesis || apt?.anamnesis || null
                              };
 
                              if (isToday) {
@@ -7564,8 +7585,8 @@ if (isDayClosed) isPastSlot = true;
                                            const toothText = Array.isArray(apt.selectedTeeth) ? apt.selectedTeeth.join(", ") : apt.selectedTeeth;
 
                                            return (
-                                           <div key={i} className={`bg-white dark:bg-slate-800 rounded-xl border p-2.5 shadow-sm transition-all relative overflow-hidden group ${isDone ? "opacity-60 border-slate-200 dark:border-slate-700" : "border-indigo-100 dark:border-indigo-800 hover:shadow-md hover:border-indigo-300"}`}>
-                                              <div className={`absolute left-0 top-0 bottom-0 w-1 ${isDone ? "bg-slate-300 dark:bg-slate-600" : "bg-indigo-500"}`}></div>
+                                           <div key={i} className={`bg-white dark:bg-slate-800 rounded-xl border p-2.5 shadow-sm transition-all relative overflow-visible group ${isDone ? "opacity-60 border-slate-200 dark:border-slate-700" : "border-indigo-100 dark:border-indigo-800 hover:shadow-md hover:border-indigo-300"}`}>
+                                              <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${isDone ? "bg-slate-300 dark:bg-slate-600" : "bg-indigo-500"}`}></div>
                                               
                                               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 pl-1">
                                                  <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -7576,13 +7597,14 @@ if (isDayClosed) isPastSlot = true;
                                                        <div className="font-black text-[14px] text-slate-800 dark:text-slate-200 leading-none mb-1 flex items-center gap-1.5">
                                                           {apt.patientName || "İsimsiz Kayıt"}
                                                           {apt.anamnesis && (
-                                                             <div className="group/tooltip relative">
-                                                                <i className="fa-solid fa-triangle-exclamation text-rose-500 animate-pulse cursor-help"></i>
-                                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/tooltip:block w-48 p-2 bg-rose-600 text-white text-[10px] font-bold rounded-lg shadow-xl z-50 whitespace-pre-wrap">
-                                                                  Hastanın Özel Durumu/Alerjisi Var: {apt.anamnesis}
-                                                                </div>
-                                                             </div>
-                                                          )}
+                                               <div className="relative inline-flex items-center">
+                                                  <i className="fa-solid fa-triangle-exclamation text-rose-500 animate-pulse cursor-help text-base peer"></i>
+                                                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 invisible peer-hover:opacity-100 peer-hover:visible transition-all duration-200 w-56 p-2.5 bg-rose-600 text-white text-[11px] font-bold rounded-lg shadow-[0_15px_30px_rgba(225,29,72,0.4)] z-[9999] whitespace-pre-wrap pointer-events-none">
+                                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-rose-600"></div>
+                                                     <i className="fa-solid fa-circle-exclamation mr-1"></i> <b>Önemli Uyarı:</b> {apt.anamnesis}
+                                                  </div>
+                                               </div>
+                                            )}
                                                        </div>
                                                        <div className="text-[11px] font-bold text-slate-500 flex items-center gap-2">
                                                           <span><i className="fa-solid fa-stethoscope"></i> {apt.treatment || "Belirtilmedi"}</span>
@@ -10629,9 +10651,9 @@ const renderSettings = () => {
                       <input
                         type="text"
                         placeholder="İsim, Tel, TC Ara..."
-                        value={globalSearch}
+                        value={globalSearchInput}
                         onChange={(e) => {
-                          setGlobalSearch(e.target.value);
+                          setGlobalSearchInput(e.target.value);
                           setSearchDropdownOpen(true);
                         }}
                         onFocus={() => setSearchDropdownOpen(true)}
