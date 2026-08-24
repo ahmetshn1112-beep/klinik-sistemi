@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase, ref, set, update, onValue, push, child } from 'firebase/database';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'firebase/auth';
+import { getDatabase, ref, set, update, onValue, push, child, get } from 'firebase/database';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword } from 'firebase/auth';
 const MONTHS = [
         "Ocak",
 
@@ -1555,41 +1555,48 @@ useEffect(() => {
     return Array.from(usersMap.values());
   };
 
-  const handleSwitchAccountSubmit = (e) => {
+  const handleSwitchAccountSubmit = async (e) => {
     e.preventDefault();
     const targetUser = switchAccountModal.targetUsername;
     const targetName = switchAccountModal.targetName;
-    const storedPass = globalData.usersDb?.[targetUser];
+    const typedPassword = switchAccountModal.password;
 
-    if (!storedPass || storedPass !== switchAccountModal.password) {
-      setSwitchAccountModal(prev => ({ ...prev, error: "Hesap şifresi hatalı!" }));
-      return;
+    if (!targetUser || !typedPassword) return;
+
+    try {
+      // 1. Hedef kullanıcının veritabanındaki e-postasını buluyoruz
+      const profile = globalData.userProfiles?.[targetUser] || {};
+      const targetEmail = profile.realEmail || `${targetUser}@klinik.com`;
+
+      // 2. Firebase üzerinden hedef hesabın şifresini güvenle doğruluyoruz
+      await signInWithEmailAndPassword(auth, targetEmail, typedPassword);
+
+      // 3. Doğrulama başarılı! Modalları temizle
+      setSwitchAccountModal({ isOpen: false, targetUsername: null, targetName: "", targetRole: "", password: "", error: "", showPassword: false });
+      setIsUserMenuOpen(false);
+      setIsUsersSubmenuOpen(false);
+      
+      setIsPatientModalOpen(false);
+      setIsModalOpen(false);
+      setIsDoctorDetailsModalOpen(false);
+      
+      // 4. Oturumu yeni kullanıcıya aktar ve sistemi yenile
+      setCurrentUser(targetUser);
+      sessionStorage.setItem("klinikAktifKullanici", targetUser);
+      sessionStorage.setItem("klinikOturumTokeni", "active");
+
+      showNotification(`${targetName} hesabına başarıyla geçiş yapıldı.`, "success");
+      
+      // Arayüzün tam yetkilerle yüklenmesi için 1 saniye sonra yeniliyoruz
+      setTimeout(() => window.location.reload(), 1000);
+
+    } catch (error) {
+      console.error("Hesap değiştirme hatası:", error);
+      setSwitchAccountModal(prev => ({
+        ...prev,
+        error: "Girdiğiniz şifre hatalı! Lütfen tekrar deneyin."
+      }));
     }
-
-    // 1. ÖNCE MODALI VE AÇIK MENÜLERİ KAPAT
-    setSwitchAccountModal({ isOpen: false, targetUsername: null, targetName: "", targetRole: "", password: "", error: "", showPassword: false });
-    setIsUserMenuOpen(false);
-    setIsUsersSubmenuOpen(false);
-    
-    // 2. Diğer olası açık pencereleri ve arama çubuklarını temizle
-    setIsPatientModalOpen(false);
-    setIsModalOpen(false);
-    setIsDoctorDetailsModalOpen(false);
-    setPatientForm(null);
-    setGlobalSearch("");
-    setAptSearchQuery("");
-    setPatientLocalSearch("");
-    setListDoctorFilter("all");
-    setActiveFolderId(null);
-    
-    // 3. Ekrana bildirim bas ve anasayfaya yönlendir
-    setActiveTab("home");
-    showNotification(`${targetName} hesabına başarıyla geçiş yapıldı.`, "success");
-
-    // 4. EN SON OTURUMU AKTAR (Aşağıdaki fazlalık ve u.username çağıran hatalı kodlar silindi)
-    setCurrentUser(targetUser);
-    sessionStorage.setItem("klinikAktifKullanici", targetUser);
-    sessionStorage.setItem("klinikOturumTokeni", "active");
   };
   // -----------------------------------------------------------
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
@@ -1696,19 +1703,15 @@ useEffect(() => {
         const [showSavedUsers, setShowSavedUsers] = useState(false); // YENİ: Kayıtlı kullanıcılar menüsü durumu
 
         const [registerForm, setRegisterForm] = useState({
-          username: "",
-
-          password: "",
-
-          name: "",
-
-          title: "Hekim",
-        });
+    name: "",
+    title: "",
+    username: "",
+    email: "", // YENİ: Kayıt olurken e-posta da tutulacak
+    password: "",
+  });
 
         const [forgotForm, setForgotForm] = useState({
-          username: "",
-
-          newPassword: "",
+          email: "", // Artık sadece e-posta isteyeceğiz
         });
 
         const [authError, setAuthError] = useState("");
@@ -1723,6 +1726,7 @@ useEffect(() => {
           oldPass: "",
           newPass: "",
           confirmPass: "",
+          email: "",
         });
         // YENİ: Şifreleri gizle/göster durumu için
         const [showPassState, setShowPassState] = useState({
@@ -4205,19 +4209,46 @@ useEffect(() => {
           }
 
           const loginInput = authForm.username.trim().toLowerCase();
-          const fakeEmail = `${loginInput}@klinik.com`; // Arkada otomatik email oluşturuyoruz
+          const isEmailLogin = loginInput.includes("@"); // YENİ: Acil durum direkt e-posta girişi
+          
+          // 1. Cihaz hafızasından emaili bulmaya çalışıyoruz (Çıkış yapınca veritabanı kilitlendiği için)
+          const savedEmails = JSON.parse(localStorage.getItem("klinikUserEmails") || "{}");
+          let loginEmail = isEmailLogin ? loginInput : (savedEmails[loginInput] || `${loginInput}@klinik.com`);
 
           try {
             // FIREBASE İLE GÜVENLİ GİRİŞ
-            await signInWithEmailAndPassword(auth, fakeEmail, authForm.password);
+            await signInWithEmailAndPassword(auth, loginEmail, authForm.password);
+
+            let finalUsername = loginInput;
+
+            // 2. Eğer kullanıcı e-posta yazarak girdiyse, veritabanından asıl kullanıcı adını (örn: dt_ahmet) buluyoruz
+            if (isEmailLogin) {
+                // Giriş başarılı olduğu için Firebase kapıları açtı, artık okuyabiliriz!
+                const snapshot = await get(child(ref(db), 'userProfiles'));
+                if (snapshot.exists()) {
+                    const profiles = snapshot.val();
+                    const foundUser = Object.entries(profiles).find(([uname, prof]) => prof.realEmail === loginInput);
+                    
+                    if (foundUser) {
+                        finalUsername = foundUser[0];
+                    } else {
+                        // Eğer özel maili yoksa varsayılan mailden kullanıcı adını çıkar
+                        finalUsername = loginInput.split("@")[0];
+                    }
+                }
+            }
+
+            // 3. Başarılı girişte cihaz hafızasını güncelliyoruz ki bir daha e-posta yazmak zorunda kalmasın
+            savedEmails[finalUsername] = loginEmail;
+            localStorage.setItem("klinikUserEmails", JSON.stringify(savedEmails));
 
             localStorage.setItem("loginAttempts", "0");
-            setCurrentUser(loginInput);
-            sessionStorage.setItem("klinikAktifKullanici", loginInput);
+            setCurrentUser(finalUsername);
+            sessionStorage.setItem("klinikAktifKullanici", finalUsername);
             sessionStorage.setItem("klinikOturumTokeni", "active");
 
-            if (!savedUsernames.includes(loginInput)) {
-              const newSaved = [...savedUsernames, loginInput];
+            if (!savedUsernames.includes(finalUsername)) {
+              const newSaved = [...savedUsernames, finalUsername];
               setSavedUsernames(newSaved);
               localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
             }
@@ -4226,7 +4257,7 @@ useEffect(() => {
             if (newAttempts >= 4) {
               localStorage.setItem("lockTime", Date.now() + 30000);
               localStorage.setItem("loginAttempts", "0");
-              setAuthError("Çok fazla hatalı deneme! Sistem 30 saniye kilitlendi.");
+              setAuthError("Sistem 30 saniye kilitlendi.");
             } else {
               localStorage.setItem("loginAttempts", newAttempts.toString());
               setAuthError(`Kullanıcı adı veya şifre hatalı! (Kalan hak: ${4 - newAttempts})`);
@@ -4242,18 +4273,20 @@ useEffect(() => {
 
           if (registerForm.password.length < 6) {
             setAuthError("Şifreniz en az 6 karakterden oluşmalıdır.");
-            if (btn) btn.disabled = false;
-            return;
+            if (btn) btn.disabled = false; return;
+          }
+          if (!registerForm.email || !registerForm.email.includes("@")) {
+            setAuthError("Lütfen geçerli bir e-posta adresi girin.");
+            if (btn) btn.disabled = false; return;
           }
 
           const usernameInput = registerForm.username.trim().toLowerCase();
-          const fakeEmail = `${usernameInput}@klinik.com`;
+          const realEmail = registerForm.email.trim();
 
           try {
-            // FIREBASE'E ŞİFRELİ KAYIT
-            await createUserWithEmailAndPassword(auth, fakeEmail, registerForm.password);
+            // ARTIK FAKE E-POSTA YOK, GERÇEK E-POSTA İLE KAYIT OLUYORUZ
+            await createUserWithEmailAndPassword(auth, realEmail, registerForm.password);
 
-            // Kullanıcı profilini kendi veritabanımıza ekliyoruz (Artık şifre yok!)
             const updatedProfiles = {
               ...(globalData.doctorProfiles || {}),
               [usernameInput]: {
@@ -4267,10 +4300,11 @@ useEffect(() => {
                ...(globalData.userProfiles || {}),
                [usernameInput]: {
                   name: registerForm.name,
-                  role: "clinic_owner", // İlk kayıt olan kişi patron sayılır
+                  role: "clinic_owner",
                   active: true,
                   clinicId: `clinic_${usernameInput}`,
-                  createdBy: usernameInput
+                  createdBy: usernameInput,
+                  realEmail: realEmail // YENİ: Gerçek maili veritabanına kaydediyoruz ki giriş yaparken bulabilelim
                }
             };
 
@@ -4294,7 +4328,7 @@ useEffect(() => {
             if (btn) btn.disabled = false;
           } catch (error) {
             if (error.code === 'auth/email-already-in-use') {
-               setAuthError("Bu kullanıcı adı zaten alınmış!");
+               setAuthError("Bu e-posta adresi sistemde zaten kayıtlı!");
             } else {
                setAuthError("Kayıt olurken bir hata oluştu: " + error.message);
             }
@@ -4304,18 +4338,21 @@ useEffect(() => {
 
         const handleForgotSubmit = async (e) => {
           e.preventDefault();
-          const usernameInput = forgotForm.username.trim().toLowerCase();
-          const fakeEmail = `${usernameInput}@klinik.com`;
+          setAuthError("");
+          const emailInput = forgotForm.email?.trim();
+
+          if (!emailInput || !emailInput.includes("@")) {
+              setAuthError("Lütfen geçerli bir e-posta adresi girin.");
+              return;
+          }
 
           try {
-            // FIREBASE OTOMATİK ŞİFRE SIFIRLAMA LİNKİ
-            await sendPasswordResetEmail(auth, fakeEmail);
-            showNotification("Sistem yöneticinize (veya bu mail adresine) şifre sıfırlama linki gönderildi.", "success");
+            await sendPasswordResetEmail(auth, emailInput);
+            showNotification(`Şifre sıfırlama linki ${emailInput} adresine gönderildi. Lütfen mailinizi kontrol edin.`, "success");
             setAuthMode("login");
-            setForgotForm({ username: "", newPassword: "" });
-            setAuthError("");
+            setForgotForm({ email: "" });
           } catch (error) {
-             setAuthError("Sistemde böyle bir kullanıcı bulunamadı!");
+             setAuthError("Sistemde bu e-posta adresine ait bir hesap bulunamadı.");
           }
         };
 
@@ -4563,6 +4600,22 @@ useEffect(() => {
                         }`}
                         placeholder="Kullanıcı Adı Belirleyin"
                       />
+                      {/* YENİ: E-POSTA ALANI */}
+                      <div>
+                        <div className="relative group">
+                          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                            <i className="fa-solid fa-envelope text-sm"></i>
+                          </span>
+                          <input 
+                            type="email" 
+                            required 
+                            placeholder="E-Posta Adresiniz" 
+                            value={registerForm.email} 
+                            onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} 
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all dark:text-white" 
+                          />
+                        </div>
+                      </div>
                       {registerForm.username.length >= 3 && (
                         <div className={`text-[10px] font-bold mt-1.5 flex items-center gap-1 animate-fadeIn ${checkUsernameAvailability(registerForm.username) ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                           <i className={`fa-solid ${checkUsernameAvailability(registerForm.username) ? "fa-check-circle" : "fa-circle-xmark"}`}></i>
@@ -4620,68 +4673,41 @@ useEffect(() => {
                 )}
 
                 {authMode === "forgot" && (
-                  <form onSubmit={handleForgotSubmit} className="space-y-2">
-                    <div className="relative group">
-                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                      <input
-                        type="text"
-                        required
-                        value={forgotForm.username}
-                        onChange={(e) =>
-                          setForgotForm({
-                            ...forgotForm,
-                            username: e.target.value,
-                          })
-                        }
-                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
-                        placeholder="Mevcut Kullanıcı Adınız"
-                      />
+                  <form onSubmit={handleForgotSubmit} className="space-y-3">
+                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 text-center mb-1 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
+                      Hesabınıza kayıtlı e-posta adresini girin. Yeni şifre belirlemeniz için güvenli bir bağlantı göndereceğiz.
                     </div>
 
                     <div className="relative group">
-                      <i className="fa-solid fa-key absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      <i className="fa-solid fa-envelope absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
                       <input
-                        type={showPassword ? "text" : "password"}
+                        type="email"
                         required
-                        value={forgotForm.newPassword}
+                        value={forgotForm.email || ""}
                         onChange={(e) =>
                           setForgotForm({
-                            ...forgotForm,
-                            newPassword: e.target.value,
+                            email: e.target.value,
                           })
                         }
-                        className="w-full pl-10 pr-10 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
-                        placeholder="Yeni Şifre Belirleyin"
+                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
+                        placeholder="Kayıtlı E-Posta Adresiniz"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-indigo-500 transition-colors"
-                      >
-                        <i
-                          className={`fa-solid ${
-                            showPassword ? "fa-eye-slash" : "fa-eye"
-                          }`}
-                        ></i>
-                      </button>
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full mt-2 py-2 bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 font-black rounded-xl shadow-lg hover:-translate-y-0.5 transition-all flex justify-center items-center gap-1.5"
+                      className="w-full mt-3 py-2 bg-slate-800 dark:bg-indigo-600 text-white font-black rounded-xl shadow-lg hover:-translate-y-0.5 hover:bg-slate-900 transition-all flex justify-center items-center gap-1.5"
                     >
-                      Şifremi Sıfırla{" "}
-                      <i className="fa-solid fa-rotate-right"></i>
+                      Sıfırlama Linki Gönder <i className="fa-regular fa-paper-plane"></i>
                     </button>
 
                     <div className="text-center mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
                       <button
                         type="button"
-                        onClick={() => setAuthMode("login")}
+                        onClick={() => { setAuthMode("login"); setAuthError(""); }}
                         className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1.5 w-full"
                       >
-                        <i className="fa-solid fa-arrow-left"></i> İptal Et ve
-                        Geri Dön
+                        <i className="fa-solid fa-arrow-left"></i> İptal Et ve Geri Dön
                       </button>
                     </div>
                   </form>
@@ -8077,45 +8103,30 @@ if (isDayClosed) isPastSlot = true;
         // YENİ: KLİNİK KULLANICILARI (EKİP) YÖNETİMİ
         // ==========================================
         const renderUsers = () => {
-          // Eski ve yeni sistemdeki tüm kullanıcıları harmanlayıp listele ve FİLTRELE
-          const usersList = Object.keys(globalData.usersDb || {}).map(username => {
+          // YENİ: Firebase Auth ve Eski veritabanındaki tüm kullanıcıları eksiksiz birleştir
+          const allSystemUsers = Array.from(new Set([
+            ...Object.keys(globalData.usersDb || {}),
+            ...Object.keys(globalData.userProfiles || {}),
+            ...Object.keys(globalData.doctorProfiles || {})
+          ]));
+
+          const usersList = allSystemUsers.map(username => {
             const profile = globalData.userProfiles?.[username] || {};
             const docProfile = globalData.doctorProfiles?.[username] || {};
-            const handleDeleteUser = (usernameToDelete) => {
-            showConfirm(
-              `${usernameToDelete} adlı kullanıcıyı sistemden tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz ve kullanıcının sisteme girişi anında engellenir.`,
-              () => {
-                const updatedUsersDb = { ...globalData.usersDb };
-                delete updatedUsersDb[usernameToDelete];
-
-                const updatedUserProfiles = { ...globalData.userProfiles };
-                delete updatedUserProfiles[usernameToDelete];
-
-                saveGlobalData({
-                  ...globalData,
-                  usersDb: updatedUsersDb,
-                  userProfiles: updatedUserProfiles,
-                }).then(() => {
-                  showNotification("Kullanıcı başarıyla sistemden silindi.");
-                });
-              }
-            );
-          };
+            
             return {
               username,
               name: profile.name || docProfile.name || username,
-              role: profile.role || "clinic_owner", // Eski kayıtlar klinik sahibi sayılır
+              role: profile.role || (docProfile.name ? "doctor" : "clinic_owner"),
               active: profile.active !== false,
               assignedDoctors: profile.assignedDoctors || []
             };
           }).filter(usr => {
-            // İZOLASYON FİLTRESİ: Sadece kendi kliniğine ait kullanıcıları göster
-            return usr.username === currentUser || 
-                   globalData.userProfiles?.[usr.username]?.createdBy === currentUser ||
-                   globalData.doctorProfiles?.[usr.username]?.addedBy === currentUser;
+            // YENİ İZOLASYON FİLTRESİ: Kendi kliniğine (Aynı patrona) ait HERKESİ eksiksiz göster
+            return resolveClinicId(usr.username) === currentClinicId;
           });
 
-          const handleSaveUser = (e) => {
+          const handleSaveUser = async (e) => {
             e.preventDefault();
             const uname = normalizeUsername(newUserForm.username);
             if (!uname) return;
@@ -8125,43 +8136,61 @@ if (isDayClosed) isPastSlot = true;
               return;
             }
 
-            // --- GLOBAL BENZERSİZLİK KONTROLÜ (TÜM KLİNİKLER İÇİN) ---
+            // --- GLOBAL BENZERSİZLİK KONTROLÜ ---
             const oldUname = normalizeUsername(editingUsername);
             const isEditing = !!editingUsername;
             
-            // Eğer yeni kayıt yapılıyorsa VEYA düzenleme yapılıp kullanıcı adı değiştirildiyse kontrol et
             if (!isEditing || uname !== oldUname) {
                const isTaken = Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === uname) ||
                                Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === uname) ||
                                Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === uname);
                
                if (isTaken) {
-                  showNotification("Bu kullanıcı adı başka bir hesap tarafından kullanılıyor. Lütfen farklı bir ad seçin.", "error");
-                  return; // Hata var, kaydı İPTAL ET. Veri bozulmaz.
+                  showNotification("Bu kullanıcı adı başka bir hesap tarafından kullanılıyor.", "error");
+                  return; 
                }
             }
 
-            // Kayıt İşlemi...
+            // YENİ: FIREBASE HAYALET MOTORU (Senin oturumun kapanmadan asistanı güvenle kaydeder)
+            if (newUserForm.password) {
+              try {
+                // Dinamik Firebase App yüklemesi
+                const { initializeApp } = await import('firebase/app');
+                const ghostApp = initializeApp(auth.app.options, "GhostApp_" + Date.now());
+                const ghostAuth = getAuth(ghostApp);
+                const fakeEmail = `${uname}@klinik.com`;
+                
+                await createUserWithEmailAndPassword(ghostAuth, fakeEmail, newUserForm.password);
+                await signOut(ghostAuth); // İşi bitince sessizce çıkar (Senin oturumun açık kalır)
+              } catch (err) {
+                if (err.code !== 'auth/email-already-in-use') {
+                   console.error("Hayalet kayıt motoru hatası:", err);
+                }
+              }
+            }
+
+            // Veritabanı Kayıt İşlemi...
             const updatedUsersDb = { ...globalData.usersDb };
             if (newUserForm.password) {
-              updatedUsersDb[newUserForm.username.trim()] = newUserForm.password; // Gerçek ismi kaydet (Formatı bozmadan)
+              updatedUsersDb[uname] = newUserForm.password; // Geriye dönük uyumluluk
             }
 
             const updatedUserProfiles = { ...globalData.userProfiles };
-            updatedUserProfiles[newUserForm.username.trim()] = {
+            updatedUserProfiles[uname] = {
               name: newUserForm.name,
               role: newUserForm.role,
               active: newUserForm.active,
-              clinicId: currentClinicId, // YENİ: Doğrudan kliniğe bağlanır
-              assignedDoctors: newUserForm.role === "assistant" ? newUserForm.assignedDoctors : [newUserForm.username.trim()],
-              createdAt: updatedUserProfiles[newUserForm.username.trim()]?.createdAt || Date.now(),
-              createdBy: updatedUserProfiles[newUserForm.username.trim()]?.createdBy || currentUser
+              clinicId: currentClinicId,
+              assignedDoctors: newUserForm.role === "assistant" ? newUserForm.assignedDoctors : [uname],
+              createdAt: updatedUserProfiles[uname]?.createdAt || Date.now(),
+              createdBy: updatedUserProfiles[uname]?.createdBy || currentUser,
+              realEmail: `${uname}@klinik.com` // Auth girişini doğrulamak için zorunlu
             };
 
             const updatedDoctorProfiles = { ...globalData.doctorProfiles };
             if (newUserForm.role === "doctor" || newUserForm.role === "clinic_owner") {
-              if (!updatedDoctorProfiles[newUserForm.username.trim()]) {
-                updatedDoctorProfiles[newUserForm.username.trim()] = {
+              if (!updatedDoctorProfiles[uname]) {
+                updatedDoctorProfiles[uname] = {
                   name: newUserForm.name,
                   title: newUserForm.role === "clinic_owner" ? "Başhekim" : "Hekim",
                   addedBy: currentUser
@@ -8405,7 +8434,10 @@ if (isDayClosed) isPastSlot = true;
           );
         };
 const renderSettings = () => {
-          const SETTINGS_TABS = [
+          const isOwner = currentUserProfile?.role === "clinic_owner";
+          
+          // Eğer Patron ise tüm sekmeleri görür, Asistan/Hekim ise SADECE Güvenlik sekmesini görür.
+          const SETTINGS_TABS = isOwner ? [
             { id: "ozet", icon: "fa-chart-pie", label: "Özet" },
             { id: "klinik", icon: "fa-hospital", label: "Klinik" },
             { id: "calisma", icon: "fa-clock", label: "Çalışma" },
@@ -8419,7 +8451,12 @@ const renderSettings = () => {
             { id: "guvenlik", icon: "fa-shield-halved", label: "Güvenlik" },
             { id: "veri", icon: "fa-database", label: "Veri" },
             { id: "yetki", icon: "fa-user-shield", label: "Yetki Matrisi" }
+          ] : [
+            { id: "guvenlik", icon: "fa-shield-halved", label: "Güvenlik ve Hesap" }
           ];
+
+          // Güvenlik Sekmesini Otomatik Açma Yönlendirmesi
+          const currentSettingsTab = isOwner ? settingsTab : "guvenlik";
 
           const currentData = settingsDraft || settings;
 
@@ -8566,7 +8603,7 @@ const renderSettings = () => {
               {/* İÇERİK ALANI */}
               <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 overflow-y-auto custom-scrollbar pb-24 relative">
                 
-                {settingsTab === "ozet" && (
+                {currentSettingsTab === "ozet" && (
                   <div className="animate-pop">
                     <h3 className="font-black text-slate-800 dark:text-white text-base mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Sistem Özeti</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -8590,7 +8627,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "klinik" && (
+                {currentSettingsTab === "klinik" && (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Genel Klinik Bilgileri</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -8644,7 +8681,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "randevu" && (
+                {currentSettingsTab === "randevu" && (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Randevu İşleyiş Kuralları</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -8684,7 +8721,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "bildirim" && (
+                {currentSettingsTab === "bildirim" && (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Bildirim ve Hatırlatmalar</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -8709,7 +8746,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "gorunum" && (
+                {currentSettingsTab === "gorunum" && (
                   <div className="animate-pop max-w-4xl space-y-6">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Görünüm ve Kişiselleştirme</h3>
@@ -8768,7 +8805,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "guvenlik" && (
+                {currentSettingsTab === "guvenlik" && (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <h3 className="font-black text-slate-800 dark:text-white text-base border-b border-slate-100 dark:border-slate-700 pb-2">Güvenlik ve Gizlilik</h3>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -8874,7 +8911,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "calisma" && (
+                {currentSettingsTab === "calisma" && (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Genel Mesai Saatleri ve Günler</h3>
@@ -8978,7 +9015,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "tedavi" && (() => {
+                {currentSettingsTab === "tedavi" && (() => {
                   const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") ? currentUserProfile.createdBy : currentUser;
                   const basePricing = globalData.pricingDb?.[ownerId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
                   // Değişiklikleri anlık tabloya yansıtmak için:
@@ -9087,7 +9124,7 @@ const renderSettings = () => {
                   );
                 })()}
 
-                {settingsTab === "belge" && (
+                {currentSettingsTab === "belge" && (
                   <div className="animate-pop max-w-5xl space-y-4">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Belge ve TDB Şablon Yönetimi</h3>
@@ -9109,7 +9146,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "dosya" && (() => {
+                {currentSettingsTab === "dosya" && (() => {
                   const DOSYA_KLASORLERI = [
                      { id: "acil", isim: "Acil Takip", icon: "fa-truck-medical", color: "bg-rose-500" },
                      { id: "lab", isim: "Laboratuvar Bekleyenler", icon: "fa-flask", color: "bg-purple-500" },
@@ -9144,7 +9181,7 @@ const renderSettings = () => {
                   );
                 })()}
 
-                {settingsTab === "otomasyon" && (
+                {currentSettingsTab === "otomasyon" && (
                   <div className="animate-pop max-w-4xl space-y-4">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Süreç Otomasyonları</h3>
@@ -9188,7 +9225,7 @@ const renderSettings = () => {
                   </div>
                 )}
 
-                {settingsTab === "veri" && (
+                {currentSettingsTab === "veri" && (
                   <div className="animate-pop max-w-4xl space-y-6">
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Veri Yönetimi ve Yedekleme</h3>
@@ -9403,7 +9440,7 @@ const renderSettings = () => {
               )}
 
               {/* --- YENİ MODÜL 1: DİNAMİK YETKİ MATRİSİ --- */}
-              {settingsTab === "yetki" && (
+              {currentSettingsTab === "yetki" && (
                 <div className="animate-pop max-w-5xl space-y-4">
                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                      <h3 className="font-black text-slate-800 dark:text-white text-base"><i className="fa-solid fa-user-shield text-indigo-500 mr-1.5"></i> Gelişmiş Yetki Matrisi (RBAC)</h3>
@@ -10661,12 +10698,10 @@ const renderSettings = () => {
                 )}
               </div>
               
-              {/* KLİNİK AYARLARI BUTONU (EN ALTTA SABİT) */}
-              {hasPermission("settings.view") && (
-                <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-transparent">
-                  <SidebarItem icon="fa-gear text-slate-500 dark:text-slate-400" label="Klinik Ayarları" id="settings" />
-                </div>
-              )}
+              {/* AYARLAR BUTONU ARTIK HERKESE AÇIK (Sekmeler içeride filtrelenir) */}
+              <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-transparent">
+                <SidebarItem icon="fa-gear text-slate-500 dark:text-slate-400" label={currentUserProfile?.role === "clinic_owner" ? "Klinik Ayarları" : "Hesabım ve Güvenlik"} id="settings" />
+              </div>
             </aside>
 
             {/* YENİ: Mobil için Pürüzsüz Glassmorphism Alt Menü */}
@@ -11117,20 +11152,66 @@ const renderSettings = () => {
                     </button>
                   </div>
 
-                  <form onSubmit={(e) => {
+                  <form onSubmit={async (e) => {
                     e.preventDefault();
+                    
                     if (passwordForm.newPass !== passwordForm.confirmPass) {
-                      showNotification("Yeni şifreler birbiriyle uyuşmuyor!", "error");
-                      return;
+                      showNotification("Yeni şifreler eşleşmiyor!", "error"); return;
                     }
                     if (passwordForm.newPass.length < 6) {
-                      showNotification("Yeni şifre en az 6 karakter olmalıdır!", "error");
-                      return;
+                      showNotification("Şifre en az 6 karakter olmalıdır!", "error"); return;
                     }
-                    handleChangePassword(e);
+                    if (!passwordForm.email || !passwordForm.email.includes("@")) {
+                      showNotification("Güvenliğiniz için gerçek ve geçerli bir E-posta adresi girmek zorunludur!", "error"); return;
+                    }
+
+                    const profile = globalData.userProfiles?.[currentUser] || {};
+                    const currentLoginEmail = profile.realEmail || `${currentUser}@klinik.com`;
+
+                    try {
+                      // 1. Önce eski şifreyle güvenliği doğruluyoruz
+                      await signInWithEmailAndPassword(auth, currentLoginEmail, passwordForm.oldPass);
+
+                      // 2. Yeni e-postayı Firebase'e işliyoruz (Eğer değişmişse veya ilk defa ekleniyorsa)
+                      if (passwordForm.email !== currentLoginEmail) {
+                          await updateEmail(auth.currentUser, passwordForm.email);
+                      }
+
+                      // 3. Yeni şifreyi Firebase'e işliyoruz
+                      await updatePassword(auth.currentUser, passwordForm.newPass);
+
+                      // 4. Veritabanına kullanıcının gerçek e-postasını kaydediyoruz ki bir daha oradan girebilsin
+                      const updatedProfiles = { ...globalData.userProfiles };
+                      updatedProfiles[currentUser] = { ...profile, realEmail: passwordForm.email };
+                      await saveGlobalData({ ...globalData, userProfiles: updatedProfiles });
+
+                      setIsPasswordModalOpen(false);
+                      showNotification("Hesap güvenliğiniz (E-Posta ve Şifre) başarıyla güncellendi.", "success");
+                    } catch (error) {
+                      console.error(error);
+                      showNotification("Mevcut şifreniz hatalı veya işlem başarısız!", "error");
+                    }
                   }} className="p-4 space-y-3.5">
                     
-                    {/* Eski Şifre */}
+                    {/* ZORUNLU E-POSTA ALANI */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-black text-rose-500 uppercase tracking-wider">Kurtarma E-Posta Adresi (Zorunlu)</label>
+                      <div className="relative group">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <i className="fa-solid fa-envelope text-xs"></i>
+                        </span>
+                        <input
+                          required
+                          type="email"
+                          value={passwordForm.email}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, email: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2.5 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 dark:text-white transition-all shadow-inner"
+                          placeholder="Şifrenizi unutursanız bu maile link gelecek"
+                        />
+                      </div>
+                    </div>
+
+                    {/* MEVCUT ŞİFRE */}
                     <div className="space-y-1">
                       <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Mevcut Şifre</label>
                       <div className="relative group">
@@ -11142,101 +11223,42 @@ const renderSettings = () => {
                           type={showPassState.old ? "text" : "password"}
                           value={passwordForm.oldPass}
                           onChange={(e) => setPasswordForm({ ...passwordForm, oldPass: e.target.value })}
-                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:text-white transition-all shadow-inner"
+                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
                           placeholder="Mevcut şifrenizi girin"
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassState({ ...showPassState, old: !showPassState.old })}
-                          className="absolute right-3 top-2.5 text-slate-400 hover:text-indigo-600 transition"
-                        >
-                          <i className={`fa-solid ${showPassState.old ? "fa-eye-slash" : "fa-eye"} text-xs`}></i>
-                        </button>
                       </div>
                     </div>
 
-                    {/* Yeni Şifre */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre</label>
-                      <div className="relative group">
-                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                          <i className="fa-solid fa-key text-xs"></i>
-                        </span>
-                        <input
-                          required
-                          type={showPassState.new ? "text" : "password"}
-                          value={passwordForm.newPass}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, newPass: e.target.value })}
-                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:text-white transition-all shadow-inner"
-                          placeholder="En az 6 karakter"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassState({ ...showPassState, new: !showPassState.new })}
-                          className="absolute right-3 top-2.5 text-slate-400 hover:text-indigo-600 transition"
-                        >
-                          <i className={`fa-solid ${showPassState.new ? "fa-eye-slash" : "fa-eye"} text-xs`}></i>
-                        </button>
-                      </div>
-
-                      {/* Canlı Şifre Güç Barı */}
-                      {passwordForm.newPass && (
-                        <div className="pt-1 space-y-1 animate-fadeIn">
-                          <div className="flex gap-1 h-1 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-300 ${passwordForm.newPass.length < 6 ? 'w-1/3 bg-rose-500' : passwordForm.newPass.length < 10 ? 'w-2/3 bg-amber-500' : 'w-full bg-emerald-500'}`}></div>
-                          </div>
-                          <div className="text-[10px] font-bold text-right">
-                            {passwordForm.newPass.length < 6 ? <span className="text-rose-500">Zayıf Şifre</span> : passwordForm.newPass.length < 10 ? <span className="text-amber-500">Orta Güçte</span> : <span className="text-emerald-500">Güçlü Şifre</span>}
-                          </div>
-                        </div>
-                      )}
+                    {/* YENİ ŞİFRE */}
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                       <div className="space-y-1">
+                         <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre</label>
+                         <input
+                           required
+                           type="password"
+                           value={passwordForm.newPass}
+                           onChange={(e) => setPasswordForm({ ...passwordForm, newPass: e.target.value })}
+                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                           placeholder="En az 6 karakter"
+                         />
+                       </div>
+                       <div className="space-y-1">
+                         <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Tekrar</label>
+                         <input
+                           required
+                           type="password"
+                           value={passwordForm.confirmPass}
+                           onChange={(e) => setPasswordForm({ ...passwordForm, confirmPass: e.target.value })}
+                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                           placeholder="Şifreyi tekrarla"
+                         />
+                       </div>
                     </div>
 
-                    {/* Yeni Şifre Tekrar */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre (Tekrar)</label>
-                      <div className="relative group">
-                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                          <i className="fa-solid fa-check-double text-xs"></i>
-                        </span>
-                        <input
-                          required
-                          type={showPassState.confirm ? "text" : "password"}
-                          value={passwordForm.confirmPass}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, confirmPass: e.target.value })}
-                          className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:text-white transition-all shadow-inner"
-                          placeholder="Yeni şifreyi tekrar girin"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassState({ ...showPassState, confirm: !showPassState.confirm })}
-                          className="absolute right-3 top-2.5 text-slate-400 hover:text-indigo-600 transition"
-                        >
-                          <i className={`fa-solid ${showPassState.confirm ? "fa-eye-slash" : "fa-eye"} text-xs`}></i>
-                        </button>
-                      </div>
-                      {passwordForm.confirmPass && passwordForm.newPass !== passwordForm.confirmPass && (
-                        <div className="text-[10px] font-bold text-rose-500 mt-0.5">Şifreler eşleşmiyor!</div>
-                      )}
+                    <div className="pt-3 flex gap-2">
+                      <button type="button" onClick={() => setIsPasswordModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition">Vazgeç</button>
+                      <button type="submit" className="flex-[2] py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-lg transition-all">Şifre ve Maili Kaydet <i className="fa-solid fa-check ml-1"></i></button>
                     </div>
-
-                    {/* Aksiyon Butonları */}
-                    <div className="pt-2 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsPasswordModalOpen(false)}
-                        className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 rounded-xl font-bold text-xs transition shadow-sm"
-                      >
-                        Vazgeç
-                      </button>
-                      <button
-                        type="submit"
-                        className="flex-[2] py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5"
-                      >
-                        Şifreyi Güncelle <i className="fa-solid fa-check ml-1"></i>
-                      </button>
-                    </div>
-
                   </form>
                 </div>
               </div>
