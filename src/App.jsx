@@ -1372,7 +1372,10 @@ const useFirebase = () => {
 
         // Paraları gizlemek için akıllı fonksiyon
         const renderMoney = (amount) => {
-          if (isPrivacyMode) return "***";
+          // YENİ: Eğer giriş yapan kişi "asistan" ise gizlilik kalkanını delip geçer ve her zaman rakamları görür.
+          // Patron ve Hekimler ise "Gizlilik Modu" açıksa (göz kapalıysa) *** olarak görmeye devam eder.
+          if (isPrivacyMode && currentUserProfile?.role !== "assistant") return "***";
+          
           return typeof amount === "number"
             ? amount.toLocaleString("tr-TR")
             : amount;
@@ -2563,7 +2566,21 @@ useEffect(() => {
 
   // Tüm dinleyicileri (listener) hafızada tutacağımız dizi
   const unsubscribes = collections.map((collectionName) => {
-    const collectionRef = ref(db, `KlinikAnaVeritabani/Veriler/${collectionName}`);
+    let dbPath = "";
+    
+    // 1. REHBER (Kullanıcılar) her zaman globalden okunur
+    if (collectionName === "usersDb" || collectionName === "userProfiles") {
+        dbPath = `KlinikAnaVeritabani/Veriler/${collectionName}`;
+    } 
+    // 2. SAĞLIK VE FİNANS verileri kliniğin izole odasından okunur
+    else {
+        // Eğer klinik ID henüz belli değilse (giriş ekranındaysa), boş dinleyici döndür
+        if (!currentClinicId) return () => {}; 
+        
+        dbPath = `KlinikAnaVeritabani/clinics/${currentClinicId}/${collectionName}`;
+    }
+
+    const collectionRef = ref(db, dbPath);
     
     return onValue(
       collectionRef,
@@ -2593,32 +2610,44 @@ useEffect(() => {
   return () => {
     unsubscribes.forEach((unsubscribeFn) => unsubscribeFn());
   };
-}, [isReady, db]);
+}, [isReady, db, currentClinicId]);
 
         const saveGlobalData = async (newData) => {
           if (!db) return;
 
           try {
-            const dbRef = ref(db, "KlinikAnaVeritabani/Veriler");
-
-            // AKILLI GÜNCELLEME (DEEP UPDATE) MANTIĞI
+            // YENİ MİMARİ: Artık ana dizine (KlinikAnaVeritabani) bağlanıyoruz ki verileri farklı alt klasörlere dağıtabilelim.
+            const dbRef = ref(db, "KlinikAnaVeritabani");
             const updates = {};
 
+            // 🛡️ AKILLI YÖNLENDİRİCİ: Hangi tablonun nereye yazılacağını belirler
+            const getBasePath = (collectionName) => {
+              if (collectionName === "usersDb" || collectionName === "userProfiles") {
+                return `Veriler/${collectionName}`; // Rehber (Giriş) verileri her zaman Global'e
+              } else {
+                return `clinics/${currentClinicId}/${collectionName}`; // Diğer her şey kliniğin izole odasına
+              }
+            };
+
             const checkOneLevel = (collectionName) => {
+              // Güvenlik Zırhı: Klinik verisi kaydedilecekse ama klinik ID yoksa atla
+              if (!currentClinicId && collectionName !== "usersDb" && collectionName !== "userProfiles") return;
+
               const oldCol = globalData[collectionName] || {};
               const newCol = newData[collectionName] || {};
+              const basePath = getBasePath(collectionName);
 
-              // Yenileri veya değişenleri bul
+              // Yenileri veya değişenleri bul ve YENİ YOLA ekle
               Object.keys(newCol).forEach((key) => {
                 if (JSON.stringify(oldCol[key]) !== JSON.stringify(newCol[key])) {
-                  updates[`${collectionName}/${key}`] = newCol[key];
+                  updates[`${basePath}/${key}`] = newCol[key];
                 }
               });
 
-              // Silinenleri bul
+              // Silinenleri bul ve YENİ YOLDAN sil
               Object.keys(oldCol).forEach((key) => {
                 if (newCol[key] === undefined) {
-                  updates[`${collectionName}/${key}`] = null;
+                  updates[`${basePath}/${key}`] = null;
                 }
               });
             };
@@ -2631,31 +2660,34 @@ useEffect(() => {
             checkOneLevel("settingsDb");
             checkOneLevel("customTreatments"); 
             checkOneLevel("auditLogs");
-            checkOneLevel("patientsDb"); // YENİ: Hastalar artık tüm listeyi ezmeden, tek tek kendi ID'leriyle güvenle güncellenecek!
-
+            checkOneLevel("patientsDb"); 
 
             // İki katmanlı verileri (Randevular) kontrol et
-            const oldApts = globalData.appointments || {};
-            const newApts = newData.appointments || {};
-            const allDocIds = new Set([...Object.keys(oldApts), ...Object.keys(newApts)]);
+            if (currentClinicId) {
+              const oldApts = globalData.appointments || {};
+              const newApts = newData.appointments || {};
+              const allDocIds = new Set([...Object.keys(oldApts), ...Object.keys(newApts)]);
+              const aptBasePath = getBasePath("appointments");
 
-            allDocIds.forEach((docId) => {
-              const oldDocApts = oldApts[docId] || {};
-              const newDocApts = newApts[docId] || {};
+              allDocIds.forEach((docId) => {
+                const oldDocApts = oldApts[docId] || {};
+                const newDocApts = newApts[docId] || {};
 
-              Object.keys(newDocApts).forEach((aptKey) => {
-                if (JSON.stringify(oldDocApts[aptKey]) !== JSON.stringify(newDocApts[aptKey])) {
-                  updates[`appointments/${docId}/${aptKey}`] = newDocApts[aptKey];
-                }
+                Object.keys(newDocApts).forEach((aptKey) => {
+                  if (JSON.stringify(oldDocApts[aptKey]) !== JSON.stringify(newDocApts[aptKey])) {
+                    updates[`${aptBasePath}/${docId}/${aptKey}`] = newDocApts[aptKey];
+                  }
+                });
+
+                Object.keys(oldDocApts).forEach((aptKey) => {
+                  if (newDocApts[aptKey] === undefined) {
+                    updates[`${aptBasePath}/${docId}/${aptKey}`] = null;
+                  }
+                });
               });
+            }
 
-              Object.keys(oldDocApts).forEach((aptKey) => {
-                if (newDocApts[aptKey] === undefined) {
-                  updates[`appointments/${docId}/${aptKey}`] = null;
-                }
-              });
-            });
-
+            // Eğer bir değişiklik varsa Firebase'e tek seferde (topluca) gönder
             if (Object.keys(updates).length > 0) {
               await update(dbRef, updates);
             }
@@ -2988,6 +3020,11 @@ useEffect(() => {
         // YENİ: Tek Tıkla Durum Güncelleme (Döngüsel)
         const handleStatusCycle = (e, docId, aptKey, aptData) => {
           e.stopPropagation(); // Tıklamanın detay penceresini açmasını engeller
+
+          if (!hasPermission("appointments.edit")) {
+            showNotification("Randevu durumunu değiştirme yetkiniz bulunmuyor!", "error");
+            return;
+          }
 
           const cycleMap = {
             "Yeni Kayıt": "Geldi",
@@ -3361,6 +3398,20 @@ useEffect(() => {
         const handleSavePatient = (e) => {
           if (e) e.preventDefault();
 
+          // 🛡️ ZIRH 1: Eğer form henüz belleğe yüklenmediyse işlemi durdur, çökmeyi engelle!
+          if (!patientForm) return;
+
+          // 🛡️ ZIRH 2: YETKİ KONTROLÜ (İzinsiz işlem yapılmasını engeller)
+          const isNewPatient = !patientForm.id;
+          if (isNewPatient && !hasPermission("patients_create")) {
+            showNotification("Yeni hasta ekleme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+          if (!isNewPatient && !hasPermission("patients_edit")) {
+            showNotification("Hasta bilgilerini düzenleme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+
           // YENİ: Ortak Hasta Havuzu Mantığı. 
           // Hekim veya Asistan kayıt yapsa bile, hasta doğrudan Patronun kliniğine yazılır.
           const ownerId = getClinicOwnerId();
@@ -3388,7 +3439,6 @@ useEffect(() => {
           }
 
           // 2. YENİ KİMLİK (ID) OLUŞTURMA VEYA MEVCUTU KORUMA
-          const isNewPatient = !patientForm.id;
           const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
 
           // YENİ: Hasta ilk kez oluşturuluyorsa otomatik "İlk Kayıt" epikrizi at
@@ -3505,6 +3555,11 @@ useEffect(() => {
         const handleAddPayment = (e) => {
           e.preventDefault();
 
+          if (!hasPermission("finance.payment")) {
+            showNotification("Tahsilat ve ödeme ekleme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+
           if (!paymentInput || isNaN(paymentInput)) return;
 
           const pId = patientForm.id;
@@ -3538,6 +3593,10 @@ useEffect(() => {
         };
 
         const handleDeletePatient = () => {
+          if (!hasPermission("patients.delete")) {
+            showNotification("Hasta kaydını silme yetkiniz bulunmuyor!", "error");
+            return;
+          }
           showConfirm(
             `${patientForm.name} adlı hastayı ve ona ait TÜM verileri kalıcı olarak silmek istediğinize emin misiniz?\n\nDikkat: Bu işlem sonucunda hastanın geçmiş/gelecek tüm randevuları, planlanan işlemleri, epikrizleri ve finansal kayıtları (bakiye/ciro) sistemden tamamen silinecektir!\n\nBu işlem geri alınamaz.`,
             () => {
@@ -3776,6 +3835,11 @@ useEffect(() => {
         const handleSaveAppointment = (e) => {
           e.preventDefault();
 
+          if (!hasPermission("appointments.create") && !hasPermission("appointments.edit")) {
+            showNotification("Randevu kaydetme veya düzenleme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+
           if (!formData.patientName) return;
 
           const key = `${formatDateKey(activeSlotDate)}-${selectedSlot}`;
@@ -3949,6 +4013,10 @@ useEffect(() => {
         };
 
         const handleDeleteAppointment = () => {
+          if (!hasPermission("appointments.delete")) {
+            showNotification("Randevu silme veya iptal etme yetkiniz bulunmuyor!", "error");
+            return;
+          }
           showConfirm("Bu randevuyu silmek istediğinize emin misiniz?", () => {
             const key = `${formatDateKey(activeSlotDate)}-${selectedSlot}`;
             const updatedDocApts = { ...(globalData.appointments?.[activeSlotDoctor] || {}) };
@@ -4209,38 +4277,41 @@ useEffect(() => {
           }
 
           const loginInput = authForm.username.trim().toLowerCase();
-          const isEmailLogin = loginInput.includes("@"); // YENİ: Acil durum direkt e-posta girişi
-          
-          // 1. Cihaz hafızasından emaili bulmaya çalışıyoruz (Çıkış yapınca veritabanı kilitlendiği için)
-          const savedEmails = JSON.parse(localStorage.getItem("klinikUserEmails") || "{}");
-          let loginEmail = isEmailLogin ? loginInput : (savedEmails[loginInput] || `${loginInput}@klinik.com`);
 
           try {
-            // FIREBASE İLE GÜVENLİ GİRİŞ
-            await signInWithEmailAndPassword(auth, loginEmail, authForm.password);
-
+            let loginEmail = loginInput;
             let finalUsername = loginInput;
 
-            // 2. Eğer kullanıcı e-posta yazarak girdiyse, veritabanından asıl kullanıcı adını (örn: dt_ahmet) buluyoruz
-            if (isEmailLogin) {
-                // Giriş başarılı olduğu için Firebase kapıları açtı, artık okuyabiliriz!
-                const snapshot = await get(child(ref(db), 'userProfiles'));
+            // Doğru yol (KlinikAnaVeritabani/Veriler/userProfiles) kontrol ediliyor
+            if (!loginInput.includes("@")) {
+                const snapshot = await get(child(ref(db), `KlinikAnaVeritabani/Veriler/userProfiles/${loginInput}`));
+                
+                if (snapshot.exists() && snapshot.val().realEmail) {
+                    loginEmail = snapshot.val().realEmail; 
+                } else {
+                    const memProfile = globalData.userProfiles?.[loginInput];
+                    if (memProfile && memProfile.realEmail) {
+                        loginEmail = memProfile.realEmail;
+                    } else {
+                        loginEmail = `${loginInput}@klinik.com`; 
+                    }
+                }
+            } else {
+                const snapshot = await get(child(ref(db), 'KlinikAnaVeritabani/Veriler/userProfiles'));
                 if (snapshot.exists()) {
                     const profiles = snapshot.val();
-                    const foundUser = Object.entries(profiles).find(([uname, prof]) => prof.realEmail === loginInput);
-                    
-                    if (foundUser) {
-                        finalUsername = foundUser[0];
-                    } else {
-                        // Eğer özel maili yoksa varsayılan mailden kullanıcı adını çıkar
-                        finalUsername = loginInput.split("@")[0];
-                    }
+                    const found = Object.entries(profiles).find(([uname, prof]) => prof.realEmail === loginInput);
+                    if (found) finalUsername = found[0];
+                    else finalUsername = loginInput.split("@")[0];
+                } else {
+                    const found = Object.entries(globalData.userProfiles || {}).find(([uname, prof]) => prof.realEmail === loginInput);
+                    if (found) finalUsername = found[0];
+                    else finalUsername = loginInput.split("@")[0];
                 }
             }
 
-            // 3. Başarılı girişte cihaz hafızasını güncelliyoruz ki bir daha e-posta yazmak zorunda kalmasın
-            savedEmails[finalUsername] = loginEmail;
-            localStorage.setItem("klinikUserEmails", JSON.stringify(savedEmails));
+            // Doğru e-posta ve yeni şifre ile Firebase'e giriş yapılıyor
+            await signInWithEmailAndPassword(auth, loginEmail, authForm.password);
 
             localStorage.setItem("loginAttempts", "0");
             setCurrentUser(finalUsername);
@@ -4260,7 +4331,7 @@ useEffect(() => {
               setAuthError("Sistem 30 saniye kilitlendi.");
             } else {
               localStorage.setItem("loginAttempts", newAttempts.toString());
-              setAuthError(`Kullanıcı adı veya şifre hatalı! (Kalan hak: ${4 - newAttempts})`);
+              setAuthError(`Kullanıcı adı veya şifre hatalı!`);
             }
           }
         };
@@ -4579,49 +4650,53 @@ useEffect(() => {
                       />
                     </div>
 
-                    <div className="relative group">
-                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                      <input
-                        type="text"
-                        required
-                        value={registerForm.username}
-                        onChange={(e) =>
-                          setRegisterForm({
-                            ...registerForm,
-                            username: e.target.value.replace(/\s+/g, '').toLowerCase(),
-                          })
-                        }
-                        className={`w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border-2 rounded-xl outline-none text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm ${
-                          registerForm.username.length >= 3 
-                            ? (checkUsernameAvailability(registerForm.username) 
-                                ? "border-emerald-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20" 
-                                : "border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 text-rose-600")
-                            : "border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                        }`}
-                        placeholder="Kullanıcı Adı Belirleyin"
-                      />
-                      {/* YENİ: E-POSTA ALANI */}
-                      <div>
-                        <div className="relative group">
-                          <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                            <i className="fa-solid fa-envelope text-sm"></i>
-                          </span>
-                          <input 
-                            type="email" 
-                            required 
-                            placeholder="E-Posta Adresiniz" 
-                            value={registerForm.email} 
-                            onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} 
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-all dark:text-white" 
-                          />
-                        </div>
+                    {/* 1. KULLANICI ADI ALANI VE UYARISI */}
+                    <div>
+                      <div className="relative group">
+                        <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                        <input
+                          type="text"
+                          required
+                          value={registerForm.username}
+                          onChange={(e) =>
+                            setRegisterForm({
+                              ...registerForm,
+                              username: e.target.value.replace(/\s+/g, '').toLowerCase(),
+                            })
+                          }
+                          className={`w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border-2 rounded-xl outline-none text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm ${
+                            registerForm.username.length >= 3 
+                              ? (checkUsernameAvailability(registerForm.username) 
+                                  ? "border-emerald-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20" 
+                                  : "border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 text-rose-600")
+                              : "border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                          }`}
+                          placeholder="Kullanıcı Adı Belirleyin"
+                        />
                       </div>
+                      
+                      {/* Uyarı yazısı artık tam olarak kullanıcı adının altında! */}
                       {registerForm.username.length >= 3 && (
                         <div className={`text-[10px] font-bold mt-1.5 flex items-center gap-1 animate-fadeIn ${checkUsernameAvailability(registerForm.username) ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                           <i className={`fa-solid ${checkUsernameAvailability(registerForm.username) ? "fa-check-circle" : "fa-circle-xmark"}`}></i>
                           {checkUsernameAvailability(registerForm.username) ? "Bu kullanıcı adı kullanılabilir." : "Bu kullanıcı adı maalesef alınmış!"}
                         </div>
                       )}
+                    </div>
+
+                    {/* 2. E-POSTA ALANI (Ayrı ve Boyutları Düzeltilmiş Blok) */}
+                    <div className="relative group">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                        <i className="fa-solid fa-envelope text-[13px]"></i>
+                      </span>
+                      <input 
+                        type="email" 
+                        required 
+                        placeholder="E-Posta Adresiniz" 
+                        value={registerForm.email} 
+                        onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} 
+                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:text-white transition-all shadow-sm" 
+                      />
                     </div>
 
                     <div className="relative group">
@@ -6824,71 +6899,6 @@ if (isDayClosed) isPastSlot = true;
         };
 
         const renderDoctors = () => {
-          const handleAddDoctor = (e) => {
-            e.preventDefault();
-
-            const safeNewName = newDoctorForm.name || "";
-            const normalizedNewName = normalizeUsername(safeNewName);
-
-            // 1. KLİNİK BAZLI İSİM BENZERSİZLİK KONTROLÜ
-            const isDuplicateName = allDoctors.some((docId) => {
-              const docProfile = globalData.doctorProfiles?.[docId];
-              const profileName = docProfile?.name || docId;
-              return normalizeUsername(profileName) === normalizedNewName;
-            });
-
-            if (isDuplicateName) {
-              showNotification("Bu klinikte bu isimde bir hekim zaten bulunuyor.", "error");
-              return;
-            }
-
-            // 2. SADECE HEKİM PROFİLİ İÇİN BENZERSİZ KİMLİK (ID) OLUŞTURMA
-            let baseId = safeNewName.toLowerCase().replace(/[^a-z0-9ğüşöçı]/gi, "");
-            if (!baseId) baseId = "hekim";
-            
-            let autoDoctorId = baseId;
-            let counter = 1;
-            
-            // GLOBAL BENZERSİZLİK DÖNGÜSÜ:
-            while (
-               Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === normalizeUsername(autoDoctorId)) ||
-               Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === normalizeUsername(autoDoctorId)) ||
-               Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === normalizeUsername(autoDoctorId))
-            ) {
-              autoDoctorId = baseId + counter;
-              counter++;
-            }
-
-            const updatedProfiles = {
-              ...globalData.doctorProfiles,
-              [autoDoctorId]: {
-                name: safeNewName.trim(),
-                title: newDoctorForm.title || "",
-                addedBy: currentUser // Geriye dönük uyumluluk için duruyor ama esas izolasyon clinicId'den yapılacak
-              },
-            };
-
-            const updatedUserProfiles = {
-               ...globalData.userProfiles,
-               [autoDoctorId]: {
-                  name: safeNewName.trim(),
-                  role: "doctor",
-                  active: true,
-                  clinicId: currentClinicId, // YENİ: KLİNİĞE ZIMBALA
-                  createdBy: currentUser
-               }
-            };
-
-            saveGlobalData({
-              ...globalData,
-              doctorProfiles: updatedProfiles,
-              userProfiles: updatedUserProfiles
-            }).then(() => {
-              setIsAddDoctorModalOpen(false);
-              setNewDoctorForm({ name: "", title: "" });
-              showNotification("Yeni hekim kaydı başarıyla oluşturuldu.");
-            });
-          };
 
           const openDoctorDetails = (docUsername) => {
             setSelectedDoctorId(docUsername);
@@ -7126,12 +7136,6 @@ if (isDayClosed) isPastSlot = true;
                     <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
                       <i className="fa-solid fa-user-doctor text-indigo-500"></i> Hekim Yönetimi
                     </h2>
-                    <button
-                      onClick={() => setIsAddDoctorModalOpen(true)}
-                      className="bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-2 rounded-xl text-[13px] font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
-                    >
-                      <i className="fa-solid fa-plus mr-1"></i>Yeni Hekim Ekle
-                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5 content-start">
@@ -7178,66 +7182,6 @@ if (isDayClosed) isPastSlot = true;
                 </div>
               )}
 
-              {isAddDoctorModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2">
-                  <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-pop">
-                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
-                      <h3 className="font-black">
-                        <i className="fa-solid fa-user-plus mr-2"></i>Yeni Hekim Ekle
-                      </h3>
-                      <button
-                        onClick={() => setIsAddDoctorModalOpen(false)}
-                        className="text-slate-400 hover:text-white"
-                      >
-                        <i className="fa-solid fa-xmark text-base"></i>
-                      </button>
-                    </div>
-
-                    <form onSubmit={handleAddDoctor} className="p-3 space-y-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Ad Soyad / Görünen İsim
-                        </label>
-                        <input
-                          required
-                          value={newDoctorForm.name}
-                          onChange={(e) =>
-                            setNewDoctorForm({
-                              ...newDoctorForm,
-                              name: e.target.value,
-                            })
-                          }
-                          className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                          Unvan
-                        </label>
-                        <input
-                          required
-                          value={newDoctorForm.title}
-                          onChange={(e) =>
-                            setNewDoctorForm({
-                              ...newDoctorForm,
-                              title: e.target.value,
-                            })
-                          }
-                          className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:text-white"
-                        />
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="w-full py-2 bg-[#0f172a] dark:bg-indigo-600 text-white rounded-xl font-black shadow-lg mt-2 hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
-                      >
-                        Kaydet ve Ekle
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              )}
 
               {isDoctorDetailsModalOpen &&
                 selectedDoctorId &&
@@ -8128,6 +8072,16 @@ if (isDayClosed) isPastSlot = true;
 
           const handleSaveUser = async (e) => {
             e.preventDefault();
+
+            if (editingUsername && !hasPermission("users.edit")) {
+              showNotification("Kullanıcı düzenleme yetkiniz bulunmuyor!", "error");
+              return;
+            }
+            if (!editingUsername && !hasPermission("users.create")) {
+              showNotification("Yeni kullanıcı ekleme yetkiniz bulunmuyor!", "error");
+              return;
+            }
+
             const uname = normalizeUsername(newUserForm.username);
             if (!uname) return;
 
@@ -8210,6 +8164,10 @@ if (isDayClosed) isPastSlot = true;
           };
 
           const handleToggleActive = (uname, currentStatus) => {
+            if (!hasPermission("users.edit")) {
+              showNotification("Kullanıcı durumunu değiştirme yetkiniz bulunmuyor!", "error");
+              return;
+            }
             if (uname === currentUser) {
               showNotification("Şu an kullandığınız kendi hesabınızı pasifleştiremezsiniz!", "error");
               return;
@@ -9230,6 +9188,92 @@ const renderSettings = () => {
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Veri Yönetimi ve Yedekleme</h3>
                      </div>
+
+                     {/* YENİ: SAAS MİMARİSİNE GEÇİŞ MOTORU */}
+                     {currentUserProfile?.role === "clinic_owner" && (
+                       <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                          <div>
+                            <h4 className="font-black text-indigo-700 dark:text-indigo-400 text-[13px] uppercase mb-1">
+                              <i className="fa-solid fa-server mr-1"></i> SaaS Mimarisine Geçiş (Migration)
+                            </h4>
+                            <p className="text-[11px] text-indigo-600/80 dark:text-indigo-300 font-medium max-w-md">
+                              Eski düzendeki tüm hastaları, randevuları ve ayarları akıllıca analiz edip, kliniklere özel yalıtılmış odalara <b>kopyalar.</b> (Eski verileriniz silinmez, güvende kalır).
+                            </p>
+                          </div>
+                          <button 
+                            onClick={async () => {
+                              const isConfirmed = window.confirm("Taşıma işlemini başlatmak istiyor musunuz? Sistem eski verilerinizi 'KlinikAnaVeritabani/clinics' altına klinik bazlı olarak kopyalayacaktır.");
+                              if (!isConfirmed) return;
+                              
+                              try {
+                                showNotification("Veriler analiz ediliyor ve temizleniyor...", "success");
+                                const newTree = {};
+                                
+                                const getCId = (uName) => resolveClinicId(uName) || "clinic_default";
+
+                                Object.entries(globalData.userProfiles || {}).forEach(([u, p]) => {
+                                   const cId = getCId(u);
+                                   if(!newTree[cId]) newTree[cId] = {};
+                                   if(!newTree[cId].userProfiles) newTree[cId].userProfiles = {};
+                                   newTree[cId].userProfiles[u] = p;
+
+                                   if(globalData.usersDb?.[u]) {
+                                      if(!newTree[cId].usersDb) newTree[cId].usersDb = {};
+                                      newTree[cId].usersDb[u] = globalData.usersDb[u];
+                                   }
+                                });
+
+                                Object.entries(globalData.doctorProfiles || {}).forEach(([d, p]) => {
+                                   const cId = getCId(d);
+                                   if(!newTree[cId]) newTree[cId] = {};
+                                   if(!newTree[cId].doctorProfiles) newTree[cId].doctorProfiles = {};
+                                   newTree[cId].doctorProfiles[d] = p;
+                                });
+
+                                Object.entries(globalData.patientsDb || {}).forEach(([pId, p]) => {
+                                   const cId = getCId(p.addedBy);
+                                   if(!newTree[cId]) newTree[cId] = {};
+                                   if(!newTree[cId].patientsDb) newTree[cId].patientsDb = {};
+                                   newTree[cId].patientsDb[pId] = p;
+                                });
+
+                                Object.entries(globalData.appointments || {}).forEach(([docId, apts]) => {
+                                   const cId = getCId(docId);
+                                   if(!newTree[cId]) newTree[cId] = {};
+                                   if(!newTree[cId].appointments) newTree[cId].appointments = {};
+                                   newTree[cId].appointments[docId] = apts;
+                                });
+
+                                const distributeOwnerData = (sourceKey) => {
+                                   Object.entries(globalData[sourceKey] || {}).forEach(([ownerId, data]) => {
+                                      const cId = getCId(ownerId);
+                                      if(!newTree[cId]) newTree[cId] = {};
+                                      if(!newTree[cId][sourceKey]) newTree[cId][sourceKey] = {};
+                                      newTree[cId][sourceKey][ownerId] = data; 
+                                   });
+                                };
+                                distributeOwnerData("settingsDb");
+                                distributeOwnerData("pricingDb");
+                                distributeOwnerData("customTreatments");
+
+                                // 🛡️ ZIRH: FİREBASE'İN ÇÖKMESİNİ ENGELLEYEN VERİ YIKAMA (Undefined Temizleyici)
+                                const cleanTree = JSON.parse(JSON.stringify(newTree));
+
+                                // 6. YENİ EVRENE (clinics) KOPYALA
+                                await set(ref(db, "KlinikAnaVeritabani/clinics"), cleanTree);
+                                alert("Tebrikler! Verileriniz %100 güvenli şekilde SaaS (Klinik İzolasyonlu) mimarisine kopyalandı. Firebase panelinden kontrol edebilirsiniz.");
+                                
+                              } catch(e) {
+                                console.error(e);
+                                alert("Hata detayı: " + e.message); // Hata varsa ekrana nedenini yazdırır
+                              }
+                            }}
+                            className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-[12px] font-black shadow-md transition-all"
+                          >
+                            <i className="fa-solid fa-bolt mr-1"></i> Verileri Taşı
+                          </button>
+                       </div>
+                     )}
                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Bulut depolama durumunuzu kontrol edebilir ve dışa aktarım yapabilirsiniz.</p>
 
                      {/* Bulut Kota Göstergesi */}
@@ -10427,17 +10471,21 @@ const renderSettings = () => {
                       <i className="fa-solid fa-money-bill-wave w-4 text-center"></i>{" "}
                       Ödeme Al
                     </button>
-                    <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
-                    <button
-                      onClick={() => {
-                        setPatientForm(contextMenu.data);
-                        handleDeletePatient();
-                      }}
-                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 flex items-center gap-1.5 transition"
-                    >
-                      <i className="fa-solid fa-trash w-4 text-center"></i>{" "}
-                      Hastayı Sil
-                    </button>
+                    {hasPermission("patients.delete") && (
+                      <>
+                        <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                        <button
+                          onClick={() => {
+                            setPatientForm(contextMenu.data);
+                            handleDeletePatient();
+                          }}
+                          className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 flex items-center gap-1.5 transition"
+                        >
+                          <i className="fa-solid fa-trash w-4 text-center"></i>{" "}
+                          Hastayı Sil
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -10446,33 +10494,37 @@ const renderSettings = () => {
                     <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-[11px] uppercase tracking-wider truncate">
                       {contextMenu.data.apt.patientName}
                     </div>
-                    <button
-                      onClick={() =>
-                        openAppointmentModal(
-                          contextMenu.data.slot,
-                          contextMenu.data.date,
-                          contextMenu.data.docId
-                        )
-                      }
-                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 transition"
-                    >
-                      <i className="fa-solid fa-pen-to-square w-4 text-center"></i>{" "}
-                      Randevuyu Düzenle
-                    </button>
-                    <button
-                      onClick={(e) =>
-                        handleStatusCycle(
-                          e,
-                          contextMenu.data.docId,
-                          contextMenu.data.fullKey,
-                          contextMenu.data.apt
-                        )
-                      }
-                      className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 flex items-center gap-1.5 transition"
-                    >
-                      <i className="fa-solid fa-rotate w-4 text-center"></i>{" "}
-                      Durumu Değiştir
-                    </button>
+                    {hasPermission("appointments.edit") && (
+                      <>
+                        <button
+                          onClick={() =>
+                            openAppointmentModal(
+                              contextMenu.data.slot,
+                              contextMenu.data.date,
+                              contextMenu.data.docId
+                            )
+                          }
+                          className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-1.5 transition"
+                        >
+                          <i className="fa-solid fa-pen-to-square w-4 text-center"></i>{" "}
+                          Randevuyu Düzenle
+                        </button>
+                        <button
+                          onClick={(e) =>
+                            handleStatusCycle(
+                              e,
+                              contextMenu.data.docId,
+                              contextMenu.data.fullKey,
+                              contextMenu.data.apt
+                            )
+                          }
+                          className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 flex items-center gap-1.5 transition"
+                        >
+                          <i className="fa-solid fa-rotate w-4 text-center"></i>{" "}
+                          Durumu Değiştir
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 
