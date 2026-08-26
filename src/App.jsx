@@ -1368,6 +1368,7 @@ const useFirebase = () => {
         const [isPrivacyMode, setIsPrivacyMode] = useState(true); // YENİ: Varsayılan olarak hep GİZLİ başlar
         const [pinModal, setPinModal] = useState({ isOpen: false, input: "", error: "" });
         const [pinChangeForm, setPinChangeForm] = useState({ oldPin: "", newPin: "", confirmPin: "" });
+        const [isPinChangeModalOpen, setIsPinChangeModalOpen] = useState(false);
         const [copiedPhoneId, setCopiedPhoneId] = useState(null);
 
         // Paraları gizlemek için akıllı fonksiyon
@@ -1569,7 +1570,10 @@ useEffect(() => {
     try {
       // 1. Hedef kullanıcının veritabanındaki e-postasını buluyoruz
       const profile = globalData.userProfiles?.[targetUser] || {};
-      const targetEmail = profile.realEmail || `${targetUser}@klinik.com`;
+      const dbEmail = globalData.usersDb?.[targetUser]?.email;
+      
+      // ÇÖZÜM: Veritabanında kayıtlı E-posta'yı öncelikli al, yoksa tam doğru formattaki sahte maili kullan!
+      const targetEmail = profile.realEmail || dbEmail || `${targetUser}@${profile.clinicId || currentClinicId}.klinik.com`;
 
       // 2. Firebase üzerinden hedef hesabın şifresini güvenle doğruluyoruz
       await signInWithEmailAndPassword(auth, targetEmail, typedPassword);
@@ -1678,8 +1682,20 @@ useEffect(() => {
 
     const allSystemDoctors = Array.from(new Set([
       ...Object.keys(globalData.usersDb || {}),
+      ...Object.keys(globalData.userProfiles || {}),
       ...Object.keys(globalData.doctorProfiles || {})
-    ])).filter(doc => globalData.userProfiles?.[doc]?.role !== "assistant");
+    ])).filter(doc => {
+       // 1. Asistanları takvim listesinde hekim olarak gösterme
+       if (globalData.userProfiles?.[doc]?.role === "assistant") return false;
+       
+       // 2. YENİ ZIRH: Doğrudan Ana profilden kontrol et (Sayfa yenilense de silinmez)
+       if (globalData.userProfiles?.[doc]?.isDoctor === false) return false;
+       
+       // 3. Fallback (Eski kayıtlar için)
+       if (globalData.doctorProfiles?.[doc]?.isDeleted === true) return false;
+       
+       return true;
+    });
 
     // Asistan ise SADECE kendisine atanan AMA AYNI ZAMANDA aynı klinikte olan hekimleri görsün
     if (currentUserProfile?.role === "assistant") {
@@ -1687,7 +1703,7 @@ useEffect(() => {
       return allSystemDoctors.filter(doc => assigned.includes(doc) && resolveClinicId(doc) === currentClinicId);
     }
 
-    // Klinik Sahibi veya Hekim ise AYNI KLİNİKTEKİ tüm hekimleri görsün (Eski addedBy mantığı iptal!)
+    // Klinik Sahibi veya Hekim ise AYNI KLİNİKTEKİ tüm hekimleri görsün
     return allSystemDoctors.filter(doc => resolveClinicId(doc) === currentClinicId);
   };
   // ==========================================
@@ -2985,7 +3001,7 @@ useEffect(() => {
 
         const getTreatmentColor = (aptOrTreatment) => {
           if (!aptOrTreatment)
-            return { bg: "#e0f2fe", text: "#1e40af", border: "#3b82f6" }; // Mavi (İlk Muayene/Varsayılan)
+            return { bg: "#e0f2fe", text: "#1e40af", border: "#3b82f6" }; // Mavi (Varsayılan)
 
           let text = "";
           if (typeof aptOrTreatment === "object") {
@@ -3000,51 +3016,63 @@ useEffect(() => {
             text = aptOrTreatment.toLowerCase();
           }
 
-          if (text.includes("acil"))
-            return { bg: "#fee2e2", text: "#991b1b", border: "#ef4444" }; // Kırmızı (Acil)
-          if (text.includes("implant"))
-            return { bg: "#f3e8ff", text: "#6b21a8", border: "#a855f7" }; // Mor (İmplant)
-          if (text.includes("kontrol"))
-            return { bg: "#dcfce7", text: "#166534", border: "#22c55e" }; // Yeşil (Kontrol)
-          if (
-            text.includes("uzun") ||
-            text.includes("kanal") ||
-            text.includes("ortodonti") ||
-            text.includes("çekim")
-          )
-            return { bg: "#ffedd5", text: "#9a3412", border: "#f97316" }; // Turuncu (Uzun Tedavi)
+          // 1. KULLANICI TANIMLI ÖZEL BRANŞ RENKLERİ (Ayarlardan Çekilir)
+          const customColors = settings?.randevu?.bransRenkleri || {};
+          
+          // Zeki Kelime Algılayıcı Motor
+          const BRANS_KEYWORDS = {
+            "cerrahi": ["cerrahi", "implant", "gömülü", "çekim", "greft", "sinüs"],
+            "protez": ["protez", "kron", "zirkonyum", "porselen", "ölçü", "simantasyon", "vener", "lamina"],
+            "endodonti": ["kanal", "endodonti", "kuafaj", "amputasyon"],
+            "dolgu": ["dolgu", "kompozit", "inley", "onley"],
+            "ortodonti": ["ortodonti", "tel", "plak", "braket", "pekiştirme"],
+            "periodontoloji": ["detertraj", "küretaj", "diş taşı", "flap", "gingivektomi", "lazer"],
+            "pedodonti": ["çocuk", "pedodonti", "flor", "fissür", "süt dişi", "yer tutucu"],
+            "muayene": ["muayene", "teşhis", "röntgen", "kontrol", "acil"]
+          };
 
-          return { bg: "#e0f2fe", text: "#1e40af", border: "#3b82f6" }; // Mavi (İlk Muayene)
+          for (const [key, keywords] of Object.entries(BRANS_KEYWORDS)) {
+             if (keywords.some(k => text.includes(k))) {
+                const hexCode = customColors[key];
+                if (hexCode) {
+                   return {
+                      bg: hexCode + "25", // Seçilen rengin %15 saydam (pastel) versiyonunu arka plan yapar
+                      text: hexCode,      // Seçilen rengi yazı rengi yapar
+                      border: hexCode     // Seçilen rengi kenarlık yapar
+                   };
+                }
+             }
+          }
+
+          // 2. RENK SEÇİLMEMİŞSE VEYA YUKARIDAKİLERLE EŞLEŞMEZSE ESKİ KODLARI ÇALIŞTIR (Fallback)
+          if (text.includes("acil")) return { bg: "#fee2e2", text: "#991b1b", border: "#ef4444" };
+          if (text.includes("implant")) return { bg: "#f3e8ff", text: "#6b21a8", border: "#a855f7" };
+          if (text.includes("kontrol")) return { bg: "#dcfce7", text: "#166534", border: "#22c55e" };
+          if (text.includes("uzun") || text.includes("kanal") || text.includes("ortodonti") || text.includes("çekim"))
+            return { bg: "#ffedd5", text: "#9a3412", border: "#f97316" };
+
+          return { bg: "#e0f2fe", text: "#1e40af", border: "#3b82f6" };
         };
 
         // YENİ: Tek Tıkla Durum Güncelleme (Döngüsel)
         const handleStatusCycle = (e, docId, aptKey, aptData) => {
-          e.stopPropagation(); // Tıklamanın detay penceresini açmasını engeller
+          e.stopPropagation();
 
           if (!hasPermission("appointments.edit")) {
             showNotification("Randevu durumunu değiştirme yetkiniz bulunmuyor!", "error");
             return;
           }
 
-          const cycleMap = {
-            "Yeni Kayıt": "Geldi",
-            Bekliyor: "Geldi",
-            Geldi: "Gelmedi",
-            Gelmedi: "İptal",
-            İptal: "Bekliyor",
-          };
-
+          const cycleMap = { "Yeni Kayıt": "Geldi", Bekliyor: "Geldi", Geldi: "Gelmedi", Gelmedi: "İptal", İptal: "Bekliyor" };
           const currentStatus = aptData.status || "Bekliyor";
           const newStatus = cycleMap[currentStatus] || "Geldi";
 
-          const updatedDocApts = {
-            ...(globalData.appointments?.[docId] || {}),
-          };
+          const updatedDocApts = { ...(globalData.appointments?.[docId] || {}) };
           updatedDocApts[aptKey] = { ...aptData, status: newStatus };
 
-          let updatedPatientsDb = { ...globalData.patientsDb };
-          
-          // DOĞRU HASTAYI GÜVENLİ ŞEKİLDE BULMA MANTIĞI
+          // GÜVENLİK: Veritabanını bozmamak için DERİN KOPYA
+          let updatedPatientsDb = JSON.parse(JSON.stringify(globalData.patientsDb || {})); 
+
           let pId = aptData.patientId; 
           if (!pId) {
             const foundPatient = Object.values(updatedPatientsDb).find(p => p.name === aptData.patientName);
@@ -3054,24 +3082,41 @@ useEffect(() => {
           if (pId && updatedPatientsDb[pId]) {
             updatedPatientsDb[pId].lastStatus = newStatus;
             
-            // YENİ (UNDO MOTORU): Eğer randevu "Geldi" durumundan "İptal" veya "Gelmedi" vb. durumlara dönerse, planlanmış işlemi tekrar aç.
-            if (newStatus !== "Geldi" && aptData.linkedPlanId) {
-               if (updatedPatientsDb[pId].plannedTreatments) {
-                   updatedPatientsDb[pId].plannedTreatments = updatedPatientsDb[pId].plannedTreatments.map(t => 
-                       t.id === aptData.linkedPlanId 
-                       ? { ...t, isCompleted: false, completedAt: null, completedBy: null } 
-                       : t
-                   );
+            // YENİ: İŞLEMLERİ TAMAMLAMA VE CİROYA YANSITMA (UNDO MOTORU)
+            if (updatedPatientsDb[pId].plannedTreatments) {
+               let aptTreatments = aptData.selectedTreatments || [];
+               if (aptData.linkedPlanId) {
+                  const linkedPlan = updatedPatientsDb[pId].plannedTreatments.find(t => t.id === aptData.linkedPlanId);
+                  if (linkedPlan) aptTreatments = [{ treatment: linkedPlan.treatment, tooth: linkedPlan.tooth, id: linkedPlan.id }];
+               }
+
+               if (newStatus === "Geldi") {
+                  aptTreatments.forEach(aptTx => {
+                     updatedPatientsDb[pId].plannedTreatments = updatedPatientsDb[pId].plannedTreatments.map(t => {
+                        if ((t.id && aptTx.id === t.id) || (t.treatment === aptTx.treatment && t.tooth === aptTx.tooth)) {
+                           return { ...t, isCompleted: true, completedAt: Date.now(), completedBy: docId, aptKey: aptKey };
+                        }
+                        return t;
+                     });
+                  });
+               } else if (currentStatus === "Geldi") {
+                  aptTreatments.forEach(aptTx => {
+                     updatedPatientsDb[pId].plannedTreatments = updatedPatientsDb[pId].plannedTreatments.map(t => {
+                        if ((t.id && aptTx.id === t.id) || (t.treatment === aptTx.treatment && t.tooth === aptTx.tooth)) {
+                           return { ...t, isCompleted: false, completedAt: null, completedBy: null, aptKey: null };
+                        }
+                        return t;
+                     });
+                  });
                }
             }
             
-            // 4️⃣ GERÇEK SİSTEM BAĞLANTISI: OTOMATİK EPİKRİZ AYARI KONTROLÜ
+            // OTOMATİK EPİKRİZ MOTORU
             const historyArray = updatedPatientsDb[pId].clinicalHistory || [];
             const historyIndex = historyArray.findIndex((h) => h.appointmentId === aptKey);
 
             if (newStatus === "Geldi" && settings?.otomasyon?.otoEpikriz !== false) {
               if (historyIndex === -1) {
-                // Kayıt yoksa yeni epikriz oluştur
                 const [y, m, d, ...timeArr] = aptKey.split("-");
                 const timeStr = timeArr.join(":");
                 const newHistory = {
@@ -3092,12 +3137,10 @@ useEffect(() => {
                 };
                 updatedPatientsDb[pId].clinicalHistory = [newHistory, ...historyArray];
               } else {
-                // Zaten varsa (Örn: Gelmedi'den tekrar Geldi'ye çekildiyse) durumunu düzelt
                 updatedPatientsDb[pId].clinicalHistory[historyIndex].appointmentStatus = "Geldi";
                 updatedPatientsDb[pId].clinicalHistory[historyIndex].visitType = "Gerçekleşen Klinik İşlem";
               }
             } else if (newStatus !== "Geldi" && historyIndex > -1) {
-              // YENİ ÇÖZÜM: Geldi'den İptal veya Gelmedi'ye çekildiyse epikrizi SILME, durumunu güncelle!
               updatedPatientsDb[pId].clinicalHistory[historyIndex].appointmentStatus = newStatus;
               updatedPatientsDb[pId].clinicalHistory[historyIndex].visitType = newStatus === "İptal" ? "İptal Edilen Randevu" : "Gerçekleşmeyen Randevu";
             }
@@ -3105,10 +3148,7 @@ useEffect(() => {
 
           saveGlobalData({
             ...globalData,
-            appointments: {
-              ...globalData.appointments,
-              [docId]: updatedDocApts,
-            },
+            appointments: { ...globalData.appointments, [docId]: updatedDocApts },
             patientsDb: updatedPatientsDb,
           });
 
@@ -3324,8 +3364,11 @@ useEffect(() => {
 
           if (globalData.appointments) {
             Object.entries(globalData.appointments).forEach(([dId, dApts]) => {
-              // DÜZELTME 1: Kliniğindeki TÜM hekimlerin randevuları taranacak (Eski hatalı addedBy kısıtlaması kaldırıldı)
-              if (!allDoctors.includes(dId) && dId !== currentUser) return;
+              // DÜZELTME 1: Klinik izolasyonuna göre tarama (Hekim takvimde gizli olsa bile randevuları görünür)
+              const isAuthorized = currentUserProfile?.role === "assistant" 
+                  ? (currentUserProfile.assignedDoctors || []).includes(dId) && resolveClinicId(dId) === currentClinicId
+                  : resolveClinicId(dId) === currentClinicId;
+              if (!isAuthorized) return;
               
               Object.entries(dApts).forEach(([k, apt]) => {
                 const pId = patientForm?.id;
@@ -3424,8 +3467,8 @@ useEffect(() => {
           // 1. KLİNİK İÇİ TC KOPYA KONTROLÜ
           if (normalizedTc && normalizedTc.length > 0) {
             const duplicateByTc = Object.values(globalData.patientsDb || {}).find((p) => {
-              // Klinik izolasyonu: Sadece ortak havuza ait hastaları kontrol et
-              const isSameClinic = p.addedBy === clinicOwner || allDoctors.includes(p.addedBy);
+              // Klinik izolasyonu: Doğrudan kliniğin kendi veritabanını kontrol et
+              const isSameClinic = resolveClinicId(p.addedBy) === currentClinicId;
               const pTc = (p.tc || "").replace(/\D/g, "");
               
               // Aynı kliniğe ait, TC'si aynı olan ve KENDİSİ OLMAYAN bir hasta var var mı?
@@ -3792,7 +3835,7 @@ useEffect(() => {
           if (val.trim().length > 0) {
             const matches = Object.values(globalData.patientsDb || {}).filter(
               (p) =>
-                (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted &&
+                resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted &&
                 (p.name.toLowerCase().includes(val.toLowerCase()) ||
                   (p.phone && p.phone.includes(val)) ||
                   (p.tc && p.tc.includes(val)))
@@ -3801,7 +3844,7 @@ useEffect(() => {
           } else {
             setPatientSuggestions(
               Object.values(globalData.patientsDb || {}).filter(
-                (p) => (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted
+                (p) => resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted
               )
             );
           }
@@ -3917,7 +3960,8 @@ useEffect(() => {
             ? globalData.patientsDb?.[formData.patientId] 
             : Object.values(globalData.patientsDb || {}).find(
               (p) => {
-                const isSameClinic = allDoctors.includes(p.addedBy) || p.addedBy === clinicOwner;
+                // Klinik izolasyonu: Doğrudan kliniğin kendi veritabanını kontrol et
+              const isSameClinic = resolveClinicId(p.addedBy) === currentClinicId;
                 return isSameClinic && 
                        p.name.toLowerCase() === formData.patientName.toLowerCase().trim() && 
                        p.phone === formData.phone && 
@@ -4354,15 +4398,32 @@ useEffect(() => {
           const usernameInput = registerForm.username.trim().toLowerCase();
           const realEmail = registerForm.email.trim();
 
+          // 🛡️ ÇÖZÜM 1: BACKEND GÜVENLİK ZIRHI
+          // Sadece UI'da değil, kayıt butonuna basıldığı an veritabanında bu isim alınmış mı kesin kontrol et.
+          const isTaken = Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === usernameInput) ||
+                          Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === usernameInput) ||
+                          Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === usernameInput);
+          
+          if (isTaken) {
+             setAuthError("Bu kullanıcı adı zaten alınmış! Lütfen başka bir kullanıcı adı belirleyin.");
+             if (btn) btn.disabled = false; return;
+          }
+
           try {
-            // ARTIK FAKE E-POSTA YOK, GERÇEK E-POSTA İLE KAYIT OLUYORUZ
+            // Firebase Auth Kaydı
             await createUserWithEmailAndPassword(auth, realEmail, registerForm.password);
+
+            // 🛡️ ÇÖZÜM 2: EKSİK OLAN usersDb TABLOSUNU DOLDURMA
+            const updatedUsersDb = {
+              ...(globalData.usersDb || {}),
+              [usernameInput]: registerForm.password // Şifre değiştirme ekranının çökmemesi için gerekli
+            };
 
             const updatedProfiles = {
               ...(globalData.doctorProfiles || {}),
               [usernameInput]: {
                 name: registerForm.name,
-                title: registerForm.title,
+                title: registerForm.title || "Başhekim",
                 addedBy: usernameInput,
               },
             };
@@ -4375,12 +4436,14 @@ useEffect(() => {
                   active: true,
                   clinicId: `clinic_${usernameInput}`,
                   createdBy: usernameInput,
-                  realEmail: realEmail // YENİ: Gerçek maili veritabanına kaydediyoruz ki giriş yaparken bulabilelim
+                  realEmail: realEmail 
                }
             };
 
+            // Global dataya tüm güncellemeleri tek seferde gönderiyoruz
             await saveGlobalData({
               ...globalData,
+              usersDb: updatedUsersDb, 
               doctorProfiles: updatedProfiles,
               userProfiles: updatedUserProfiles
             });
@@ -4391,7 +4454,7 @@ useEffect(() => {
               localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
             }
 
-            showNotification("Hesabınız güvenli bir şekilde oluşturuldu.");
+            showNotification("Klinik hesabınız güvenli bir şekilde oluşturuldu.");
             setCurrentUser(usernameInput);
             sessionStorage.setItem("klinikAktifKullanici", usernameInput);
             sessionStorage.setItem("klinikOturumTokeni", "active");
@@ -5070,9 +5133,11 @@ useEffect(() => {
               {/* ========================================================= */}
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-3 flex flex-col shrink-0 mt-2 animate-pop min-h-[400px]">
                 {(() => {
-                  const allPats = Object.values(globalData.patientsDb || {}).filter(
-                  (p) => (allDoctors.includes(p.addedBy)) && !p.isDeleted
-                );
+                  const allPats = Object.values(globalData.patientsDb || {}).filter(p => {
+                      if (p.isDeleted) return false;
+                      if (currentUserProfile?.role === "assistant") return (currentUserProfile.assignedDoctors || []).includes(p.addedBy) && resolveClinicId(p.addedBy) === currentClinicId;
+                      return resolveClinicId(p.addedBy) === currentClinicId;
+                  });
 
                  // YENİ AKILLI MANTIK: Gelecekte randevusu olan hastayı masadan gizleyen fonksiyon
                   const checkHasFutureAppointment = (pName) => {
@@ -5097,13 +5162,15 @@ useEffect(() => {
                   };
 
                   // 1. Ortak Havuzdaki (Kliniğe Ait) Hastaları Dosya Masası İçin Al
-                  const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
-                                ? currentUserProfile.createdBy 
-                                : currentUser;
-
-                  const myPatientsForHome = Object.values(globalData.patientsDb || {}).filter(p => 
-                    (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted
-                  );
+                  const myPatientsForHome = Object.values(globalData.patientsDb || {}).filter(p => {
+                      if (p.isDeleted) return false;
+                      // Asistan ise sadece yetkili olduğu hekimlerin hastalarını görür
+                      if (currentUserProfile?.role === "assistant") {
+                          return (currentUserProfile.assignedDoctors || []).includes(p.addedBy) && resolveClinicId(p.addedBy) === currentClinicId;
+                      }
+                      // Hekim veya Klinik Sahibi ise bu kliniğin tüm hastalarını görür (Klinik sahibi takvimde kapalı olsa bile)
+                      return resolveClinicId(p.addedBy) === currentClinicId;
+                  });
 
                   // 2. Tarih ve Randevu Kontrolleri İçin Hazırlık (Son 7 Gün Algılayıcı)
                   const now = new Date();
@@ -7390,13 +7457,53 @@ if (isDayClosed) isPastSlot = true;
 
                           const getPrepDetails = (treatment) => {
                              const t = (treatment || "").toLowerCase();
-                             if(t.includes("implant")) return { label: "İmplant Cerrahi Seti & Fizyodispanser", icon: "fa-screwdriver-wrench", color: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800" };
-                             if(t.includes("kanal")) return { label: "Endomotor & İrrigasyon İğneleri", icon: "fa-tooth", color: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800" };
-                             if(t.includes("çekim") || t.includes("gömülü")) return { label: "Cerrahi Set & Davye/Elevatör", icon: "fa-pliers", color: "text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800" };
-                             if(t.includes("dolgu") || t.includes("kompozit") || t.includes("vener")) return { label: "Kompozit Seti & Işın Cihazı", icon: "fa-fill-drip", color: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" };
-                             if(t.includes("ölçü") || t.includes("protez") || t.includes("kron") || t.includes("zirkonyum")) return { label: "Ölçü Maddesi & Kaşık Hazırlığı", icon: "fa-cubes", color: "text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800" };
-                             if(t.includes("detertraj") || t.includes("küretaj")) return { label: "Kavitron & Polisaj Patı", icon: "fa-sparkles", color: "text-teal-600 bg-teal-50 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800" };
-                             return { label: "Standart Muayene Seti (Ayna, Sond, Presel)", icon: "fa-kit-medical", color: "text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" };
+                             
+                             // 1. İMPLANT VE CERRAHİ İŞLEMLER
+                             if(t.includes("implant (greftli)") || t.includes("kemik tozu") || t.includes("sinüs")) 
+                                return { label: "Cerrahi Set, Fizyodispanser, Kemik Grefti, Membran, Sütür, Steril Örtü", icon: "fa-screwdriver-wrench", color: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800" };
+                             if(t.includes("implant")) 
+                                return { label: "Cerrahi Set, Fizyodispanser, İmplant Parçaları, Sütür, Steril Örtü", icon: "fa-screwdriver-wrench", color: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800" };
+                             if(t.includes("gömülü") || t.includes("komplikasyonlu")) 
+                                return { label: "Cerrahi Set, Cerrahi Mikromotor, Elevatör, Sütür, Tampon", icon: "fa-tooth", color: "text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800" };
+                             if(t.includes("çekim")) 
+                                return { label: "Davye, Elevatör, Anestezi, Tampon", icon: "fa-pliers", color: "text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800" };
+                             
+                             // 2. ENDODONTİ (KANAL TEDAVİSİ)
+                             if(t.includes("kanal tedavisi yenileme") || t.includes("retreatment")) 
+                                return { label: "Endomotor, Apeks Bulucu, Gutta Çözücü, İrrigasyon (NaOCl), Rubber Dam", icon: "fa-tooth", color: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800" };
+                             if(t.includes("kanal")) 
+                                return { label: "Endomotor, Apeks Bulucu, İrrigasyon (NaOCl), Gutta Percha, Paper Point, Rubber Dam", icon: "fa-tooth", color: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800" };
+                             
+                             // 3. RESTORATİF (DOLGU VE ESTETİK)
+                             if(t.includes("vener") || t.includes("estetik dolgu")) 
+                                return { label: "Asit, Bond, Estetik Kompozit Seti, Polisaj Diskleri, Işın Cihazı", icon: "fa-fill-drip", color: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" };
+                             if(t.includes("dolgu") || t.includes("fissür")) 
+                                return { label: "Asit, Bond, Kompozit, Işın Cihazı, Matris Bant, Elmas Frez", icon: "fa-fill-drip", color: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800" };
+                             
+                             // 4. PROTETİK (ÖLÇÜ, KRON VE SİMANTASYON)
+                             if(t.includes("simantasyon") || t.includes("yapıştırma") || t.includes("takma")) 
+                                return { label: "İzolasyon (Pamuk Rulo), Siman (Yapıştırıcı), Artikülasyon Kağıdı, Işın Cihazı", icon: "fa-cubes", color: "text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800" };
+                             if(t.includes("ölçü") || t.includes("protez") || t.includes("kron") || t.includes("zirkonyum")) 
+                                return { label: "Silikon/Aljinat Ölçü Maddesi, Ölçü Kaşığı, Retraksiyon İpi (veya Ağız İçi Tarayıcı)", icon: "fa-cubes", color: "text-sky-600 bg-sky-50 border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800" };
+                             
+                             // 5. PERİODONTOLOJİ (DİŞ ETİ TEDAVİSİ)
+                             if(t.includes("küretaj") || t.includes("subgingival")) 
+                                return { label: "Kavitron, El Küretleri (Gracey), Anestezi, İrrigasyon Solüsyonu", icon: "fa-sparkles", color: "text-teal-600 bg-teal-50 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800" };
+                             if(t.includes("detertraj") || t.includes("temizliği")) 
+                                return { label: "Kavitron (Ultrasonik Uçlar), Polisaj Patı, Fırça/Lastik", icon: "fa-sparkles", color: "text-teal-600 bg-teal-50 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-800" };
+                             
+                             // 6. PEDODONTİ VE KORUYUCU (ÇOCUK)
+                             if(t.includes("flor")) 
+                                return { label: "Flor Jeli/Verniği, Tek Kullanımlık Flor Kaşığı, Pamuk Rulo", icon: "fa-child", color: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800" };
+                             
+                             // 7. ORTODONTİ
+                             if(t.includes("ortodonti") || t.includes("tel")) 
+                                return { label: "Braket, Ortodontik Tel, Penseler, Asit, Ortodontik Bond, Işın Cihazı", icon: "fa-teeth-open", color: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800" };
+                             if(t.includes("plak")) 
+                                return { label: "Ataşman Şablonu, Ataşman Kompoziti, Asit, Bond, Işın Cihazı", icon: "fa-face-smile", color: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800" };
+                             
+                             // 8. DEFAULT (GENEL MUAYENE VEYA BULUNAMAYANLAR)
+                             return { label: "Standart Muayene Seti (Ayna, Sond, Presel), Bardak, Tükürük Emici", icon: "fa-kit-medical", color: "text-slate-600 bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" };
                           };
 
                           return (
@@ -8086,17 +8193,25 @@ if (isDayClosed) isPastSlot = true;
             if (!uname) return;
 
             if (!editingUsername && !newUserForm.password) {
-              showNotification("Yeni kullanıcı için şifre belirlemek zorunludur!", "error");
-              return;
+              showNotification("Yeni kullanıcı için şifre belirlemek zorunludur!", "error"); return;
             }
+            
+            if (!editingUsername && newUserForm.password.length < 6) {
+              showNotification("Güvenlik gereği şifre EN AZ 6 KARAKTER olmalıdır!", "error"); return;
+            }
+
+            // 🛡️ YENİ ÇÖZÜM: Firebase alt çizgi (_) olan domainleri geçersiz sayar. Klinik ID'sini tertemiz yapıyoruz!
+            const safeClinicDomain = (currentClinicId || "klinik").replace(/[^a-zA-Z0-9]/g, "");
+            const finalEmail = (newUserForm.email && newUserForm.email.includes("@")) 
+                ? newUserForm.email 
+                : `${uname}@${safeClinicDomain}.com`.toLowerCase();
 
             // --- GLOBAL BENZERSİZLİK KONTROLÜ ---
             const oldUname = normalizeUsername(editingUsername);
             const isEditing = !!editingUsername;
             
             if (!isEditing || uname !== oldUname) {
-               const isTaken = Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === uname) ||
-                               Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === uname) ||
+               const isTaken = Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === uname) ||
                                Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === uname);
                
                if (isTaken) {
@@ -8105,31 +8220,34 @@ if (isDayClosed) isPastSlot = true;
                }
             }
 
-            // YENİ: FIREBASE HAYALET MOTORU (Senin oturumun kapanmadan asistanı güvenle kaydeder)
-            if (newUserForm.password) {
+            // FIREBASE HAYALET MOTORU (GERÇEK VEYA SAHTE E-POSTA İLE KAYIT)
+            if (newUserForm.password && !isEditing) {
               try {
-                // Dinamik Firebase App yüklemesi
                 const { initializeApp } = await import('firebase/app');
                 const ghostApp = initializeApp(auth.app.options, "GhostApp_" + Date.now());
                 const ghostAuth = getAuth(ghostApp);
-                const fakeEmail = `${uname}@klinik.com`;
                 
-                await createUserWithEmailAndPassword(ghostAuth, fakeEmail, newUserForm.password);
-                await signOut(ghostAuth); // İşi bitince sessizce çıkar (Senin oturumun açık kalır)
+                await createUserWithEmailAndPassword(ghostAuth, finalEmail, newUserForm.password);
+                await signOut(ghostAuth);
               } catch (err) {
-                if (err.code !== 'auth/email-already-in-use') {
-                   console.error("Hayalet kayıt motoru hatası:", err);
+                console.error("Auth Kayıt Hatası:", err);
+                if (err.code === 'auth/email-already-in-use') {
+                   showNotification("Bu kullanıcıya ait e-posta veya ID sistemde zaten kullanımda!", "error"); 
+                } else if (err.code === 'auth/weak-password') {
+                   showNotification("Şifreniz çok zayıf! Lütfen en az 6 karakterli bir şifre girin.", "error"); 
+                } else if (err.code === 'auth/invalid-email') {
+                   showNotification("Geçersiz e-posta formatı tespit edildi! Lütfen geçerli karakterler kullanın.", "error"); 
+                } else {
+                   showNotification("Kullanıcı oluşturulamadı: " + err.message, "error");
                 }
+                return; // Firebase onay vermezse işlemi kesinlikle durdur!
               }
             }
 
-            // Veritabanı Kayıt İşlemi...
-            const updatedUsersDb = { ...globalData.usersDb };
-            if (newUserForm.password) {
-              updatedUsersDb[uname] = newUserForm.password; // Geriye dönük uyumluluk
-            }
+            const isPracticingDoctor = newUserForm.role === "doctor" || (newUserForm.role === "clinic_owner" && newUserForm.isDoctor !== false);
 
-            const updatedUserProfiles = { ...globalData.userProfiles };
+            // 1. KÖK DİZİN KAYDI (userProfiles)
+            const updatedUserProfiles = JSON.parse(JSON.stringify(globalData.userProfiles || {}));
             updatedUserProfiles[uname] = {
               name: newUserForm.name,
               role: newUserForm.role,
@@ -8138,27 +8256,38 @@ if (isDayClosed) isPastSlot = true;
               assignedDoctors: newUserForm.role === "assistant" ? newUserForm.assignedDoctors : [uname],
               createdAt: updatedUserProfiles[uname]?.createdAt || Date.now(),
               createdBy: updatedUserProfiles[uname]?.createdBy || currentUser,
-              realEmail: `${uname}@klinik.com` // Auth girişini doğrulamak için zorunlu
+              realEmail: isEditing ? (updatedUserProfiles[uname]?.realEmail || finalEmail) : finalEmail,
+              isDoctor: isPracticingDoctor
             };
 
-            const updatedDoctorProfiles = { ...globalData.doctorProfiles };
+            // 2. GİRİŞ KAPISI KAYDI (usersDb tablosuna eklenmesi ŞARTTIR)
+            const updatedUsersDb = JSON.parse(JSON.stringify(globalData.usersDb || {}));
+            updatedUsersDb[uname] = {
+              email: isEditing ? (updatedUsersDb[uname]?.email || finalEmail) : finalEmail,
+              role: newUserForm.role,
+              clinicId: currentClinicId
+            };
+
+            // 3. KLİNİK İZOLASYONLU DİZİN KAYDI (doctorProfiles)
+            const updatedDoctorProfiles = JSON.parse(JSON.stringify(globalData.doctorProfiles || {}));
+            
             if (newUserForm.role === "doctor" || newUserForm.role === "clinic_owner") {
-              if (!updatedDoctorProfiles[uname]) {
-                updatedDoctorProfiles[uname] = {
+               updatedDoctorProfiles[uname] = {
+                  ...(updatedDoctorProfiles[uname] || {}),
                   name: newUserForm.name,
                   title: newUserForm.role === "clinic_owner" ? "Başhekim" : "Hekim",
-                  addedBy: currentUser
-                };
-              }
+                  addedBy: updatedDoctorProfiles[uname]?.addedBy || currentUser,
+                  isDeleted: !isPracticingDoctor 
+               };
             }
 
             saveGlobalData({
               ...globalData,
-              usersDb: updatedUsersDb,
               userProfiles: updatedUserProfiles,
+              usersDb: updatedUsersDb, 
               ...(newUserForm.role !== "assistant" && { doctorProfiles: updatedDoctorProfiles })
             }).then(() => {
-              showNotification(isEditing ? "Kullanıcı güncellendi." : "Yeni kullanıcı eklendi.");
+              showNotification(isEditing ? "Kullanıcı güncellendi." : "Yeni kullanıcı sisteme eklendi.");
               setIsUserModalOpen(false);
             });
           };
@@ -8194,7 +8323,7 @@ if (isDayClosed) isPastSlot = true;
                 <button
                   onClick={() => {
                     setEditingUsername(null);
-                    setNewUserForm({ username: "", password: "", name: "", role: "assistant", active: true, assignedDoctors: [] });
+                    setNewUserForm({ username: "", password: "", name: "", email: "", role: "assistant", active: true, assignedDoctors: [], isDoctor: true });
                     setIsUserModalOpen(true);
                   }}
                   className="bg-teal-600 text-white px-3 py-2 rounded-xl text-[12px] font-bold shadow-md hover:bg-teal-700 transition"
@@ -8238,61 +8367,84 @@ if (isDayClosed) isPastSlot = true;
                       </div>
 
                       <div className="flex gap-1.5 mt-auto pt-2">
-  <button 
-    onClick={(e) => {
-      e.preventDefault();
-      setEditingUsername(usr.username);
-      setNewUserForm({ ...usr, password: "" }); 
-      setIsUserModalOpen(true);
-    }} 
-    className="flex-1 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[11px] font-bold hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-200"
-  >
-    <i className="fa-solid fa-pen mr-1"></i> Düzenle
-  </button>
-  
-  <button
-    onClick={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
+                        {/* GÜVENLİK ZIRHI: Sadece Klinik Sahibi kendi hesabını veya diğer sahipleri düzenleyebilir */}
+                        {usr.role === 'clinic_owner' && currentUserProfile?.role !== 'clinic_owner' ? (
+                           <div className="w-full py-1.5 bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500 rounded-lg text-[11px] font-bold text-center flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-200 dark:border-slate-700">
+                             <i className="fa-solid fa-lock"></i> Sadece Klinik Sahibi Yönetebilir
+                           </div>
+                        ) : (
+                           <>
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setEditingUsername(usr.username);
+                                  
+                                  const profile = globalData.userProfiles?.[usr.username] || {};
+                                  
+                                  // YENİ: Saniyesinde yüklenen ana profilden doğrudan veriyi oku
+                                  const isDocActive = profile.isDoctor !== undefined 
+                                      ? profile.isDoctor 
+                                      : (usr.role === 'clinic_owner' || usr.role === 'doctor');
 
-      const usernameToDelete = usr.username;
+                                  setNewUserForm({ 
+                                    ...usr, 
+                                    password: "", 
+                                    email: profile.realEmail || "",
+                                    isDoctor: isDocActive 
+                                  }); 
+                                  setIsUserModalOpen(true);
+                                }} 
+                                className="flex-1 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[11px] font-bold hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-200"
+                              >
+                                <i className="fa-solid fa-pen mr-1"></i> Düzenle
+                              </button>
+                              
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
 
-      // 1. Kendi kendini silme koruması
-      if (usernameToDelete === currentUser) {
-        showNotification("Şu an açık olan kendi hesabınızı silemezsiniz!", "error");
-        return;
-      }
+                                  const usernameToDelete = usr.username;
 
-      // 2. Sistemin Kendi Şık Uyarı Penceresi (showConfirm)
-      showConfirm(`${usernameToDelete} adlı kullanıcıyı sistemden silmek istediğinize emin misiniz?`, () => {
-        
-        // 3. Veritabanından kazıma işlemi
-        const updatedUsersDb = { ...globalData.usersDb };
-        delete updatedUsersDb[usernameToDelete];
+                                  if (usernameToDelete === currentUser) {
+                                    showNotification("Şu an açık olan kendi hesabınızı silemezsiniz!", "error");
+                                    return;
+                                  }
 
-        const updatedUserProfiles = { ...globalData.userProfiles };
-        delete updatedUserProfiles[usernameToDelete];
+                                  showConfirm(`${usernameToDelete} adlı kullanıcıyı sistemden KALICI OLARAK silmek istediğinize emin misiniz? (Dikkat: Kökten silinirse geçmiş verilerde sorun yaşanabilir!)`, () => {
+                                    
+                                    const updatedUserProfiles = { ...globalData.userProfiles };
+                                    delete updatedUserProfiles[usernameToDelete]; // Profil kökten silinir
 
-        saveGlobalData({
-          ...globalData,
-          usersDb: updatedUsersDb,
-          userProfiles: updatedUserProfiles,
-        }).then(() => {
-          showNotification(`${usernameToDelete} başarıyla silindi.`);
-        }).catch((err) => {
-          showNotification("Silme başarısız oldu.", "error");
-        });
-        
-      }); // showConfirm kapanışı
-    }} 
-    className="px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[11px] font-bold hover:bg-rose-100 transition shadow-sm border border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 ml-1.5"
-    title="Kullanıcıyı Sil"
-  >
-    <i className="fa-solid fa-trash mr-1"></i> Sil
-  </button>
-                        <button onClick={() => handleToggleActive(usr.username, usr.active)} className={`w-8 flex items-center justify-center rounded-lg transition ${usr.active ? "bg-rose-50 text-rose-500 hover:bg-rose-100 dark:bg-rose-900/30" : "bg-emerald-50 text-emerald-500 hover:bg-emerald-100 dark:bg-emerald-900/30"}`} title={usr.active ? "Pasifleştir" : "Aktifleştir"}>
-                          <i className={`fa-solid ${usr.active ? "fa-ban" : "fa-check"}`}></i>
-                        </button>
+                                    const updatedDoctorProfiles = { ...globalData.doctorProfiles };
+                                    delete updatedDoctorProfiles[usernameToDelete]; // Takvim verisi kökten silinir
+
+                                    const updatedUsersDb = { ...globalData.usersDb };
+                                    delete updatedUsersDb[usernameToDelete]; // Giriş verisi kökten silinir
+
+                                    saveGlobalData({
+                                      ...globalData,
+                                      userProfiles: updatedUserProfiles,
+                                      doctorProfiles: updatedDoctorProfiles,
+                                      usersDb: updatedUsersDb
+                                    }).then(() => {
+                                      showNotification(`${usernameToDelete} kalıcı olarak sistemden kazındı.`);
+                                    }).catch(() => {
+                                      showNotification("Silme başarısız oldu.", "error");
+                                    });
+                                  }); 
+                                }} 
+                                className="px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[11px] font-bold hover:bg-rose-100 transition shadow-sm border border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 ml-1.5"
+                                title="Kullanıcıyı Sil"
+                              >
+                                <i className="fa-solid fa-trash mr-1"></i> Sil
+                              </button>
+                              
+                              <button onClick={() => handleToggleActive(usr.username, usr.active)} className={`w-8 flex items-center justify-center rounded-lg transition ${usr.active ? "bg-rose-50 text-rose-500 hover:bg-rose-100 dark:bg-rose-900/30" : "bg-emerald-50 text-emerald-500 hover:bg-emerald-100 dark:bg-emerald-900/30"}`} title={usr.active ? "Pasifleştir" : "Aktifleştir"}>
+                                <i className={`fa-solid ${usr.active ? "fa-ban" : "fa-check"}`}></i>
+                              </button>
+                           </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -8359,6 +8511,20 @@ if (isDayClosed) isPastSlot = true;
                           </select>
                         </div>
                       </div>
+
+                      {/* KLİNİK SAHİBİ İSE HEKİM OLUP OLMADIĞINI SORAN GEÇİŞ ANAHTARI */}
+                      {newUserForm.role === "clinic_owner" && (
+                         <label className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl flex items-center justify-between cursor-pointer group hover:border-indigo-300 transition-colors mt-2">
+                            <div>
+                               <div className="font-bold text-[12px] text-indigo-800 dark:text-indigo-400"><i className="fa-solid fa-user-doctor mr-1"></i> Bu kişi aktif hasta bakıyor mu?</div>
+                               <div className="text-[10px] text-indigo-600/80 dark:text-indigo-500 mt-0.5">Klinik sahibi aynı zamanda klinikte hekimlik yapıyorsa açık bırakın.</div>
+                            </div>
+                            <div className="relative inline-flex items-center cursor-pointer ml-3 shrink-0">
+                               <input type="checkbox" className="sr-only peer" checked={newUserForm.isDoctor !== false} onChange={e => setNewUserForm({...newUserForm, isDoctor: e.target.checked})} />
+                               <div className="w-9 h-5 bg-slate-300 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                            </div>
+                         </label>
+                      )}
 
                       {/* ASİSTAN İSE HEKİM SEÇİM ALANI AÇILIR */}
                       {newUserForm.role === "assistant" && (
@@ -8561,29 +8727,119 @@ const renderSettings = () => {
               {/* İÇERİK ALANI */}
               <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 overflow-y-auto custom-scrollbar pb-24 relative">
                 
-                {currentSettingsTab === "ozet" && (
-                  <div className="animate-pop">
-                    <h3 className="font-black text-slate-800 dark:text-white text-base mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">Sistem Özeti</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("klinik")}>
-                        <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center text-lg dark:bg-emerald-900/20"><i className="fa-solid fa-hospital"></i></div>
-                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Klinik</div><div className="font-black text-[13px] dark:text-white mt-0.5">{currentData.klinik.durum}</div></div>
+                {currentSettingsTab === "ozet" && (() => {
+                  // Dinamik İstatistik Hesaplamaları
+                  const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                  const totalPats = Object.values(globalData.patientsDb || {}).filter(p => resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted).length;
+                  const totalDocs = allDoctors.length;
+                  const totalTxs = Object.keys(globalData.pricingDb?.[ownerId] || DEFAULT_PRICING).length;
+                  
+                  const activeModules = [
+                    { name: "WhatsApp Otomasyonu", status: currentData.bildirim?.whatsappAktif, icon: "fa-whatsapp", color: "text-emerald-500" },
+                    { name: "Akıllı Epikriz Üretimi", status: currentData.otomasyon?.otoEpikriz !== false, icon: "fa-robot", color: "text-indigo-500" },
+                    { name: "Otomatik Dosyalama", status: currentData.otomasyon?.otoKlasor !== false, icon: "fa-folder-tree", color: "text-sky-500" },
+                    { name: "Randevu Çakışma Önleyici", status: currentData.randevu?.cakismaKontrolu !== false, icon: "fa-shield-halved", color: "text-rose-500" }
+                  ];
+
+                  return (
+                  <div className="animate-pop space-y-4">
+                    {/* 1. ÜST BİLGİ VE LİSANS BARI */}
+                    <div className="bg-gradient-to-r from-slate-900 to-slate-800 dark:from-indigo-950 dark:to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-slate-700">
+                      <div className="absolute -right-10 -top-10 text-9xl text-white/5 pointer-events-none">
+                        <i className="fa-solid fa-server"></i>
                       </div>
-                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("randevu")}>
-                        <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-lg flex items-center justify-center text-lg dark:bg-indigo-900/20"><i className="fa-solid fa-calendar-check"></i></div>
-                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Randevu</div><div className="font-black text-[13px] dark:text-white mt-0.5">{currentData.randevu.varsayilanSure} Dk</div></div>
+                      <div className="relative z-10">
+                        <h3 className="text-lg font-black flex items-center gap-2 mb-1">
+                          <i className="fa-solid fa-circle-check text-emerald-400"></i> Sistem Stabil ve Güncel
+                        </h3>
+                        <p className="text-[12px] text-slate-300 font-medium">Tüm klinik verileriniz uçtan uca şifrelenerek bulut sunucularda yedeklenmektedir.</p>
                       </div>
-                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("bildirim")}>
-                        <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-lg flex items-center justify-center text-lg dark:bg-amber-900/20"><i className="fa-solid fa-bell"></i></div>
-                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Bildirim</div><div className="font-black text-[13px] dark:text-white mt-0.5">{currentData.bildirim.whatsappAktif ? "WP Aktif" : "Pasif"}</div></div>
+                      <div className="relative z-10 flex gap-3 shrink-0">
+                        <div className="bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2 rounded-xl text-center">
+                          <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider mb-0.5">Lisans Tipi</div>
+                          <div className="text-[13px] font-black text-amber-400 flex items-center justify-center gap-1">
+                            <i className="fa-solid fa-crown"></i> PRO AKTİF
+                          </div>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-sm border border-white/20 px-3 py-2 rounded-xl text-center">
+                          <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider mb-0.5">Sunucu Durumu</div>
+                          <div className="text-[13px] font-black text-emerald-400 flex items-center justify-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div> ÇEVRİMİÇİ
+                          </div>
+                        </div>
                       </div>
-                      <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex gap-3 items-start cursor-pointer hover:shadow-md transition bg-slate-50/50 dark:bg-slate-800/50" onClick={()=>setSettingsTab("guvenlik")}>
-                        <div className="w-10 h-10 bg-rose-50 text-rose-500 rounded-lg flex items-center justify-center text-lg dark:bg-rose-900/20"><i className="fa-solid fa-shield-halved"></i></div>
-                        <div><div className="text-[10px] font-bold text-slate-400 uppercase">Güvenlik</div><div className="font-black text-[13px] dark:text-white mt-0.5">Yüksek</div></div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* 2. KLİNİK CANLI VERİ METRİKLERİ */}
+                      <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div onClick={() => setActiveTab("patients")} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl shadow-sm flex flex-col justify-center relative overflow-hidden group cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all">
+                          <i className="fa-solid fa-hospital-user absolute -right-3 -bottom-3 text-5xl text-slate-100 dark:text-slate-700/50 group-hover:scale-110 group-hover:text-indigo-50 dark:group-hover:text-indigo-900/30 transition-transform duration-300"></i>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1">Toplam Hasta <i className="fa-solid fa-arrow-up-right-from-square text-[8px] opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500"></i></span>
+                          <span className="text-2xl font-black text-slate-700 dark:text-slate-200 relative z-10 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{totalPats}</span>
+                        </div>
+                        <div onClick={() => setActiveTab("doctors")} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl shadow-sm flex flex-col justify-center relative overflow-hidden group cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all">
+                          <i className="fa-solid fa-user-doctor absolute -right-3 -bottom-3 text-5xl text-slate-100 dark:text-slate-700/50 group-hover:scale-110 group-hover:text-indigo-50 dark:group-hover:text-indigo-900/30 transition-transform duration-300"></i>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1">Kayıtlı Hekim <i className="fa-solid fa-arrow-up-right-from-square text-[8px] opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500"></i></span>
+                          <span className="text-2xl font-black text-slate-700 dark:text-slate-200 relative z-10 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{totalDocs}</span>
+                        </div>
+                        <div onClick={() => setSettingsTab("tedavi")} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl shadow-sm flex flex-col justify-center relative overflow-hidden group col-span-2 sm:col-span-1 cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all">
+                          <i className="fa-solid fa-list-check absolute -right-3 -bottom-3 text-5xl text-slate-100 dark:text-slate-700/50 group-hover:scale-110 group-hover:text-indigo-50 dark:group-hover:text-indigo-900/30 transition-transform duration-300"></i>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 relative z-10 flex items-center gap-1">Klinik İşlem <i className="fa-solid fa-arrow-up-right-from-square text-[8px] opacity-0 group-hover:opacity-100 transition-opacity text-indigo-500"></i></span>
+                          <span className="text-2xl font-black text-slate-700 dark:text-slate-200 relative z-10 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{totalTxs}</span>
+                        </div>
+                        
+                        {/* Hızlı Erişim Paneli */}
+                        <div className="col-span-2 sm:col-span-3 bg-indigo-50 dark:bg-slate-900 border border-indigo-100 dark:border-slate-700 p-3 rounded-xl mt-1">
+                          <h4 className="text-[11px] font-black text-indigo-800 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><i className="fa-solid fa-bolt"></i> Hızlı Yönetim Kısayolları</h4>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => setSettingsTab("tedavi")} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-2 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">
+                              <div className="w-6 h-6 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center dark:bg-indigo-900/50 dark:text-indigo-400"><i className="fa-solid fa-tags"></i></div> Fiyatları Güncelle
+                            </button>
+                            <button onClick={() => setSettingsTab("yetki")} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-2 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">
+                              <div className="w-6 h-6 rounded bg-purple-100 text-purple-600 flex items-center justify-center dark:bg-purple-900/50 dark:text-purple-400"><i className="fa-solid fa-user-shield"></i></div> Yetkileri Ayarla
+                            </button>
+                            <button onClick={() => setSettingsTab("calisma")} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-2 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">
+                              <div className="w-6 h-6 rounded bg-amber-100 text-amber-600 flex items-center justify-center dark:bg-amber-900/50 dark:text-amber-400"><i className="fa-solid fa-calendar-xmark"></i></div> Özel Gün Ekle
+                            </button>
+                            <button onClick={() => setSettingsTab("veri")} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 p-2 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center gap-2">
+                              <div className="w-6 h-6 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center dark:bg-emerald-900/50 dark:text-emerald-400"><i className="fa-solid fa-file-excel"></i></div> Hastaları İndir
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. AKTİF MODÜLLER VE GÜVENLİK DURUMU */}
+                      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm flex flex-col h-full">
+                         <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2 mb-2 flex items-center justify-between">
+                           <span>Aktif Modüller</span>
+                           <i className="fa-solid fa-toggle-on text-emerald-500 text-sm"></i>
+                         </h4>
+                         <div className="flex-1 space-y-2 overflow-y-auto pr-1 custom-scrollbar max-h-[160px]">
+                           {activeModules.map((mod, i) => (
+                              <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-700/50">
+                                 <div className="flex items-center gap-2">
+                                    <i className={`fa-brands ${mod.icon} ${mod.color}`}></i>
+                                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{mod.name}</span>
+                                 </div>
+                                 {mod.status ? (
+                                    <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded dark:bg-emerald-900/30 dark:text-emerald-400">AÇIK</span>
+                                 ) : (
+                                    <span className="text-[9px] font-black bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded dark:bg-slate-700 dark:text-slate-400">KAPALI</span>
+                                 )}
+                              </div>
+                           ))}
+                         </div>
+                         <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                           <button onClick={() => setSettingsTab("guvenlik")} className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 py-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1.5 border border-slate-200 dark:border-slate-600">
+                             <i className="fa-solid fa-shield-halved text-rose-500"></i> Şifreleri ve Güvenliği Yönet
+                           </button>
+                         </div>
                       </div>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {currentSettingsTab === "klinik" && (
                   <div className="animate-pop max-w-4xl space-y-4">
@@ -8674,6 +8930,73 @@ const renderSettings = () => {
                              <div><div className="font-bold text-[13px] dark:text-white">Geçmiş Tarih Uyarısı</div><div className="text-[10px] text-slate-500">Geçmişteki bir tarihe randevu eklenirken uyarı verir.</div></div>
                              <input type="checkbox" checked={currentData.randevu.gecmisTarihUyarisi} onChange={e => handleSettingChange('randevu', 'gecmisTarihUyarisi', e.target.checked)} className="w-4 h-4 accent-indigo-600" />
                           </label>
+                        </div>
+                     </div>
+
+                     {/* YENİ: BRANŞ VE TEDAVİ RENKLENDİRME MODÜLÜ */}
+                     <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+                        <div className="font-black text-[13px] text-slate-800 dark:text-white flex items-center gap-1.5 mb-1">
+                           <i className="fa-solid fa-palette text-pink-500"></i> Branş ve Tedavi Renkleri
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
+                           Randevu takviminde işlemlerin hangi renkte görüneceğini seçin. Renk kutusuna tıklayıp seçiminizi yaptıktan sonra <b>menüyü kapattığınız an</b> tüm sisteme otomatik olarak işlenecektir.
+                        </p>
+                        
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                           {[
+                              { key: "cerrahi", label: "Cerrahi & İmplant", default: "#a855f7" },
+                              { key: "protez", label: "Protetik (Kron)", default: "#6366f1" },
+                              { key: "endodonti", label: "Endodonti (Kanal)", default: "#f97316" },
+                              { key: "dolgu", label: "Restoratif (Dolgu)", default: "#3b82f6" },
+                              { key: "ortodonti", label: "Ortodonti (Tel)", default: "#ec4899" },
+                              { key: "periodontoloji", label: "Perio (Diş Eti)", default: "#14b8a6" },
+                              { key: "pedodonti", label: "Pedodonti (Çocuk)", default: "#f43f5e" },
+                              { key: "muayene", label: "Muayene & Teşhis", default: "#8b5cf6" }
+                           ].map((brans) => (
+                              <div key={brans.key} className="bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col gap-1.5 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors">
+                                 <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider truncate" title={brans.label}>{brans.label}</label>
+                                 <div className="flex items-center gap-2.5">
+                                    {/* MOUSE İLE SÜRÜKLERKEN VERİTABANINI ÇÖKERTMEMEK İÇİN ONBLUR KULLANILDI */}
+                                    <div className="relative w-8 h-8 rounded-lg overflow-hidden border-2 border-slate-300 dark:border-slate-600 shadow-inner flex-shrink-0 cursor-pointer hover:scale-105 transition-transform">
+                                       <input 
+                                          type="color" 
+                                          defaultValue={settings?.randevu?.bransRenkleri?.[brans.key] || brans.default}
+                                          onBlur={(e) => {
+                                             const hexCode = e.target.value;
+                                             const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                                             const newSettings = JSON.parse(JSON.stringify(settings));
+                                             
+                                             if (!newSettings.randevu) newSettings.randevu = {};
+                                             if (!newSettings.randevu.bransRenkleri) newSettings.randevu.bransRenkleri = {};
+                                             
+                                             // Renk değişmemişse veritabanını yorma
+                                             if (newSettings.randevu.bransRenkleri[brans.key] === hexCode) return;
+
+                                             newSettings.randevu.bransRenkleri[brans.key] = hexCode;
+                                             
+                                             // Anında UI güncellemesi
+                                             setSettings(newSettings);
+                                             localStorage.setItem(`klinikSettings_${ownerId}`, JSON.stringify(newSettings));
+                                             
+                                             // Buluta anında kaydet
+                                             saveGlobalData({
+                                               ...globalData,
+                                               settingsDb: {
+                                                 ...(globalData.settingsDb || {}),
+                                                 [ownerId]: newSettings
+                                               }
+                                             }).then(() => showNotification(`${brans.label} rengi başarıyla güncellendi!`, "success"));
+                                          }}
+                                          className="absolute top-[-10px] left-[-10px] w-16 h-16 cursor-pointer"
+                                          title="Renk Seçmek İçin Tıklayın"
+                                       />
+                                    </div>
+                                    <span className="text-[11px] font-mono text-slate-400 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-700">
+                                       {settings?.randevu?.bransRenkleri?.[brans.key] || brans.default}
+                                    </span>
+                                 </div>
+                              </div>
+                           ))}
                         </div>
                      </div>
                   </div>
@@ -8785,85 +9108,52 @@ const renderSettings = () => {
                            </label>
                         </div>
                         <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col justify-center">
-                           <div className="text-[11px] font-bold text-slate-400 uppercase mb-2">Sisteme Giriş Şifresi</div>
-                           <div className="text-[11px] text-slate-500 mb-4">Uygulamaya giriş şifrenizi (Ana Şifre) değiştirmek için kullanın.</div>
-                           <button onClick={() => setIsPasswordModalOpen(true)} className="w-full bg-slate-900 text-white py-2.5 rounded-xl text-[12px] font-bold hover:bg-slate-800 transition shadow-sm dark:bg-indigo-600 dark:hover:bg-indigo-500"><i className="fa-solid fa-key mr-1.5"></i> Ana Şifreyi Değiştir</button>
+                           <div className="text-[11px] font-bold text-slate-400 uppercase mb-2 flex items-center justify-between">
+                             <span>Hesap E-Postası ve Şifre</span>
+                             {globalData.userProfiles?.[currentUser]?.realEmail && !globalData.userProfiles?.[currentUser]?.realEmail.includes("@klinik.com") ? (
+                                <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded text-[9px]"><i className="fa-solid fa-check"></i> E-Posta Kayıtlı</span>
+                             ) : (
+                                <span className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded text-[9px]"><i className="fa-solid fa-triangle-exclamation"></i> E-Posta Eksik</span>
+                             )}
+                           </div>
+                           <div className="text-[11px] text-slate-500 mb-3">
+                             <div className="mb-1 font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <i className="fa-solid fa-envelope text-indigo-500"></i>
+                                {globalData.userProfiles?.[currentUser]?.realEmail && !globalData.userProfiles?.[currentUser]?.realEmail.includes("@klinik.com") 
+                                  ? globalData.userProfiles[currentUser].realEmail 
+                                  : "Belirtilmemiş (Lütfen Ekleyin)"}
+                             </div>
+                             Uygulamaya giriş şifrenizi veya şifre sıfırlama (kurtarma) e-postanızı buradan ekleyebilir ve güncelleyebilirsiniz.
+                           </div>
+                           <button onClick={() => {
+                              const profile = globalData.userProfiles?.[currentUser] || {};
+                              const currentMail = profile.realEmail && !profile.realEmail.includes("@klinik.com") ? profile.realEmail : "";
+                              setPasswordForm({ oldPass: "", newPass: "", confirmPass: "", email: currentMail });
+                              setIsPasswordModalOpen(true);
+                           }} className="w-full bg-slate-900 text-white py-2.5 rounded-xl text-[12px] font-bold hover:bg-slate-800 transition shadow-sm dark:bg-indigo-600 dark:hover:bg-indigo-500">
+                             <i className="fa-solid fa-user-shield mr-1.5"></i> E-Posta ve Şifreyi Yönet
+                           </button>
                         </div>
 
-                        {/* YENİ: Özel Finans Şifresi Paneli */}
-                        <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3 col-span-1 md:col-span-2 mt-2">
-                           <div>
-                              <h4 className="font-bold text-[13px] dark:text-white"><i className="fa-solid fa-eye-slash text-rose-500 mr-1.5"></i> Göz İkonu / Finansal Bilgi Şifresi</h4>
-                              <p className="text-[11px] text-slate-500 mt-1">Uygulama açıldığında finansal bilgiler gizli başlar. Göz ikonuna tıklandığında istenecek 4 haneli bağımsız PIN kodunu buradan değiştirebilirsiniz. (Varsayılan PIN: 0000)</p>
+                        {/* YENİ: Özel Finans Şifresi Paneli (Kompakt Tıklanabilir) */}
+                        <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col justify-center col-span-1 md:col-span-2 mt-2">
+                           <div className="text-[11px] font-bold text-slate-400 uppercase mb-2 flex items-center justify-between">
+                             <span>Finansal Bilgi Şifresi</span>
+                             <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[9px]"><i className="fa-solid fa-lock"></i> 4 Haneli PIN</span>
                            </div>
-                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <input 
-                                type="password" 
-                                placeholder="Mevcut PIN" 
-                                maxLength="4"
-                                value={pinChangeForm.oldPin}
-                                onChange={(e) => setPinChangeForm({...pinChangeForm, oldPin: e.target.value.replace(/\D/g, '')})}
-                                className="p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-center tracking-[0.2em]" 
-                              />
-                              <input 
-                                type="password" 
-                                placeholder="Yeni PIN (4 Hane)" 
-                                maxLength="4"
-                                value={pinChangeForm.newPin}
-                                onChange={(e) => setPinChangeForm({...pinChangeForm, newPin: e.target.value.replace(/\D/g, '')})}
-                                className="p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-center tracking-[0.2em]" 
-                              />
-                              <input 
-                                type="password" 
-                                placeholder="Yeni PIN Tekrar" 
-                                maxLength="4"
-                                value={pinChangeForm.confirmPin}
-                                onChange={(e) => setPinChangeForm({...pinChangeForm, confirmPin: e.target.value.replace(/\D/g, '')})}
-                                className="p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white text-center tracking-[0.2em]" 
-                              />
+                           <div className="text-[11px] text-slate-500 mb-3">
+                             <div className="mb-1 font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <i className="fa-solid fa-eye-slash text-rose-500"></i>
+                                Finansal Gizlilik Kilidi
+                             </div>
+                             Uygulama açıldığında finansal bilgiler gizli başlar. Göz ikonuna tıklandığında istenecek 4 haneli bağımsız PIN kodunu buradan değiştirebilirsiniz. (Varsayılan PIN: 0000)
                            </div>
-                           <div className="flex justify-end">
-                              <button 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  const currentPin = settings?.guvenlik?.finansSifresi || "0000";
-                                  if (pinChangeForm.oldPin !== currentPin) {
-                                     showNotification("Mevcut finans şifresi (PIN) hatalı!", "error");
-                                     return;
-                                  }
-                                  if (pinChangeForm.newPin.length !== 4) {
-                                     showNotification("Yeni PIN tam 4 haneli rakam olmalıdır!", "error");
-                                     return;
-                                  }
-                                  if (pinChangeForm.newPin !== pinChangeForm.confirmPin) {
-                                     showNotification("Yeni PIN'ler eşleşmiyor!", "error");
-                                     return;
-                                  }
-                                  // YENİ: Beklemeden doğrudan buluta (Firebase'e) yazma işlemi
-                                  const newSettings = { ...currentData };
-                                  newSettings.guvenlik = { ...newSettings.guvenlik, finansSifresi: pinChangeForm.newPin };
-                                  
-                                  // LocalStorage'a hemen işle (hata olsa bile cihazda kalsın)
-                                  localStorage.setItem(`klinikSettings_${currentUser}`, JSON.stringify(newSettings));
-                                  
-                                  // Firebase Veritabanına anında yaz ve kullanıcıya bildir
-                                  saveGlobalData({
-                                      ...globalData,
-                                      settingsDb: {
-                                          ...(globalData.settingsDb || {}),
-                                          [currentUser]: newSettings
-                                      }
-                                  }).then(() => {
-                                      setSettings(newSettings);
-                                      setPinChangeForm({ oldPin: "", newPin: "", confirmPin: "" });
-                                      showNotification("Finans şifresi ANINDA buluta kaydedildi.", "success");
-                                  });
-                                }} 
-                                className="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-[11px] font-bold hover:bg-indigo-700 transition shadow-sm"
-                              >
-                                Şifreyi Güncelle
-                              </button>
-                           </div>
+                           <button onClick={() => {
+                              setPinChangeForm({ oldPin: "", newPin: "", confirmPin: "" });
+                              setIsPinChangeModalOpen(true);
+                           }} className="w-full bg-rose-50 text-rose-600 border border-rose-200 py-2.5 rounded-xl text-[12px] font-bold hover:bg-rose-500 hover:text-white transition shadow-sm dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-600">
+                             <i className="fa-solid fa-eye-slash mr-1.5"></i> Finans Şifresini Yönet
+                           </button>
                         </div>
                      </div>
                   </div>
@@ -9189,91 +9479,6 @@ const renderSettings = () => {
                        <h3 className="font-black text-slate-800 dark:text-white text-base">Veri Yönetimi ve Yedekleme</h3>
                      </div>
 
-                     {/* YENİ: SAAS MİMARİSİNE GEÇİŞ MOTORU */}
-                     {currentUserProfile?.role === "clinic_owner" && (
-                       <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-                          <div>
-                            <h4 className="font-black text-indigo-700 dark:text-indigo-400 text-[13px] uppercase mb-1">
-                              <i className="fa-solid fa-server mr-1"></i> SaaS Mimarisine Geçiş (Migration)
-                            </h4>
-                            <p className="text-[11px] text-indigo-600/80 dark:text-indigo-300 font-medium max-w-md">
-                              Eski düzendeki tüm hastaları, randevuları ve ayarları akıllıca analiz edip, kliniklere özel yalıtılmış odalara <b>kopyalar.</b> (Eski verileriniz silinmez, güvende kalır).
-                            </p>
-                          </div>
-                          <button 
-                            onClick={async () => {
-                              const isConfirmed = window.confirm("Taşıma işlemini başlatmak istiyor musunuz? Sistem eski verilerinizi 'KlinikAnaVeritabani/clinics' altına klinik bazlı olarak kopyalayacaktır.");
-                              if (!isConfirmed) return;
-                              
-                              try {
-                                showNotification("Veriler analiz ediliyor ve temizleniyor...", "success");
-                                const newTree = {};
-                                
-                                const getCId = (uName) => resolveClinicId(uName) || "clinic_default";
-
-                                Object.entries(globalData.userProfiles || {}).forEach(([u, p]) => {
-                                   const cId = getCId(u);
-                                   if(!newTree[cId]) newTree[cId] = {};
-                                   if(!newTree[cId].userProfiles) newTree[cId].userProfiles = {};
-                                   newTree[cId].userProfiles[u] = p;
-
-                                   if(globalData.usersDb?.[u]) {
-                                      if(!newTree[cId].usersDb) newTree[cId].usersDb = {};
-                                      newTree[cId].usersDb[u] = globalData.usersDb[u];
-                                   }
-                                });
-
-                                Object.entries(globalData.doctorProfiles || {}).forEach(([d, p]) => {
-                                   const cId = getCId(d);
-                                   if(!newTree[cId]) newTree[cId] = {};
-                                   if(!newTree[cId].doctorProfiles) newTree[cId].doctorProfiles = {};
-                                   newTree[cId].doctorProfiles[d] = p;
-                                });
-
-                                Object.entries(globalData.patientsDb || {}).forEach(([pId, p]) => {
-                                   const cId = getCId(p.addedBy);
-                                   if(!newTree[cId]) newTree[cId] = {};
-                                   if(!newTree[cId].patientsDb) newTree[cId].patientsDb = {};
-                                   newTree[cId].patientsDb[pId] = p;
-                                });
-
-                                Object.entries(globalData.appointments || {}).forEach(([docId, apts]) => {
-                                   const cId = getCId(docId);
-                                   if(!newTree[cId]) newTree[cId] = {};
-                                   if(!newTree[cId].appointments) newTree[cId].appointments = {};
-                                   newTree[cId].appointments[docId] = apts;
-                                });
-
-                                const distributeOwnerData = (sourceKey) => {
-                                   Object.entries(globalData[sourceKey] || {}).forEach(([ownerId, data]) => {
-                                      const cId = getCId(ownerId);
-                                      if(!newTree[cId]) newTree[cId] = {};
-                                      if(!newTree[cId][sourceKey]) newTree[cId][sourceKey] = {};
-                                      newTree[cId][sourceKey][ownerId] = data; 
-                                   });
-                                };
-                                distributeOwnerData("settingsDb");
-                                distributeOwnerData("pricingDb");
-                                distributeOwnerData("customTreatments");
-
-                                // 🛡️ ZIRH: FİREBASE'İN ÇÖKMESİNİ ENGELLEYEN VERİ YIKAMA (Undefined Temizleyici)
-                                const cleanTree = JSON.parse(JSON.stringify(newTree));
-
-                                // 6. YENİ EVRENE (clinics) KOPYALA
-                                await set(ref(db, "KlinikAnaVeritabani/clinics"), cleanTree);
-                                alert("Tebrikler! Verileriniz %100 güvenli şekilde SaaS (Klinik İzolasyonlu) mimarisine kopyalandı. Firebase panelinden kontrol edebilirsiniz.");
-                                
-                              } catch(e) {
-                                console.error(e);
-                                alert("Hata detayı: " + e.message); // Hata varsa ekrana nedenini yazdırır
-                              }
-                            }}
-                            className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-[12px] font-black shadow-md transition-all"
-                          >
-                            <i className="fa-solid fa-bolt mr-1"></i> Verileri Taşı
-                          </button>
-                       </div>
-                     )}
                      <p className="text-[11px] text-slate-500 dark:text-slate-400">Bulut depolama durumunuzu kontrol edebilir ve dışa aktarım yapabilirsiniz.</p>
 
                      {/* Bulut Kota Göstergesi */}
@@ -9297,7 +9502,13 @@ const renderSettings = () => {
                          </div>
                          <button onClick={() => {
     // 1. Hastaları bul
-    const myPats = Object.values(globalData.patientsDb || {}).filter(p => (allDoctors.includes(p.addedBy)) && !p.isDeleted);
+    const myPatients = Object.values(globalData.patientsDb || {}).filter(p => {
+          if (p.isDeleted) return false;
+          if (currentUserProfile?.role === "assistant") {
+              return (currentUserProfile.assignedDoctors || []).includes(p.addedBy) && resolveClinicId(p.addedBy) === currentClinicId;
+          }
+          return resolveClinicId(p.addedBy) === currentClinicId;
+      });
     if(myPats.length === 0) return showNotification("Dışa aktarılacak hasta bulunamadı.", "error");
     
     // 2. Türkçe Excel Uyumlu CSV Oluştur
@@ -9317,48 +9528,65 @@ const renderSettings = () => {
                        </div>
                      </div>
 
-{/* 9️⃣ GERÇEK SİSTEM BAĞLANTISI: VERİ BÜTÜNLÜĞÜ (READ-ONLY KONTROL) */}
+{/* 9️⃣ GERÇEK SİSTEM BAĞLANTISI: VERİ BÜTÜNLÜĞÜ VE OTOMATİK ONARIM */}
                      <div className="mt-6 p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 shadow-sm">
                         <div className="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-700 pb-2">
                            <div>
                               <h4 className="font-bold text-[13px] text-slate-800 dark:text-white"><i className="fa-solid fa-stethoscope text-indigo-500 mr-1"></i> Veri Bütünlüğü ve Sistem Check-up</h4>
-                              <p className="text-[10px] text-slate-500 mt-0.5">Kayıp bağlantıları (silinmiş hekimlere ait randevular vb.) sadece okuma modunda (Read-Only) tarar ve raporlar.</p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">Kayıp bağlantıları (silinmiş hastalara ait askıda kalan randevular vb.) tarar ve tek tıkla onarır.</p>
                            </div>
                            <button onClick={() => {
                               setIsCheckingData(true);
                               setIntegrityReport(null);
                               
-                              // GERÇEK VERİ TARAMASI (1 Saniye Simülasyon Gecikmesi İle Daha Profesyonel Hissiyat)
                               setTimeout(() => {
-                                 let pCount = 0, aCount = 0, txCount = Object.keys(globalData.pricingDb?.[currentUser] || {}).length;
+                                 const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                                 let pCount = 0, aCount = 0, txCount = Object.keys(globalData.pricingDb?.[ownerId] || {}).length;
                                  let errors = [];
+                                 let fixableItems = { orphanedApts: [], invalidPats: [] };
                                  
-                                 // Hastaları Tara
-                                 const myPats = Object.values(globalData.patientsDb || {}).filter(p => allDoctors.includes(p.addedBy));
+                                 // HASTALARI TARA (Sadece bu kliniğe ait olanları alıyoruz)
+                                 const myPats = Object.values(globalData.patientsDb || {}).filter(p => resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted);
                                  pCount = myPats.length;
+                                 
                                  myPats.forEach(p => {
-                                    if(!p.name) errors.push(`ID: ${p.id} - İsimsiz hasta kaydı tespit edildi.`);
+                                    if(!p.name || p.name.trim() === "") {
+                                        errors.push(`ID: ${p.id} - İsimsiz bozuk hasta kaydı tespit edildi.`);
+                                        fixableItems.invalidPats.push(p.id);
+                                    }
                                  });
 
-                                 // Randevuları Tara
+                                 // RANDEVULARI TARA (Bu kliniğe ait doktorların randevuları)
                                  if(globalData.appointments) {
                                     Object.entries(globalData.appointments).forEach(([docId, docApts]) => {
-                                       if(allDoctors.includes(docId) || docId === currentUser) {
-                                          Object.entries(docApts).forEach(([aptKey, apt]) => {
-                                             aCount++;
-                                             if(!apt.patientName) errors.push(`Randevu (${aptKey}) - Hasta adı eksik.`);
-                                             const pMatch = myPats.find(p => p.name === apt.patientName);
-                                             if(!pMatch) errors.push(`Randevu (${aptKey}) - "${apt.patientName}" isimli hastanın ana dosyası bulunamadı.`);
-                                          });
+                                       if(resolveClinicId(docId) === currentClinicId) {
+                                          if (docApts && typeof docApts === 'object') {
+                                              Object.entries(docApts).forEach(([aptKey, apt]) => {
+                                                 if (!apt) return; // Boş/silinmiş kaydı atla
+                                                 aCount++;
+                                                 
+                                                 if(!apt.patientName) {
+                                                     errors.push(`Randevu (${aptKey}) - Hasta adı eksik (Askıda kalmış).`);
+                                                     fixableItems.orphanedApts.push({ docId, aptKey });
+                                                 } else {
+                                                     // Hem ID ile hem isimle eşleşme kontrolü yap
+                                                     const pMatch = myPats.find(p => p.id === apt.patientId || p.name === apt.patientName);
+                                                     if(!pMatch) {
+                                                         errors.push(`Randevu (${aptKey}) - "${apt.patientName}" hastasının dosyası silinmiş. Bu randevu askıda.`);
+                                                         fixableItems.orphanedApts.push({ docId, aptKey });
+                                                     }
+                                                 }
+                                              });
+                                          }
                                        }
                                     });
                                  }
 
-                                 setIntegrityReport({ pCount, aCount, txCount, errors });
+                                 setIntegrityReport({ pCount, aCount, txCount, errors, fixableItems });
                                  setIsCheckingData(false);
                               }, 800);
 
-                           }} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-indigo-200 transition dark:bg-indigo-900/40 dark:text-indigo-400 shrink-0">
+                           }} className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-indigo-200 transition dark:bg-indigo-900/40 dark:text-indigo-400 shrink-0 shadow-sm">
                               {isCheckingData ? <><i className="fa-solid fa-spinner fa-spin mr-1"></i> Taranıyor</> : <><i className="fa-solid fa-play mr-1"></i> Check-up Başlat</>}
                            </button>
                         </div>
@@ -9366,21 +9594,63 @@ const renderSettings = () => {
                         {integrityReport && (
                            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 animate-pop">
                               <div className="grid grid-cols-3 gap-2 mb-3">
-                                 <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg dark:bg-emerald-900/20 dark:text-emerald-400 font-bold text-[11px]"><i className="fa-solid fa-check mr-1"></i> {integrityReport.pCount} Hasta</div>
-                                 <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg dark:bg-emerald-900/20 dark:text-emerald-400 font-bold text-[11px]"><i className="fa-solid fa-check mr-1"></i> {integrityReport.aCount} Randevu</div>
-                                 <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg dark:bg-emerald-900/20 dark:text-emerald-400 font-bold text-[11px]"><i className="fa-solid fa-check mr-1"></i> {integrityReport.txCount} Tedavi</div>
+                                 <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg dark:bg-emerald-900/20 dark:text-emerald-400 font-bold text-[11px] shadow-sm"><i className="fa-solid fa-check mr-1"></i> {integrityReport.pCount} Hasta</div>
+                                 <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg dark:bg-emerald-900/20 dark:text-emerald-400 font-bold text-[11px] shadow-sm"><i className="fa-solid fa-check mr-1"></i> {integrityReport.aCount} Randevu</div>
+                                 <div className="text-center p-2 bg-emerald-50 text-emerald-700 rounded-lg dark:bg-emerald-900/20 dark:text-emerald-400 font-bold text-[11px] shadow-sm"><i className="fa-solid fa-check mr-1"></i> {integrityReport.txCount} Tedavi</div>
                               </div>
                               {integrityReport.errors.length > 0 ? (
-                                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2.5 max-h-32 overflow-y-auto custom-scrollbar">
-                                    <h5 className="text-[10px] font-black text-amber-700 dark:text-amber-500 mb-1.5 uppercase">⚠️ Bulunan Uyumsuzluklar ({integrityReport.errors.length})</h5>
-                                    <ul className="list-disc pl-4 space-y-1">
+                                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex flex-col gap-2">
+                                    <div className="flex justify-between items-center border-b border-amber-200 dark:border-amber-800/50 pb-2">
+                                        <h5 className="text-[11px] font-black text-amber-700 dark:text-amber-500 uppercase">⚠️ Bulunan Uyumsuzluklar ({integrityReport.errors.length})</h5>
+                                        <button 
+                                            onClick={() => {
+                                                showConfirm("Bulunan hatalı/askıda kalmış randevular ve geçersiz kayıtlar kalıcı olarak temizlenecektir. Onaylıyor musunuz?", () => {
+                                                    const { orphanedApts, invalidPats } = integrityReport.fixableItems;
+                                                    let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
+                                                    let updatedPatients = { ...(globalData.patientsDb || {}) };
+                                                    let isChanged = false;
+
+                                                    orphanedApts.forEach(({ docId, aptKey }) => {
+                                                        if (updatedAppointments[docId] && updatedAppointments[docId][aptKey]) {
+                                                            delete updatedAppointments[docId][aptKey];
+                                                            isChanged = true;
+                                                        }
+                                                    });
+
+                                                    invalidPats.forEach(pId => {
+                                                        if (updatedPatients[pId]) {
+                                                            delete updatedPatients[pId];
+                                                            isChanged = true;
+                                                        }
+                                                    });
+
+                                                    if (isChanged) {
+                                                        saveGlobalData({
+                                                            ...globalData,
+                                                            appointments: updatedAppointments,
+                                                            patientsDb: updatedPatients
+                                                        }).then(() => {
+                                                            showNotification("Veritabanı başarıyla temizlendi ve onarıldı.", "success");
+                                                            setIntegrityReport(null);
+                                                        });
+                                                    } else {
+                                                        showNotification("Temizlenecek veri bulunamadı.", "error");
+                                                    }
+                                                });
+                                            }}
+                                            className="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition shadow-md"
+                                        >
+                                            <i className="fa-solid fa-wrench mr-1"></i> Sorunları Otomatik Onar
+                                        </button>
+                                    </div>
+                                    <ul className="list-disc pl-4 space-y-1 max-h-32 overflow-y-auto custom-scrollbar pt-1">
                                        {integrityReport.errors.map((err, i) => (
-                                          <li key={i} className="text-[11px] text-amber-800 dark:text-amber-400 font-medium">{err}</li>
+                                          <li key={i} className="text-[11px] text-amber-800 dark:text-amber-400 font-semibold">{err}</li>
                                        ))}
                                     </ul>
                                  </div>
                               ) : (
-                                 <div className="text-center text-[12px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-800/50">
+                                 <div className="text-center text-[12px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-2.5 rounded-lg border border-emerald-100 dark:border-emerald-800/50 shadow-sm">
                                     Tebrikler! Veritabanınızda hiçbir mantık veya bağlantı hatası bulunmadı.
                                  </div>
                               )}
@@ -9744,8 +10014,8 @@ const renderSettings = () => {
           }
 
           if (globalData.patientsDb) {
-            Object.values(globalData.patientsDb)
-              .filter(p => allDoctors.includes(p.addedBy))
+            Object.values(globalData.patientsDb || {})
+              .filter(p => resolveClinicId(p.addedBy) === currentClinicId)
               .forEach((p) => {
                 if (p.plannedTreatments) {
                   p.plannedTreatments.forEach((tx) => {
@@ -10561,10 +10831,9 @@ const renderSettings = () => {
             )}
             {/* YENİ: OFFLINE MOD UYARI BARI */}
             {isOffline && (
-              <div className="absolute top-0 left-0 w-full bg-rose-500 text-white text-[11px] font-black uppercase tracking-widest text-center py-1 z-[200] shadow-md flex justify-center items-center gap-1 animate-pulse">
+              <div className="fixed top-0 left-0 w-full bg-rose-500 text-white text-[11px] font-black uppercase tracking-widest text-center py-1 z-[99999] shadow-md flex justify-center items-center gap-1 animate-pulse">
                 <i className="fa-solid fa-wifi-slash"></i>
-                İnternet Bağlantısı Koptu - Çevrimdışı (Offline) Modda
-                Çalışıyorsunuz
+                İnternet Bağlantısı Koptu - Çevrimdışı (Offline) Modda Çalışıyorsunuz
               </div>
             )}
 
@@ -10612,10 +10881,10 @@ const renderSettings = () => {
 
             {notification && (
               <div
-                className={`fixed top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] font-black text-[13px] text-white z-[100] animate-[modalPop_0.3s_ease-out_forwards] backdrop-blur-xl flex items-center gap-2 border ${
+                className={`fixed top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full shadow-[0_15px_50px_-10px_rgba(0,0,0,0.5)] font-black text-[13px] text-white z-[99999] animate-[modalPop_0.3s_ease-out_forwards] backdrop-blur-xl flex items-center gap-2 border ${
                   notification.type === "error"
-                    ? "bg-rose-500/90 border-rose-400"
-                    : "bg-slate-900/90 dark:bg-indigo-600/90 border-slate-700 dark:border-indigo-400"
+                    ? "bg-rose-500/95 border-rose-400"
+                    : "bg-slate-900/95 dark:bg-indigo-600/95 border-slate-700 dark:border-indigo-400"
                 }`}
               >
                 <i
@@ -10630,7 +10899,7 @@ const renderSettings = () => {
             )}
 
             {confirmModal.isOpen && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[300] p-2">
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[99998] p-2">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop border border-slate-200 dark:border-slate-700">
                   <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
                     <h3 className="font-black text-[13px] uppercase tracking-wider">
@@ -11184,22 +11453,18 @@ const renderSettings = () => {
               <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[350] p-3 animate-fadeIn" onClick={() => setIsPasswordModalOpen(false)}>
                 <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden animate-pop border border-slate-100 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
                   
-                  {/* Başlık Alanı */}
                   <div className="px-4 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center relative overflow-hidden">
                     <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
                     <div className="flex items-center gap-2.5 relative z-10">
                       <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm shadow-inner">
-                        <i className="fa-solid fa-key"></i>
+                        <i className="fa-solid fa-shield-halved"></i>
                       </div>
                       <div>
-                        <h3 className="font-black text-sm tracking-wide">Hesap Şifresini Değiştir</h3>
-                        <p className="text-[10px] text-indigo-100 font-medium">Güvenliğiniz için güçlü bir şifre seçin</p>
+                        <h3 className="font-black text-sm tracking-wide">Hesap Güvenliği</h3>
+                        <p className="text-[10px] text-indigo-100 font-medium">E-posta ve şifrenizi yönetin</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setIsPasswordModalOpen(false)}
-                      className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition backdrop-blur-md relative z-10"
-                    >
+                    <button onClick={() => setIsPasswordModalOpen(false)} className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition backdrop-blur-md relative z-10">
                       <i className="fa-solid fa-xmark text-sm"></i>
                     </button>
                   </div>
@@ -11207,47 +11472,66 @@ const renderSettings = () => {
                   <form onSubmit={async (e) => {
                     e.preventDefault();
                     
-                    if (passwordForm.newPass !== passwordForm.confirmPass) {
-                      showNotification("Yeni şifreler eşleşmiyor!", "error"); return;
-                    }
-                    if (passwordForm.newPass.length < 6) {
-                      showNotification("Şifre en az 6 karakter olmalıdır!", "error"); return;
-                    }
-                    if (!passwordForm.email || !passwordForm.email.includes("@")) {
-                      showNotification("Güvenliğiniz için gerçek ve geçerli bir E-posta adresi girmek zorunludur!", "error"); return;
-                    }
-
                     const profile = globalData.userProfiles?.[currentUser] || {};
                     const currentLoginEmail = profile.realEmail || `${currentUser}@klinik.com`;
 
+                    if (!passwordForm.oldPass) {
+                        showNotification("Güvenlik onayı için mevcut şifrenizi girmelisiniz!", "error"); return;
+                    }
+                    if (!passwordForm.email || !passwordForm.email.includes("@")) {
+                        showNotification("Lütfen geçerli bir e-posta adresi girin!", "error"); return;
+                    }
+                    if (passwordForm.newPass && passwordForm.newPass.length < 6) {
+                        showNotification("Yeni şifre en az 6 karakter olmalıdır!", "error"); return;
+                    }
+                    if (passwordForm.newPass && passwordForm.newPass !== passwordForm.confirmPass) {
+                        showNotification("Yeni şifreler eşleşmiyor!", "error"); return;
+                    }
+
                     try {
-                      // 1. Önce eski şifreyle güvenliği doğruluyoruz
+                      // 1. İşlem yapabilmek için Firebase'de eski şifreyle güvenliği doğruluyoruz
                       await signInWithEmailAndPassword(auth, currentLoginEmail, passwordForm.oldPass);
+
+                      let isUpdated = false;
 
                       // 2. Yeni e-postayı Firebase'e işliyoruz (Eğer değişmişse veya ilk defa ekleniyorsa)
                       if (passwordForm.email !== currentLoginEmail) {
                           await updateEmail(auth.currentUser, passwordForm.email);
+                          
+                          const updatedProfiles = { ...globalData.userProfiles };
+                          updatedProfiles[currentUser] = { ...profile, realEmail: passwordForm.email };
+                          await saveGlobalData({ ...globalData, userProfiles: updatedProfiles });
+                          isUpdated = true;
                       }
 
-                      // 3. Yeni şifreyi Firebase'e işliyoruz
-                      await updatePassword(auth.currentUser, passwordForm.newPass);
+                      // 3. Kullanıcı şifre alanını doldurduysa şifreyi de güncelliyoruz
+                      if (passwordForm.newPass) {
+                          await updatePassword(auth.currentUser, passwordForm.newPass);
+                          isUpdated = true;
+                      }
 
-                      // 4. Veritabanına kullanıcının gerçek e-postasını kaydediyoruz ki bir daha oradan girebilsin
-                      const updatedProfiles = { ...globalData.userProfiles };
-                      updatedProfiles[currentUser] = { ...profile, realEmail: passwordForm.email };
-                      await saveGlobalData({ ...globalData, userProfiles: updatedProfiles });
+                      if (isUpdated) {
+                          setIsPasswordModalOpen(false);
+                          showNotification("Hesap güvenlik bilgileriniz başarıyla güncellendi.", "success");
+                          setPasswordForm({ oldPass: "", newPass: "", confirmPass: "", email: "" });
+                      } else {
+                          showNotification("Herhangi bir değişiklik yapmadınız.", "error");
+                      }
 
-                      setIsPasswordModalOpen(false);
-                      showNotification("Hesap güvenliğiniz (E-Posta ve Şifre) başarıyla güncellendi.", "success");
                     } catch (error) {
                       console.error(error);
-                      showNotification("Mevcut şifreniz hatalı veya işlem başarısız!", "error");
+                      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                          showNotification("Mevcut şifrenizi yanlış girdiniz!", "error");
+                      } else if (error.code === 'auth/email-already-in-use') {
+                          showNotification("Bu e-posta adresi başka bir hesapta kullanılıyor!", "error");
+                      } else {
+                          showNotification("İşlem başarısız: Lütfen tekrar deneyin.", "error");
+                      }
                     }
                   }} className="p-4 space-y-3.5">
-                    
-                    {/* ZORUNLU E-POSTA ALANI */}
+
                     <div className="space-y-1">
-                      <label className="block text-[11px] font-black text-rose-500 uppercase tracking-wider">Kurtarma E-Posta Adresi (Zorunlu)</label>
+                      <label className="block text-[11px] font-black text-indigo-500 uppercase tracking-wider">Kayıtlı E-Posta Adresi</label>
                       <div className="relative group">
                         <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                           <i className="fa-solid fa-envelope text-xs"></i>
@@ -11257,15 +11541,14 @@ const renderSettings = () => {
                           type="email"
                           value={passwordForm.email}
                           onChange={(e) => setPasswordForm({ ...passwordForm, email: e.target.value })}
-                          className="w-full pl-9 pr-3 py-2.5 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 dark:text-white transition-all shadow-inner"
-                          placeholder="Şifrenizi unutursanız bu maile link gelecek"
+                          className="w-full pl-9 pr-3 py-2.5 bg-indigo-50/50 dark:bg-slate-900 border border-indigo-100 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:text-white transition-all"
+                          placeholder="Şifre sıfırlama linki buraya gönderilecek"
                         />
                       </div>
                     </div>
 
-                    {/* MEVCUT ŞİFRE */}
                     <div className="space-y-1">
-                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Mevcut Şifre</label>
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Mevcut Şifreniz (Güvenlik İçin Zorunlu)</label>
                       <div className="relative group">
                         <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                           <i className="fa-solid fa-lock text-xs"></i>
@@ -11278,39 +11561,195 @@ const renderSettings = () => {
                           className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
                           placeholder="Mevcut şifrenizi girin"
                         />
+                        <button type="button" onClick={() => setShowPassState({ ...showPassState, old: !showPassState.old })} className="absolute right-3.5 top-2.5 text-slate-400 hover:text-indigo-500 transition-colors">
+                          <i className={`fa-solid ${showPassState.old ? "fa-eye-slash" : "fa-eye"}`}></i>
+                        </button>
                       </div>
                     </div>
 
-                    {/* YENİ ŞİFRE */}
-                    <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-3 mt-1">
+                      <p className="text-[10px] text-slate-500 font-bold mb-2"><i className="fa-solid fa-circle-info text-indigo-400"></i> Şifrenizi değiştirmek istemiyorsanız aşağıdaki alanları boş bırakın.</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre</label>
+                          <div className="relative">
+                            <input
+                              type={showPassState.new ? "text" : "password"}
+                              value={passwordForm.newPass}
+                              onChange={(e) => setPasswordForm({ ...passwordForm, newPass: e.target.value })}
+                              className="w-full px-3 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                              placeholder="En az 6 karakter"
+                            />
+                            <button type="button" onClick={() => setShowPassState({ ...showPassState, new: !showPassState.new })} className="absolute right-3 top-2 text-slate-400 hover:text-indigo-500 transition-colors">
+                              <i className={`fa-solid ${showPassState.new ? "fa-eye-slash" : "fa-eye"}`}></i>
+                            </button>
+                          </div>
+                          {passwordForm.newPass.length > 0 && (() => {
+                             const p = passwordForm.newPass;
+                             let score = 0;
+                             if (p.length >= 6) score += 1;
+                             if (p.length >= 8) score += 1;
+                             if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score += 1;
+                             if (/[0-9]/.test(p)) score += 1;
+                             if (/[^A-Za-z0-9]/.test(p)) score += 1;
+                             
+                             let text = "Zayıf", color = "bg-rose-500", textColor = "text-rose-500";
+                             if (score === 3 || score === 4) { text = "Orta"; color = "bg-amber-500"; textColor = "text-amber-500"; }
+                             if (score >= 5) { text = "Güçlü"; color = "bg-emerald-500"; textColor = "text-emerald-500"; }
+                             
+                             return (
+                                <div className="pt-1.5 animate-fadeIn">
+                                   <div className="flex gap-1 mb-1 h-1 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                      <div className={`h-full ${score >= 1 ? color : 'bg-transparent'} transition-all w-1/3`}></div>
+                                      <div className={`h-full ${score >= 3 ? color : 'bg-transparent'} transition-all w-1/3`}></div>
+                                      <div className={`h-full ${score >= 5 ? color : 'bg-transparent'} transition-all w-1/3`}></div>
+                                   </div>
+                                   <div className={`text-[9px] font-black text-right uppercase tracking-wider ${textColor}`}>{text} ŞİFRE</div>
+                                </div>
+                             );
+                          })()}
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre Tekrar</label>
+                          <div className="relative">
+                            <input
+                              type={showPassState.confirm ? "text" : "password"}
+                              value={passwordForm.confirmPass}
+                              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPass: e.target.value })}
+                              className="w-full px-3 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
+                              placeholder="Şifreyi tekrarla"
+                            />
+                            <button type="button" onClick={() => setShowPassState({ ...showPassState, confirm: !showPassState.confirm })} className="absolute right-3 top-2 text-slate-400 hover:text-indigo-500 transition-colors">
+                              <i className={`fa-solid ${showPassState.confirm ? "fa-eye-slash" : "fa-eye"}`}></i>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 flex gap-2">
+                      <button type="button" onClick={() => setIsPasswordModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Vazgeç</button>
+                      <button type="submit" className="flex-[2] py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-lg transition-all">Bilgileri Güncelle <i className="fa-solid fa-check ml-1"></i></button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            {isPinChangeModalOpen && (
+              <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[350] p-3 animate-fadeIn" onClick={() => setIsPinChangeModalOpen(false)}>
+                <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-pop border border-slate-100 dark:border-slate-700 flex flex-col" onClick={e => e.stopPropagation()}>
+                  
+                  <div className="px-4 py-3.5 bg-gradient-to-r from-rose-500 to-orange-500 text-white flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                    <div className="flex items-center gap-2.5 relative z-10">
+                      <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-sm shadow-inner">
+                        <i className="fa-solid fa-eye-slash"></i>
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm tracking-wide">Finans Şifresini Değiştir</h3>
+                        <p className="text-[10px] text-rose-100 font-medium">4 Haneli PIN Kodunu Güncelle</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsPinChangeModalOpen(false)} className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition backdrop-blur-md relative z-10">
+                      <i className="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                  </div>
+
+                  <form onSubmit={(e) => {
+                     e.preventDefault();
+                     
+                     // 1. Ayarları doğrudan global 'settings' üzerinden okuyoruz (Çünkü modal ana dizinde)
+                     const currentPin = settings?.guvenlik?.finansSifresi || "0000";
+                     
+                     if (pinChangeForm.oldPin !== currentPin) {
+                         showNotification("Mevcut finans şifresi (PIN) hatalı!", "error");
+                         return;
+                     }
+                     if (pinChangeForm.newPin.length !== 4) {
+                         showNotification("Yeni PIN tam 4 haneli rakam olmalıdır!", "error");
+                         return;
+                     }
+                     if (pinChangeForm.newPin !== pinChangeForm.confirmPin) {
+                         showNotification("Yeni PIN'ler eşleşmiyor!", "error");
+                         return;
+                     }
+                     
+                     // 2. Patronun (Kliniğin Asıl Sahibinin) ID'sini buluyoruz ki ayarlar doğru kliniğe kaydolsun
+                     const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                     
+                     // 3. Mevcut ayarların güvenli bir kopyasını oluşturup şifreyi değiştiriyoruz
+                     const newSettings = JSON.parse(JSON.stringify(settings)); 
+                     if (!newSettings.guvenlik) newSettings.guvenlik = {};
+                     newSettings.guvenlik.finansSifresi = pinChangeForm.newPin;
+                     
+                     // 4. LocalStorage'a kaydet (hızlı açılış için)
+                     localStorage.setItem(`klinikSettings_${ownerId}`, JSON.stringify(newSettings));
+                     
+                     // 5. Firebase Bulut'a kaydet ve arayüzü güncelle
+                     saveGlobalData({
+                         ...globalData,
+                         settingsDb: {
+                             ...(globalData.settingsDb || {}),
+                             [ownerId]: newSettings
+                         }
+                     }).then(() => {
+                         setSettings(newSettings);
+                         setPinChangeForm({ oldPin: "", newPin: "", confirmPin: "" });
+                         setIsPinChangeModalOpen(false);
+                         showNotification("Finans şifresi başarıyla güncellendi.", "success");
+                     }).catch(err => {
+                         showNotification("Şifre kaydedilirken bir hata oluştu.", "error");
+                         console.error(err);
+                     });
+
+                  }} className="p-4 space-y-3.5">
+                    
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Mevcut PIN</label>
+                      <input 
+                        required
+                        autoFocus
+                        type="password" 
+                        placeholder="••••" 
+                        maxLength="4"
+                        value={pinChangeForm.oldPin}
+                        onChange={(e) => setPinChangeForm({...pinChangeForm, oldPin: e.target.value.replace(/\D/g, '')})}
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-lg font-bold outline-none focus:border-rose-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white text-center tracking-[0.5em] shadow-inner" 
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
                        <div className="space-y-1">
-                         <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni Şifre</label>
-                         <input
+                         <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Yeni PIN</label>
+                         <input 
                            required
-                           type="password"
-                           value={passwordForm.newPass}
-                           onChange={(e) => setPasswordForm({ ...passwordForm, newPass: e.target.value })}
-                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
-                           placeholder="En az 6 karakter"
+                           type="password" 
+                           placeholder="••••" 
+                           maxLength="4"
+                           value={pinChangeForm.newPin}
+                           onChange={(e) => setPinChangeForm({...pinChangeForm, newPin: e.target.value.replace(/\D/g, '')})}
+                           className="w-full p-2.5 border border-slate-200 rounded-xl text-lg font-bold outline-none focus:border-rose-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white text-center tracking-[0.5em] shadow-inner" 
                          />
                        </div>
                        <div className="space-y-1">
                          <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider">Tekrar</label>
-                         <input
+                         <input 
                            required
-                           type="password"
-                           value={passwordForm.confirmPass}
-                           onChange={(e) => setPasswordForm({ ...passwordForm, confirmPass: e.target.value })}
-                           className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 dark:text-white"
-                           placeholder="Şifreyi tekrarla"
+                           type="password" 
+                           placeholder="••••" 
+                           maxLength="4"
+                           value={pinChangeForm.confirmPin}
+                           onChange={(e) => setPinChangeForm({...pinChangeForm, confirmPin: e.target.value.replace(/\D/g, '')})}
+                           className="w-full p-2.5 border border-slate-200 rounded-xl text-lg font-bold outline-none focus:border-rose-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white text-center tracking-[0.5em] shadow-inner" 
                          />
                        </div>
                     </div>
 
                     <div className="pt-3 flex gap-2">
-                      <button type="button" onClick={() => setIsPasswordModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition">Vazgeç</button>
-                      <button type="submit" className="flex-[2] py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs shadow-lg transition-all">Şifre ve Maili Kaydet <i className="fa-solid fa-check ml-1"></i></button>
+                      <button type="button" onClick={() => setIsPinChangeModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-xs transition dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Vazgeç</button>
+                      <button type="submit" className="flex-[2] py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black text-xs shadow-lg transition-all">PIN'i Güncelle <i className="fa-solid fa-check ml-1"></i></button>
                     </div>
+
                   </form>
                 </div>
               </div>
@@ -11651,7 +12090,7 @@ const renderSettings = () => {
                                 const ownerId = currentUserProfile?.role === "assistant" ? currentUserProfile.createdBy : currentUser;
                                 setPatientSuggestions(
                                   Object.values(globalData.patientsDb || {}).filter(
-                                    (p) => (allDoctors.includes(p.addedBy) || p.addedBy === ownerId) && !p.isDeleted
+                                    (p) => resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted
                                   )
                                 );
                               }
@@ -13913,18 +14352,21 @@ const renderSettings = () => {
                                 e.preventDefault();
                                 
                                 let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
-                                let updatedPlanned = [...(patientForm.plannedTreatments || [])];
+                                let updatedPlanned = JSON.parse(JSON.stringify(patientForm.plannedTreatments || []));
                                 let isAptUpdated = false;
                                 const docId = selectedHistoryRecord.doctorId || currentUser;
 
                                 const completedIds = selectedHistoryRecord.completedPlanIds || [];
                                 
                                 updatedPlanned = updatedPlanned.map((tx) => {
-                                    if (completedIds.includes(tx.id) && !tx.isCompleted) {
-                                        return { ...tx, isCompleted: true, completedAt: Date.now(), completedBy: currentUser };
-                                    }
-                                    if (!completedIds.includes(tx.id) && tx.isCompleted) {
-                                        return { ...tx, isCompleted: false, completedAt: null, completedBy: null };
+                                    // SADECE bu modalda seçilenleri tamamlandı yap, 
+                                    // seçilmeyen ama daha önce bu geçmiş kaydında tamamlananları geri al! Diğer geçmiş kayıtlarını elleme!
+                                    if (completedIds.includes(tx.id)) {
+                                        if (!tx.isCompleted) {
+                                            return { ...tx, isCompleted: true, completedAt: Date.now(), completedBy: docId, historyId: selectedHistoryRecord.id };
+                                        }
+                                    } else if (tx.historyId === selectedHistoryRecord.id) {
+                                        return { ...tx, isCompleted: false, completedAt: null, completedBy: null, historyId: null };
                                     }
                                     return tx;
                                 });
@@ -13978,36 +14420,46 @@ const renderSettings = () => {
                               
                               {/* Düzenlenebilir Manuel Klinik Bilgiler */}
                               
-                              {/* YENİ: Bekleyen Planlı İşlemleri Listele ve Tamamla (Düzenleme Ekranı) */}
-                              {(patientForm.plannedTreatments || []).filter(t => !t.isCompleted).length > 0 && (
-                                <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-2 rounded-xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm mb-2">
-                                  <label className="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-1.5 flex items-center gap-1">
-                                    <i className="fa-solid fa-list-check"></i> Planlanan İşlemlerden Tamamla
-                                  </label>
-                                  <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-                                    {(patientForm.plannedTreatments || []).filter(t => !t.isCompleted).map((tx, idx) => (
-                                      <label key={idx} className="flex items-center gap-2 text-[11px] font-bold text-slate-700 dark:text-slate-300 cursor-pointer bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 transition-colors">
-                                        <input type="checkbox" onChange={(e) => {
-                                           let currentSelected = selectedHistoryRecord.completedPlanIds || [];
-                                           if (e.target.checked) currentSelected.push(tx.id);
-                                           else currentSelected = currentSelected.filter(id => id !== tx.id);
-                                           
-                                           const txText = `${tx.treatment} (Diş: ${tx.tooth})`;
-                                           let newTreatmentText = selectedHistoryRecord.treatment || "";
-                                           if (e.target.checked) {
-                                              newTreatmentText = newTreatmentText ? newTreatmentText + ", " + txText : txText;
-                                           } else {
-                                              newTreatmentText = newTreatmentText.replace(", " + txText, "").replace(txText + ", ", "").replace(txText, "");
-                                           }
-                                           setSelectedHistoryRecord({...selectedHistoryRecord, completedPlanIds: currentSelected, treatment: newTreatmentText});
-                                        }} className="accent-indigo-600 w-3.5 h-3.5 cursor-pointer" />
-                                        <span className="flex-1 truncate">{tx.treatment}</span>
-                                        <span className="text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded">{tx.tooth}</span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
+                              {/* AKILLI CHECKBOX LİSTESİ: Sadece Tamamlanmamışlar ve BU KAYITTA tamamlanmışlar görünür */}
+                              {(() => {
+                                  const availableTxs = (patientForm.plannedTreatments || []).filter(t => 
+                                      !t.isCompleted || t.historyId === selectedHistoryRecord.id || (selectedHistoryRecord.completedPlanIds || []).includes(t.id)
+                                  );
+                                  if (availableTxs.length === 0) return null;
+                                  return (
+                                      <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-2 rounded-xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm mb-2">
+                                          <label className="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-1.5 flex items-center gap-1">
+                                              <i className="fa-solid fa-list-check"></i> Planlanan İşlemlerden Tamamla
+                                          </label>
+                                          <div className="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+                                              {availableTxs.map((tx, idx) => {
+                                                  const isChecked = (selectedHistoryRecord.completedPlanIds || []).includes(tx.id);
+                                                  return (
+                                                      <label key={idx} className="flex items-center gap-2 text-[11px] font-bold text-slate-700 dark:text-slate-300 cursor-pointer bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 transition-colors">
+                                                          <input type="checkbox" checked={isChecked} onChange={(e) => {
+                                                              let currentSelected = [...(selectedHistoryRecord.completedPlanIds || [])];
+                                                              if (e.target.checked) currentSelected.push(tx.id);
+                                                              else currentSelected = currentSelected.filter(id => id !== tx.id);
+                                                              
+                                                              const txText = `${tx.treatment} (Diş: ${tx.tooth})`;
+                                                              let newTreatmentText = selectedHistoryRecord.treatment || "";
+                                                              if (e.target.checked) {
+                                                                  newTreatmentText = newTreatmentText ? newTreatmentText + ", " + txText : txText;
+                                                              } else {
+                                                                  // Akıllı metin temizleyici (Fazla virgülleri engeller)
+                                                                  newTreatmentText = newTreatmentText.replace(", " + txText, "").replace(txText + ", ", "").replace(txText, "").replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',');
+                                                              }
+                                                              setSelectedHistoryRecord({...selectedHistoryRecord, completedPlanIds: currentSelected, treatment: newTreatmentText});
+                                                          }} className="accent-indigo-600 w-3.5 h-3.5 cursor-pointer" />
+                                                          <span className="flex-1 truncate">{tx.treatment}</span>
+                                                          <span className="text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded">{tx.tooth}</span>
+                                                      </label>
+                                                  );
+                                              })}
+                                          </div>
+                                      </div>
+                                  );
+                              })()}
 
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                   <div>
