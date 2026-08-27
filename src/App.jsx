@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase, ref, set, update, onValue, push, child, get } from 'firebase/database';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword, onAuthStateChanged } from 'firebase/auth';
 const MONTHS = [
         "Ocak",
 
@@ -1426,28 +1426,89 @@ const useFirebase = () => {
 
           setTimeout(() => setNotification(null), 3000);
         };
+        // ---------------------------------------------------------
 
         const [deferredPrompt, setDeferredPrompt] = useState(null);
 
         const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
 
         const [currentUser, setCurrentUser] = useState(null);
+        const [isAuthChecking, setIsAuthChecking] = useState(true); // YENİ: Anlık parlama sorunu için
+        const [isLoggingOut, setIsLoggingOut] = useState(false); // YENİ: Çıkış yapılıyor animasyonu için
 
-        // Profesyonel Kalıcı Oturum Kontrolü
-useEffect(() => {
-  const checkSession = () => {
-    const savedUser = sessionStorage.getItem("klinikAktifKullanici");
-    const sessionToken = sessionStorage.getItem("klinikOturumTokeni");
+        // YENİ V2: GERÇEK FİREBASE AUTH OTURUM KONTROLÜ (Tam Sıfırlama ve Güvenlik Eklendi)
+        useEffect(() => {
+          if (!auth || !db) return;
 
-    if (savedUser && sessionToken) {
-      setCurrentUser(savedUser);
-    } else {
-      setCurrentUser(null);
-      sessionStorage.removeItem("klinikAktifKullanici");
-    }
-  };
-  checkSession();
-}, []);
+          const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+              try {
+                 let foundUsername = null;
+
+                 const checkUserInDB = async () => {
+                     const snapNew = await get(child(ref(db), 'KlinikAnaVeritabani/users'));
+                     if (snapNew.exists()) {
+                        const allUsers = snapNew.val();
+                        const uMatch = Object.values(allUsers).find(u => u.email === user.email);
+                        if (uMatch) return uMatch.username;
+                     }
+                     if (user.email && user.email.includes("@klinik.com")) {
+                        return user.email.split("@")[0];
+                     }
+                     return null;
+                 };
+
+                 foundUsername = await checkUserInDB();
+
+                 if (!foundUsername) {
+                     await new Promise(resolve => setTimeout(resolve, 2000));
+                     foundUsername = await checkUserInDB();
+                 }
+
+                 if (foundUsername) {
+                    const userCheck = await get(child(ref(db), `KlinikAnaVeritabani/users/${foundUsername}`));
+                    if (userCheck.exists() && userCheck.val().active === false) {
+                        setAuthError("Hesabınız yöneticiniz tarafından askıya alınmıştır.");
+                        await signOut(auth);
+                        setCurrentUser(null);
+                        setAuthForm({ username: "", password: "" }); // Şifreyi sil
+                        setIsAuthChecking(false);
+                        return;
+                    }
+                    
+                    setCurrentUser(foundUsername);
+                    sessionStorage.setItem("klinikAktifKullanici", foundUsername);
+                    sessionStorage.setItem("klinikOturumTokeni", "active");
+                    
+                    // İÇERİ GİRİLDİĞİNDE ŞİFRE KUTULARINI GÜVENLİK İÇİN BOŞALT!
+                    setAuthForm({ username: "", password: "" });
+                    setRegisterForm({ name: "", title: "", username: "", email: "", password: "" });
+                    setAuthError(""); 
+                 } else {
+                    setAuthError("Kullanıcı veritabanında bulunamadı. Lütfen tekrar kayıt olun.");
+                    await signOut(auth);
+                    setCurrentUser(null);
+                    setAuthForm({ username: "", password: "" }); // Şifreyi sil
+                 }
+              } catch(err) {
+                 console.error("Oturum Kontrol Hatası:", err);
+                 await signOut(auth);
+                 setCurrentUser(null);
+                 setAuthForm({ username: "", password: "" }); // Şifreyi sil
+              }
+            } else {
+               setCurrentUser(null);
+               // SİSTEMDEN ÇIKILDIĞINDA HER ŞEYİ KESİNLİKLE SIFIRLA
+               setAuthForm({ username: "", password: "" });
+               setRegisterForm({ name: "", title: "", username: "", email: "", password: "" });
+               setAuthMode("login");
+               setActiveTab("home");
+            }
+            setIsAuthChecking(false); 
+          });
+
+          return () => unsubscribe();
+        }, [auth, db]);
 // ==========================================
   // ADIM 1: YENİ ROL VE YETKİ SİSTEMİ (RBAC)
   // ==========================================
@@ -1503,210 +1564,124 @@ useEffect(() => {
   });
   const [isUsersSubmenuOpen, setIsUsersSubmenuOpen] = useState(false); // YENİ: Tıklanabilir alt menü durumu
 
-  // Geriye Dönük Uyumluluk (Migration) ile Clinic ID Tespiti (SONSUZ DÖNGÜ KORUMALI)
-  const resolveClinicId = (usernameToFind, visited = new Set()) => {
-    // 1. GÜVENLİK ZIRHI: Eğer bu kişiye daha önce baktıysak (Kendi kendini ekleyen hesaplar) hemen döngüyü kır!
-    if (!usernameToFind || visited.has(usernameToFind)) return `clinic_${usernameToFind}`;
-    visited.add(usernameToFind);
+  // 🚀 V2 MİMARİSİ: TEK KAYNAK (SINGLE SOURCE OF TRUTH) BEYİN FONKSİYONLARI
+      const resolveClinicId = (usernameToFind) => {
+        if (!usernameToFind) return "clinic_default";
+        const userObj = globalData.systemUsers?.[usernameToFind];
+        if (userObj && userObj.clinicId) return userObj.clinicId;
+        return `clinic_${usernameToFind}`; // Güvenlik Kalkanı
+      };
 
-    const profile = globalData.userProfiles?.[usernameToFind];
-    if (profile?.clinicId) return profile.clinicId;
-    
-    if (profile?.role === "clinic_owner") return `clinic_${usernameToFind}`;
-    
-    // 2. GÜVENLİK ZIRHI: Ekleyen kişi kendisi DEĞİLSE bir üste çık
-    if (profile?.createdBy && profile.createdBy !== usernameToFind) {
-        return resolveClinicId(profile.createdBy, visited);
-    }
+      const currentClinicId = currentUser ? resolveClinicId(currentUser) : null;
 
-    const docProfile = globalData.doctorProfiles?.[usernameToFind];
-    if (docProfile?.addedBy && docProfile.addedBy !== usernameToFind) {
-        return resolveClinicId(docProfile.addedBy, visited);
-    }
+      const getClinicUsers = () => {
+        if (!currentClinicId) return [];
+        return Object.values(globalData.systemUsers || {})
+          .filter(u => u.clinicId === currentClinicId && u.active !== false && u.username !== currentUser)
+          .map(u => ({
+            username: u.username,
+            name: u.displayName || u.username,
+            role: u.role,
+            email: u.email
+          }));
+      };
 
-    return `clinic_${usernameToFind}`; // Son çare
-  };
+      const handleSwitchAccountSubmit = async (e) => {
+        e.preventDefault();
+        const targetUser = switchAccountModal.targetUsername;
+        const targetName = switchAccountModal.targetName;
+        const typedPassword = switchAccountModal.password;
 
-  const currentClinicId = currentUser ? resolveClinicId(currentUser) : null;
+        if (!targetUser || !typedPassword) return;
 
-  // Sadece Bu Kliniğe Ait ve Aktif Olan Diğer Kullanıcıları Getir
-  const getClinicUsers = () => {
-    if (!currentClinicId) return [];
-    const usersMap = new Map();
+        try {
+          const targetProfile = globalData.systemUsers?.[targetUser];
+          if (!targetProfile) throw new Error("Kullanıcı profili bulunamadı!");
+          
+          const safeClinicDomain = (targetProfile.clinicId || currentClinicId || "klinik").replace(/[^a-zA-Z0-9]/g, "");
+          const targetEmail = targetProfile.email || `${targetUser}@${safeClinicDomain}.internal`.toLowerCase();
 
-    Object.entries(globalData.userProfiles || {}).forEach(([uName, prof]) => {
-      const cId = resolveClinicId(uName);
-      if (cId === currentClinicId && prof.active !== false && uName !== currentUser) {
-        usersMap.set(uName, {
-          username: uName,
-          name: prof.name || uName,
-          role: prof.role || "clinic_owner"
-        });
-      }
-    });
+          await signInWithEmailAndPassword(auth, targetEmail, typedPassword);
 
-    Object.entries(globalData.doctorProfiles || {}).forEach(([dName, prof]) => {
-      const cId = resolveClinicId(dName);
-      if (cId === currentClinicId && dName !== currentUser && !usersMap.has(dName)) {
-        usersMap.set(dName, {
-          username: dName,
-          name: prof.name || dName,
-          role: "doctor"
-        });
-      }
-    });
-
-    return Array.from(usersMap.values());
-  };
-
-  const handleSwitchAccountSubmit = async (e) => {
-    e.preventDefault();
-    const targetUser = switchAccountModal.targetUsername;
-    const targetName = switchAccountModal.targetName;
-    const typedPassword = switchAccountModal.password;
-
-    if (!targetUser || !typedPassword) return;
-
-    try {
-      // 1. Hedef kullanıcının veritabanındaki e-postasını buluyoruz
-      const profile = globalData.userProfiles?.[targetUser] || {};
-      const dbEmail = globalData.usersDb?.[targetUser]?.email;
+          // YENİ: GEÇİŞ YAPILDIĞINDA HER ŞEYİ SIFIRLA VE ANA SAYFAYA (HOME) ZORLA!
+          setSwitchAccountModal({ isOpen: false, targetUsername: null, targetName: "", targetRole: "", password: "", error: "", showPassword: false });
+          setIsUserMenuOpen(false);
+          setIsUsersSubmenuOpen(false);
+          setIsPatientModalOpen(false);
+          setIsModalOpen(false);
+          setIsDoctorDetailsModalOpen(false);
+          setSearchDropdownOpen(false);
+          setIsAptSearchOpen(false);
+          
+          setActiveTab("home"); // Ana sayfadan tertemiz başlat
+          
+          showNotification(`${targetName} hesabına başarıyla geçiş yapıldı.`, "success");
+        } catch (error) {
+          console.error("Hesap değiştirme hatası:", error);
+          setSwitchAccountModal(prev => ({ ...prev, error: "Girdiğiniz şifre hatalı! Lütfen tekrar deneyin." }));
+        }
+      };
       
-      // ÇÖZÜM: Veritabanında kayıtlı E-posta'yı öncelikli al, yoksa tam doğru formattaki sahte maili kullan!
-      const targetEmail = profile.realEmail || dbEmail || `${targetUser}@${profile.clinicId || currentClinicId}.klinik.com`;
+      const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
-      // 2. Firebase üzerinden hedef hesabın şifresini güvenle doğruluyoruz
-      await signInWithEmailAndPassword(auth, targetEmail, typedPassword);
+      useEffect(() => {
+        if (!currentUser || !globalData.systemUsers) return;
 
-      // 3. Doğrulama başarılı! Modalları temizle
-      setSwitchAccountModal({ isOpen: false, targetUsername: null, targetName: "", targetRole: "", password: "", error: "", showPassword: false });
-      setIsUserMenuOpen(false);
-      setIsUsersSubmenuOpen(false);
-      
-      setIsPatientModalOpen(false);
-      setIsModalOpen(false);
-      setIsDoctorDetailsModalOpen(false);
-      
-      // 4. Oturumu yeni kullanıcıya aktar ve sistemi yenile
-      setCurrentUser(targetUser);
-      sessionStorage.setItem("klinikAktifKullanici", targetUser);
-      sessionStorage.setItem("klinikOturumTokeni", "active");
+        const profile = globalData.systemUsers[currentUser];
+        if (profile) {
+          const cId = profile.clinicId;
+          const patronId = Object.values(globalData.systemUsers).find(u => u.clinicId === cId && u.role === "clinic_owner")?.username || currentUser;
+          const customMatrix = globalData.settingsDb?.[patronId]?.yetkiler?.[profile.role] || ROLE_PERMISSIONS[profile.role];
 
-      showNotification(`${targetName} hesabına başarıyla geçiş yapıldı.`, "success");
-      
-      // Arayüzün tam yetkilerle yüklenmesi için 1 saniye sonra yeniliyoruz
-      setTimeout(() => window.location.reload(), 1000);
+          setCurrentUserProfile({
+            ...profile,
+            name: profile.displayName || profile.username, // Eski sistemlerle tam uyumluluk
+            permissions: profile.role === "clinic_owner" ? ROLE_PERMISSIONS["clinic_owner"] : { ...customMatrix }
+          });
+        }
+      }, [currentUser, globalData.systemUsers, globalData.settingsDb]);
 
-    } catch (error) {
-      console.error("Hesap değiştirme hatası:", error);
-      setSwitchAccountModal(prev => ({
-        ...prev,
-        error: "Girdiğiniz şifre hatalı! Lütfen tekrar deneyin."
-      }));
-    }
-  };
-  // -----------------------------------------------------------
-  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+      const hasPermission = (permissionString) => {
+        if (!currentUserProfile) return false;
+        if (currentUserProfile.active === false) return false;
+        const safePerm = permissionString.replace(".", "_");
+        return !!currentUserProfile.permissions?.[safePerm];
+      };
 
-  useEffect(() => {
-    if (!currentUser || !globalData) return;
+      const normalizeUsername = (username) => {
+        return (username || "").toString().trim().toLowerCase();
+      };
 
-    const profile = globalData.userProfiles?.[currentUser];
-    
-    if (profile) {
-      // Patronun özel yetki tablosunu (Matrix) bul
-      const cId = profile.clinicId;
-      const patronId = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === cId && v.role === "clinic_owner")?.[0] || profile.createdBy;
-      
-      // Ayarlardaki yetki tablosunu al, yoksa varsayılan ROLE_PERMISSIONS kullan
-      const customMatrix = globalData.settingsDb?.[patronId]?.yetkiler?.[profile.role] || ROLE_PERMISSIONS[profile.role];
+      const checkUsernameAvailability = (uname, excludeName = null) => {
+        if (!uname || uname.trim().length < 3) return null; 
+        const normalized = normalizeUsername(uname);
+        if (excludeName && normalizeUsername(excludeName) === normalized) return true; 
+        
+        const isTaken = Object.values(globalData.systemUsers || {}).some(u => normalizeUsername(u.username) === normalized);
+        return !isTaken; 
+      };
 
-      setCurrentUserProfile({
-        ...profile,
-        // Klinik sahibi her zaman Full yetkilidir, diğerleri matrix'e göre çalışır
-        permissions: profile.role === "clinic_owner" ? ROLE_PERMISSIONS["clinic_owner"] : { ...customMatrix }
-      });
-    } else {
-      // Eski sistemden kalan kullanıcıları sistemi bozmamak için Klinik Sahibi kabul ediyoruz
-      setCurrentUserProfile({
-        name: globalData.doctorProfiles?.[currentUser]?.name || currentUser,
-        role: "clinic_owner",
-        active: true,
-        assignedDoctors: [currentUser],
-        permissions: ROLE_PERMISSIONS["clinic_owner"]
-      });
-    }
-  }, [currentUser, globalData.userProfiles, globalData.doctorProfiles]);
+      const getClinicOwnerId = () => {
+        if (!currentClinicId) return currentUser; 
+        const ownerEntry = Object.values(globalData.systemUsers || {}).find(u => u.clinicId === currentClinicId && u.role === "clinic_owner");
+        return ownerEntry ? ownerEntry.username : currentUser;
+      };
 
-  const hasPermission = (permissionString) => {
-    if (!currentUserProfile) return false;
-    if (currentUserProfile.active === false) return false;
-    const safePerm = permissionString.replace(".", "_");
-    return !!currentUserProfile.permissions?.[safePerm];
-  };
+      const getVisibleDoctors = () => {
+        if (!currentClinicId) return [];
 
-  // 1. GÜVENLİK: Kullanıcı Adı Standardizasyonu (Büyük/Küçük Harf ve Boşluk Temizliği)
-  const normalizeUsername = (username) => {
-    return (username || "").toString().trim().toLowerCase();
-  };
-  // YENİ: CANLI KULLANICI ADI KONTROL MOTORU (Görsel geri bildirim için)
-  const checkUsernameAvailability = (uname, excludeName = null) => {
-    if (!uname || uname.trim().length < 3) return null; // 3 karakterden kısaysa kontrol etme
-    const normalized = normalizeUsername(uname);
-    if (excludeName && normalizeUsername(excludeName) === normalized) return true; // Düzenlerken kendi adıysa sorun yok
-    
-    const isTaken = Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === normalized) ||
-                    Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === normalized) ||
-                    Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === normalized);
-    return !isTaken; // true = uygun (yeşil), false = alınmış (kırmızı)
-  };
+        const allSystemDoctors = Object.values(globalData.systemUsers || {})
+            .filter(u => u.clinicId === currentClinicId && u.active !== false && u.role !== "assistant" && u.role !== "head_assistant")
+            .map(u => u.username);
 
-  // 2. GÜVENLİK: Mevcut Kliniğin Asıl Sahibini (Patronunu) Bulma
-  const getClinicOwnerId = () => {
-    if (!currentClinicId) return currentUser; // Fallback
-    
-    // Önce aynı clinicId'ye sahip 'clinic_owner' rolündeki kişiyi bul
-    const ownerEntry = Object.entries(globalData.userProfiles || {}).find(([uname, prof]) => 
-       prof.clinicId === currentClinicId && prof.role === "clinic_owner"
-    );
-    if (ownerEntry) return ownerEntry[0];
+        if (currentUserProfile?.role === "assistant") {
+          const assigned = currentUserProfile.assignedDoctors || [];
+          return allSystemDoctors.filter(doc => assigned.includes(doc));
+        }
 
-    // Bulunamazsa eski sisteme göre fallback
-    return (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
-           ? currentUserProfile.createdBy 
-           : currentUser;
-  };
-
-  const getVisibleDoctors = () => {
-    if (!currentClinicId) return [];
-
-    const allSystemDoctors = Array.from(new Set([
-      ...Object.keys(globalData.usersDb || {}),
-      ...Object.keys(globalData.userProfiles || {}),
-      ...Object.keys(globalData.doctorProfiles || {})
-    ])).filter(doc => {
-       // 1. Asistanları takvim listesinde hekim olarak gösterme
-       if (globalData.userProfiles?.[doc]?.role === "assistant") return false;
-       
-       // 2. YENİ ZIRH: Doğrudan Ana profilden kontrol et (Sayfa yenilense de silinmez)
-       if (globalData.userProfiles?.[doc]?.isDoctor === false) return false;
-       
-       // 3. Fallback (Eski kayıtlar için)
-       if (globalData.doctorProfiles?.[doc]?.isDeleted === true) return false;
-       
-       return true;
-    });
-
-    // Asistan ise SADECE kendisine atanan AMA AYNI ZAMANDA aynı klinikte olan hekimleri görsün
-    if (currentUserProfile?.role === "assistant") {
-      const assigned = currentUserProfile.assignedDoctors || [];
-      return allSystemDoctors.filter(doc => assigned.includes(doc) && resolveClinicId(doc) === currentClinicId);
-    }
-
-    // Klinik Sahibi veya Hekim ise AYNI KLİNİKTEKİ tüm hekimleri görsün
-    return allSystemDoctors.filter(doc => resolveClinicId(doc) === currentClinicId);
-  };
-  // ==========================================
+        return allSystemDoctors;
+      };
+      // ==========================================
 
         const [savedUsernames, setSavedUsernames] = useState(() =>
           JSON.parse(localStorage.getItem("klinikSavedUsers") || "[]")
@@ -2560,157 +2535,121 @@ Tarih: ...../...../202...
 
         // RTDB veri okuma
 
-        // YENİ VE GÜVENLİ RTDB VERİ OKUMA MOTORU
-useEffect(() => {
-  if (!isReady || !db) {
-    setIsSyncing(false);
-    return;
-  }
+        // ==============================================================
+        // V2 SaaS MİMARİSİ: İZOLE KLİNİK VERİ OKUMA MOTORU
+        // ==============================================================
+        useEffect(() => {
+          if (!isReady || !db) {
+            setIsSyncing(false);
+            return;
+          }
 
-  // Dinlenecek alt koleksiyonların (tabloların) listesi
-  const collections = [
-    "usersDb",
-    "userProfiles",
-    "doctorProfiles",
-    "appointments",
-    "patientsDb",
-    "pricingDb",
-    "settingsDb",
-    "customTreatments",
-    "auditLogs"
-  ];
+          // 1. Önce ANA REHBERİ (Tüm Kullanıcıları) Dinle
+          const usersRef = ref(db, 'KlinikAnaVeritabani/users');
+          const unsubUsers = onValue(usersRef, (snapshot) => {
+            const usersData = snapshot.exists() ? snapshot.val() : {};
+            
+            // Kullanıcıları globalData'ya kaydet (Eski userProfiles, usersDb, doctorProfiles çöpe atıldı)
+            setGlobalData(prev => ({ ...prev, systemUsers: usersData }));
+            
+            // Eğer kişi giriş yapmışsa, kendi klinik odasını (clinicId) bulup sadece Orayı dinleyelim
+            if (currentUser && usersData[currentUser]) {
+                const myClinicId = usersData[currentUser].clinicId;
+                
+                // 2. KLİNİĞİN İZOLE ODASINI DİNLE
+                const clinicRef = ref(db, `KlinikAnaVeritabani/clinics/${myClinicId}`);
+                const unsubClinic = onValue(clinicRef, (clinicSnap) => {
+                    const clinicData = clinicSnap.exists() ? clinicSnap.val() : {};
+                    
+                    setGlobalData(prev => ({
+                        ...prev,
+                        patientsDb: clinicData.patients || {},
+                        appointments: clinicData.appointments || {},
+                        pricingDb: clinicData.pricing ? { [currentUser]: clinicData.pricing } : {}, 
+                        settingsDb: clinicData.settings ? { [currentUser]: clinicData.settings } : {},
+                        customTreatments: clinicData.customTreatments ? { [currentUser]: clinicData.customTreatments } : {},
+                        auditLogs: clinicData.auditLogs || {}
+                    }));
+                    setIsSyncing(false);
+                });
 
-  // Tüm dinleyicileri (listener) hafızada tutacağımız dizi
-  const unsubscribes = collections.map((collectionName) => {
-    let dbPath = "";
-    
-    // 1. REHBER (Kullanıcılar) her zaman globalden okunur
-    if (collectionName === "usersDb" || collectionName === "userProfiles") {
-        dbPath = `KlinikAnaVeritabani/Veriler/${collectionName}`;
-    } 
-    // 2. SAĞLIK VE FİNANS verileri kliniğin izole odasından okunur
-    else {
-        // Eğer klinik ID henüz belli değilse (giriş ekranındaysa), boş dinleyici döndür
-        if (!currentClinicId) return () => {}; 
-        
-        dbPath = `KlinikAnaVeritabani/clinics/${currentClinicId}/${collectionName}`;
-    }
+                return () => unsubClinic(); // Eski kliniğin dinleyicisini temizle
+            } else {
+                setIsSyncing(false);
+            }
+          });
 
-    const collectionRef = ref(db, dbPath);
-    
-    return onValue(
-      collectionRef,
-      (snapshot) => {
-        const data = snapshot.exists() ? snapshot.val() : null;
-        
-        // React'in state'ini güncellerken SADECE ilgili koleksiyonu eziyoruz (Merge)
-        setGlobalData((prevData) => {
-          return {
-            ...prevData,
-            [collectionName]: data || (collectionName === "pricingDb" ? DEFAULT_PRICING : {})
-          };
-        });
-        
-        // İlk veri akışı başladığında loading ekranını kaldır
-        setIsSyncing(false);
-      },
-      (error) => {
-        console.error(`Firebase okuma hatası (${collectionName}):`, error);
-        showNotification(`${collectionName} tablosu okunurken hata oluştu.`, "error");
-        setIsSyncing(false);
-      }
-    );
-  });
+          return () => unsubUsers();
+        }, [isReady, db, currentUser]);
 
-  // Component ekrandan kalktığında arka planda çalışan tüm dinleyicileri temizle (Memory Leak önlemi)
-  return () => {
-    unsubscribes.forEach((unsubscribeFn) => unsubscribeFn());
-  };
-}, [isReady, db, currentClinicId]);
-
+        // ==============================================================
+        // V2 SaaS MİMARİSİ: İZOLE KLİNİK VERİ YAZMA (KAYDETME) MOTORU
+        // ==============================================================
         const saveGlobalData = async (newData) => {
-          if (!db) return;
+          if (!db || !currentUser) return;
 
           try {
-            // YENİ MİMARİ: Artık ana dizine (KlinikAnaVeritabani) bağlanıyoruz ki verileri farklı alt klasörlere dağıtabilelim.
+            // Kullanıcının hangi kliniğe ait olduğunu bul (Güvenlik zırhı)
+            const myClinicId = globalData.systemUsers?.[currentUser]?.clinicId;
+            if (!myClinicId) throw new Error("Klinik ID bulunamadı! İşlem reddedildi.");
+
             const dbRef = ref(db, "KlinikAnaVeritabani");
             const updates = {};
 
-            // 🛡️ AKILLI YÖNLENDİRİCİ: Hangi tablonun nereye yazılacağını belirler
-            const getBasePath = (collectionName) => {
-              if (collectionName === "usersDb" || collectionName === "userProfiles") {
-                return `Veriler/${collectionName}`; // Rehber (Giriş) verileri her zaman Global'e
-              } else {
-                return `clinics/${currentClinicId}/${collectionName}`; // Diğer her şey kliniğin izole odasına
-              }
-            };
-
-            const checkOneLevel = (collectionName) => {
-              // Güvenlik Zırhı: Klinik verisi kaydedilecekse ama klinik ID yoksa atla
-              if (!currentClinicId && collectionName !== "usersDb" && collectionName !== "userProfiles") return;
-
-              const oldCol = globalData[collectionName] || {};
-              const newCol = newData[collectionName] || {};
-              const basePath = getBasePath(collectionName);
-
-              // Yenileri veya değişenleri bul ve YENİ YOLA ekle
-              Object.keys(newCol).forEach((key) => {
-                if (JSON.stringify(oldCol[key]) !== JSON.stringify(newCol[key])) {
-                  updates[`${basePath}/${key}`] = newCol[key];
-                }
-              });
-
-              // Silinenleri bul ve YENİ YOLDAN sil
-              Object.keys(oldCol).forEach((key) => {
-                if (newCol[key] === undefined) {
-                  updates[`${basePath}/${key}`] = null;
-                }
-              });
-            };
-
-            // Tek katmanlı verileri kontrol et
-            checkOneLevel("usersDb");
-            checkOneLevel("userProfiles");
-            checkOneLevel("doctorProfiles");
-            checkOneLevel("pricingDb");
-            checkOneLevel("settingsDb");
-            checkOneLevel("customTreatments"); 
-            checkOneLevel("auditLogs");
-            checkOneLevel("patientsDb"); 
-
-            // İki katmanlı verileri (Randevular) kontrol et
-            if (currentClinicId) {
-              const oldApts = globalData.appointments || {};
-              const newApts = newData.appointments || {};
-              const allDocIds = new Set([...Object.keys(oldApts), ...Object.keys(newApts)]);
-              const aptBasePath = getBasePath("appointments");
-
-              allDocIds.forEach((docId) => {
-                const oldDocApts = oldApts[docId] || {};
-                const newDocApts = newApts[docId] || {};
-
-                Object.keys(newDocApts).forEach((aptKey) => {
-                  if (JSON.stringify(oldDocApts[aptKey]) !== JSON.stringify(newDocApts[aptKey])) {
-                    updates[`${aptBasePath}/${docId}/${aptKey}`] = newDocApts[aptKey];
-                  }
-                });
-
-                Object.keys(oldDocApts).forEach((aptKey) => {
-                  if (newDocApts[aptKey] === undefined) {
-                    updates[`${aptBasePath}/${docId}/${aptKey}`] = null;
-                  }
-                });
-              });
+            // 1. EĞER HESAP (KULLANICI) EKLENİYOR VEYA SİLİNİYORSA
+            if (newData.systemUsers) {
+               Object.keys(newData.systemUsers).forEach(uid => {
+                   if (JSON.stringify(globalData.systemUsers?.[uid]) !== JSON.stringify(newData.systemUsers[uid])) {
+                       updates[`users/${uid}`] = newData.systemUsers[uid];
+                   }
+               });
+               Object.keys(globalData.systemUsers || {}).forEach(uid => {
+                   if (newData.systemUsers[uid] === undefined) updates[`users/${uid}`] = null;
+               });
             }
 
-            // Eğer bir değişiklik varsa Firebase'e tek seferde (topluca) gönder
+            // 2. KLİNİK ODASI VERİLERİNİN KAYDEDİLMESİ (Hastalar, Randevular vs.)
+            const checkClinicData = (localKey, dbKey) => {
+              const oldData = globalData[localKey] || {};
+              const newIncomingData = newData[localKey] || {};
+              
+              Object.keys(newIncomingData).forEach((key) => {
+                if (JSON.stringify(oldData[key]) !== JSON.stringify(newIncomingData[key])) {
+                  updates[`clinics/${myClinicId}/${dbKey}/${key}`] = newIncomingData[key];
+                }
+              });
+
+              Object.keys(oldData).forEach((key) => {
+                if (newIncomingData[key] === undefined) {
+                  updates[`clinics/${myClinicId}/${dbKey}/${key}`] = null;
+                }
+              });
+            };
+
+            // Hangi local tablonun, kliniğin hangi klasörüne yazılacağını belirliyoruz
+            checkClinicData("patientsDb", "patients");
+            checkClinicData("appointments", "appointments");
+            checkClinicData("auditLogs", "auditLogs");
+
+            // Ayarlar ve Fiyatlar artık ownerId'ye (Ahmet, Mehmet) göre değil, direkt Kliniğe ait!
+            if (newData.settingsDb && newData.settingsDb[currentUser]) {
+                updates[`clinics/${myClinicId}/settings`] = newData.settingsDb[currentUser];
+            }
+            if (newData.pricingDb && newData.pricingDb[currentUser]) {
+                updates[`clinics/${myClinicId}/pricing`] = newData.pricingDb[currentUser];
+            }
+            if (newData.customTreatments && newData.customTreatments[currentUser]) {
+                updates[`clinics/${myClinicId}/customTreatments`] = newData.customTreatments[currentUser];
+            }
+
+            // Değişen her şeyi tek hamlede Firebase'e ateşle!
             if (Object.keys(updates).length > 0) {
               await update(dbRef, updates);
             }
 
           } catch (e) {
             showNotification("Veritabanı kayıt hatası! Lütfen sayfayı yenileyin.", "error");
-            console.error(e);
+            console.error("Firebase V2 Kayıt Hatası:", e);
             throw e;
           }
         };
@@ -3441,10 +3380,10 @@ useEffect(() => {
         const handleSavePatient = (e) => {
           if (e) e.preventDefault();
 
-          // 🛡️ ZIRH 1: Eğer form henüz belleğe yüklenmediyse işlemi durdur, çökmeyi engelle!
+          // 🛡️ ZIRH 1: Eğer form henüz belleğe yüklenmediyse işlemi durdur
           if (!patientForm) return;
 
-          // 🛡️ ZIRH 2: YETKİ KONTROLÜ (İzinsiz işlem yapılmasını engeller)
+          // 🛡️ ZIRH 2: YETKİ KONTROLÜ
           const isNewPatient = !patientForm.id;
           if (isNewPatient && !hasPermission("patients_create")) {
             showNotification("Yeni hasta ekleme yetkiniz bulunmuyor!", "error");
@@ -3455,23 +3394,16 @@ useEffect(() => {
             return;
           }
 
-          // YENİ: Ortak Hasta Havuzu Mantığı. 
-          // Hekim veya Asistan kayıt yapsa bile, hasta doğrudan Patronun kliniğine yazılır.
-          const ownerId = getClinicOwnerId();
-                      
+          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
           const clinicOwner = patientForm.addedBy || ownerId;
           
-          // TC'yi sadece rakam kalacak şekilde normalize ediyoruz
           const normalizedTc = (patientForm.tc || "").replace(/\D/g, "");
 
-          // 1. KLİNİK İÇİ TC KOPYA KONTROLÜ
+          // KLİNİK İÇİ TC KOPYA KONTROLÜ
           if (normalizedTc && normalizedTc.length > 0) {
             const duplicateByTc = Object.values(globalData.patientsDb || {}).find((p) => {
-              // Klinik izolasyonu: Doğrudan kliniğin kendi veritabanını kontrol et
               const isSameClinic = resolveClinicId(p.addedBy) === currentClinicId;
               const pTc = (p.tc || "").replace(/\D/g, "");
-              
-              // Aynı kliniğe ait, TC'si aynı olan ve KENDİSİ OLMAYAN bir hasta var var mı?
               return isSameClinic && pTc === normalizedTc && p.id !== patientForm.id;
             });
 
@@ -3481,31 +3413,36 @@ useEffect(() => {
             }
           }
 
-          // 2. YENİ KİMLİK (ID) OLUŞTURMA VEYA MEVCUTU KORUMA
           const pId = patientForm.id || push(child(ref(db), 'KlinikAnaVeritabani/Veriler/patientsDb')).key;
 
-          // YENİ: Hasta ilk kez oluşturuluyorsa otomatik "İlk Kayıt" epikrizi at
+          // YENİ DÜZELTME: SİSTEME İLK KAYIT EPİKRİZİ (Her durumda şartsız çalışır)
           let currentHistory = patientForm.clinicalHistory || [];
           if (isNewPatient && settings?.otomasyon?.otoEpikriz !== false) {
+             const now = new Date();
+             
+             // YENİ: Asistan ise hekim adı yazmaz! Gerçek ismi systemUsers'dan alır.
+             const isDoc = currentUserProfile?.role === "doctor" || currentUserProfile?.role === "clinic_owner";
+             const docIdToSave = isDoc ? currentUser : "Belirtilmedi";
+             const docNameToSave = isDoc ? (globalData.systemUsers?.[currentUser]?.displayName || currentUser) : "Kayıt Birimi (Asistan)";
+
              currentHistory = [{
                 id: "hist_init_" + Date.now(),
                 appointmentId: null,
-                date: new Date().toLocaleDateString("tr-TR"),
-                time: new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
+                date: now.toLocaleDateString("tr-TR"),
+                time: now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
                 timestamp: Date.now(),
-                doctorId: currentUser,
-                doctorName: currentUserProfile?.name || globalData.doctorProfiles?.[currentUser]?.name || currentUser,
+                doctorId: docIdToSave,
+                doctorName: docNameToSave,
                 appointmentStatus: "İlk Kayıt",
-                visitType: "İlk Muayene",
-                treatment: "İlk Muayene ve Kayıt",
+                visitType: "Sisteme İlk Kayıt",
+                treatment: "İlk Muayene ve Dosya Açılışı",
                 selectedTeeth: [],
-                complaint: patientForm.anamnesis ? "Anamnez: " + patientForm.anamnesis : "Sisteme ilk kayıt oluşturuldu.",
+                complaint: patientForm.anamnesis ? "Anamnez/Uyarı: " + patientForm.anamnesis : "Sisteme ilk kayıt oluşturuldu.",
                 createdAt: Date.now(),
                 createdBy: currentUser
              }];
           }
 
-          // 🛡️ ZIRH 1: Firebase'i çökerten "undefined" (tanımsız) verileri formdan tamamen temizle!
           const safePatientForm = JSON.parse(JSON.stringify(patientForm || {}));
 
           const updatedPatients = {
@@ -3513,12 +3450,11 @@ useEffect(() => {
             [pId]: {
               ...safePatientForm,
               id: pId,
-              addedBy: clinicOwner, // <- HASTA PATRONA (KLİNİĞE) EKLENİYOR
+              addedBy: clinicOwner, 
               clinicalHistory: isNewPatient ? currentHistory : (safePatientForm.clinicalHistory || [])
             },
           };
 
-          // 🛡️ ZIRH 2: Firebase kayıt sonucunu dinle, hata varsa sessizce çökme, ekrana uyarı ver!
           setGlobalData(prev => ({ ...prev, patientsDb: updatedPatients }));
           setPatientForm({ ...safePatientForm, id: pId });
           
@@ -3887,7 +3823,7 @@ useEffect(() => {
 
           const key = `${formatDateKey(activeSlotDate)}-${selectedSlot}`;
 
-          // 2️⃣ GERÇEK SİSTEM BAĞLANTISI: GEÇMİŞ TARİH UYARISI MOTORU
+          // GEÇMİŞ TARİH UYARISI MOTORU
           if (settings?.randevu?.gecmisTarihUyarisi !== false) {
             const aptDateObj = new Date(activeSlotDate);
             const [hour, minute] = selectedSlot.split(":");
@@ -3899,7 +3835,7 @@ useEffect(() => {
             }
           }
 
-          // 3️⃣ GERÇEK SİSTEM BAĞLANTISI: ÇAKIŞMA KONTROLÜ MOTORU
+          // ÇAKIŞMA KONTROLÜ MOTORU
           if (settings?.randevu?.cakismaKontrolu !== false) {
             const aptDateKey = formatDateKey(activeSlotDate);
             const aptDoc = activeSlotDoctor;
@@ -3915,17 +3851,14 @@ useEffect(() => {
 
             Object.entries(userAppointments).forEach(([exKey, existingApt]) => {
               if (exKey.startsWith(aptDateKey)) {
-                // Kendi kendini düzenliyorsa (aynı yuvaysa) çakışma sayma
-                if (exKey === key) return;
+                if (exKey === key) return; // Kendisiyle çakışma sayma
 
                 const exTimeStr = exKey.split("-").slice(3).join(":"); 
-                // İptal edilen randevuları çakışma listesinden hariç tut
                 if (exTimeStr && existingApt.status !== "İptal") {
                   const [exStartH, exStartM] = exTimeStr.split(":").map(Number);
                   const exStartMins = exStartH * 60 + exStartM;
                   const exEndMins = exStartMins + parseInt(existingApt.duration || 30);
 
-                  // Çakışma Kuralı: Yeni başlangıç eski bitişten küçük VE yeni bitiş eski başlangıçtan büyükse
                   if (newStartMins < exEndMins && newEndMins > exStartMins) {
                     isConflict = true;
                     const exEndHourStr = String(Math.floor(exEndMins / 60)).padStart(2, '0');
@@ -3943,24 +3876,21 @@ useEffect(() => {
           }
 
           const treatmentStr = formData.treatment || "";
-
           const finalData = { ...formData, treatment: treatmentStr };
 
           const updatedDocApts = {
             ...(globalData.appointments?.[activeSlotDoctor] || {}),
-
             [key]: finalData,
           };
 
           // YENİ HASTA EŞLEŞTİRME MANTIĞI:
           const ownerId = currentUserProfile?.role === "assistant" ? currentUserProfile.createdBy : currentUser;
-          const clinicOwner = ownerId; // Asistanlar kaydettiğinde de hasta Patron'un kliniğine yazılsın
+          const clinicOwner = ownerId; 
           
           const existingPatient = formData.patientId 
             ? globalData.patientsDb?.[formData.patientId] 
             : Object.values(globalData.patientsDb || {}).find(
               (p) => {
-                // Klinik izolasyonu: Doğrudan kliniğin kendi veritabanını kontrol et
               const isSameClinic = resolveClinicId(p.addedBy) === currentClinicId;
                 return isSameClinic && 
                        p.name.toLowerCase() === formData.patientName.toLowerCase().trim() && 
@@ -3976,6 +3906,28 @@ useEffect(() => {
           let updatedPatientsDb = { ...(globalData.patientsDb || {}) };
 
           if (!existingPatient) {
+            // YENİ DÜZELTME: TAKVİMDEN YENİ HASTA EKLENİRSE, DURUMU NE OLURSA OLSUN İLK KAYIT EPİKRİZİ ATILIR!
+            let initialHistory = [];
+            if (settings?.otomasyon?.otoEpikriz !== false) {
+                initialHistory = [{
+                  id: "hist_init_" + Date.now(),
+                  appointmentId: key,
+                  date: formatDateKey(activeSlotDate),
+                  time: selectedSlot,
+                  timestamp: Date.now(),
+                  doctorId: activeSlotDoctor,
+                  // YENİ: Hekimin GERÇEK ADINI ana veritabanından çek (Kullanıcı adı değil)
+                  doctorName: globalData.systemUsers?.[activeSlotDoctor]?.displayName || activeSlotDoctor,
+                  appointmentStatus: formData.status, // "Yeni Kayıt", "Bekliyor" vb.
+                  visitType: "Sisteme İlk Kayıt",
+                  treatment: treatmentStr || "İlk Muayene ve Kayıt",
+                  selectedTeeth: formData.selectedTeeth || [],
+                  complaint: formData.notes ? "Not: " + formData.notes : "Takvim üzerinden sisteme ilk kayıt oluşturuldu.",
+                  createdAt: Date.now(),
+                  createdBy: currentUser
+                }];
+            }
+
             updatedPatientsDb[patientId] = {
               id: patientId,
               name: formData.patientName.trim(),
@@ -3988,24 +3940,8 @@ useEffect(() => {
               plannedTreatments: [],
               lastStatus: formData.status,
               lastTreatment: treatmentStr,
-              addedBy: currentUser,
-              // 4️⃣ GERÇEK SİSTEM BAĞLANTISI: OTOMATİK EPİKRİZ (Yeni Hasta İçin)
-              clinicalHistory: (formData.status === "Geldi" && settings?.otomasyon?.otoEpikriz !== false) ? [{
-                id: "hist_" + Date.now(),
-                appointmentId: key,
-                date: formatDateKey(activeSlotDate),
-                time: selectedSlot,
-                timestamp: Date.now(),
-                doctorId: activeSlotDoctor,
-                doctorName: globalData.doctorProfiles?.[activeSlotDoctor]?.name || activeSlotDoctor,
-                appointmentStatus: "Geldi",
-                visitType: "İlk Muayene",
-                treatment: treatmentStr || "Belirtilmedi",
-                selectedTeeth: formData.selectedTeeth || [],
-                complaint: formData.notes || "",
-                createdAt: Date.now(),
-                createdBy: currentUser
-              }] : []
+              addedBy: clinicOwner,
+              clinicalHistory: initialHistory
             };
           } else {
             if (formData.phone) updatedPatientsDb[patientId].phone = formData.phone;
@@ -4013,7 +3949,7 @@ useEffect(() => {
             updatedPatientsDb[patientId].lastStatus = formData.status;
             updatedPatientsDb[patientId].lastTreatment = treatmentStr;
             
-            // 4️⃣ GERÇEK SİSTEM BAĞLANTISI: OTOMATİK EPİKRİZ (Var Olan Hasta İçin)
+            // Eğer VAR OLAN bir hastaya randevu yazılıyorsa ve durumu "Geldi" olarak işaretlendiyse geçmişe ekle
             if (formData.status === "Geldi" && settings?.otomasyon?.otoEpikriz !== false) {
               const historyArray = updatedPatientsDb[patientId].clinicalHistory || [];
               const historyExists = historyArray.some((h) => h.appointmentId === key);
@@ -4041,18 +3977,14 @@ useEffect(() => {
 
           saveGlobalData({
             ...globalData,
-
             appointments: {
               ...globalData.appointments,
-
               [activeSlotDoctor]: updatedDocApts,
             },
-
             patientsDb: updatedPatientsDb,
           });
 
           setIsModalOpen(false);
-
           showNotification("Randevu kaydedildi.");
         };
 
@@ -4310,72 +4242,52 @@ useEffect(() => {
 
         const handleAuthSubmit = async (e) => {
           e.preventDefault();
-          setAuthError("");
-
-          const attempts = parseInt(localStorage.getItem("loginAttempts") || "0");
-          const lockTime = parseInt(localStorage.getItem("lockTime") || "0");
-
-          if (lockTime > Date.now()) {
-            setAuthError(`Güvenlik Kalkanı: Lütfen ${Math.ceil((lockTime - Date.now()) / 1000)} saniye bekleyin.`);
-            return;
-          }
+          setAuthError(""); // Kırmızı kutuyu sadece gerçek hatalar için boşaltıyoruz
 
           const loginInput = authForm.username.trim().toLowerCase();
+          const pwdInput = authForm.password;
 
           try {
             let loginEmail = loginInput;
-            let finalUsername = loginInput;
 
-            // Doğru yol (KlinikAnaVeritabani/Veriler/userProfiles) kontrol ediliyor
             if (!loginInput.includes("@")) {
-                const snapshot = await get(child(ref(db), `KlinikAnaVeritabani/Veriler/userProfiles/${loginInput}`));
-                
-                if (snapshot.exists() && snapshot.val().realEmail) {
-                    loginEmail = snapshot.val().realEmail; 
-                } else {
-                    const memProfile = globalData.userProfiles?.[loginInput];
-                    if (memProfile && memProfile.realEmail) {
-                        loginEmail = memProfile.realEmail;
-                    } else {
-                        loginEmail = `${loginInput}@klinik.com`; 
-                    }
-                }
-            } else {
-                const snapshot = await get(child(ref(db), 'KlinikAnaVeritabani/Veriler/userProfiles'));
-                if (snapshot.exists()) {
-                    const profiles = snapshot.val();
-                    const found = Object.entries(profiles).find(([uname, prof]) => prof.realEmail === loginInput);
-                    if (found) finalUsername = found[0];
-                    else finalUsername = loginInput.split("@")[0];
-                } else {
-                    const found = Object.entries(globalData.userProfiles || {}).find(([uname, prof]) => prof.realEmail === loginInput);
-                    if (found) finalUsername = found[0];
-                    else finalUsername = loginInput.split("@")[0];
-                }
+                loginEmail = `${loginInput}@klinik.com`;
             }
 
-            // Doğru e-posta ve yeni şifre ile Firebase'e giriş yapılıyor
-            await signInWithEmailAndPassword(auth, loginEmail, authForm.password);
-
-            localStorage.setItem("loginAttempts", "0");
-            setCurrentUser(finalUsername);
-            sessionStorage.setItem("klinikAktifKullanici", finalUsername);
-            sessionStorage.setItem("klinikOturumTokeni", "active");
-
-            if (!savedUsernames.includes(finalUsername)) {
-              const newSaved = [...savedUsernames, finalUsername];
+            try {
+                await signInWithEmailAndPassword(auth, loginEmail, pwdInput);
+            } catch (firstErr) {
+                if (!loginInput.includes("@")) {
+                    const userSnap = await get(child(ref(db), `KlinikAnaVeritabani/users/${loginInput}`));
+                    if (userSnap.exists() && userSnap.val().email) {
+                        await signInWithEmailAndPassword(auth, userSnap.val().email, pwdInput);
+                    } else {
+                        throw firstErr; 
+                    }
+                } else {
+                    throw firstErr;
+                }
+            }
+            
+            // Başarılı girişte hiçbir şey yazdırmadan direkt içeri alıyoruz!
+            
+            if (!savedUsernames.includes(loginInput) && !loginInput.includes("@")) {
+              const newSaved = [...savedUsernames, loginInput];
               setSavedUsernames(newSaved);
               localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
             }
+
           } catch (error) {
-            const newAttempts = attempts + 1;
-            if (newAttempts >= 4) {
-              localStorage.setItem("lockTime", Date.now() + 30000);
-              localStorage.setItem("loginAttempts", "0");
-              setAuthError("Sistem 30 saniye kilitlendi.");
+            console.error("Login Hatası:", error);
+            // YALNIZCA GERÇEK HATALARDA KIRMIZI KUTUYU GÖSTER
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                setAuthError("Şifrenizi yanlış girdiniz!");
+            } else if (error.code === 'auth/user-not-found') {
+                setAuthError("Böyle bir hesap bulunamadı!");
+            } else if (error.code === 'auth/too-many-requests') {
+                setAuthError("Çok fazla başarısız deneme! Lütfen biraz bekleyin.");
             } else {
-              localStorage.setItem("loginAttempts", newAttempts.toString());
-              setAuthError(`Kullanıcı adı veya şifre hatalı!`);
+                setAuthError("Giriş yapılamadı: Kullanıcı adı veya şifre hatalı.");
             }
           }
         };
@@ -4398,11 +4310,7 @@ useEffect(() => {
           const usernameInput = registerForm.username.trim().toLowerCase();
           const realEmail = registerForm.email.trim();
 
-          // 🛡️ ÇÖZÜM 1: BACKEND GÜVENLİK ZIRHI
-          // Sadece UI'da değil, kayıt butonuna basıldığı an veritabanında bu isim alınmış mı kesin kontrol et.
-          const isTaken = Object.keys(globalData.usersDb || {}).some(k => normalizeUsername(k) === usernameInput) ||
-                          Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === usernameInput) ||
-                          Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === usernameInput);
+          const isTaken = Object.values(globalData.systemUsers || {}).some(u => normalizeUsername(u.username) === usernameInput);
           
           if (isTaken) {
              setAuthError("Bu kullanıcı adı zaten alınmış! Lütfen başka bir kullanıcı adı belirleyin.");
@@ -4410,42 +4318,24 @@ useEffect(() => {
           }
 
           try {
-            // Firebase Auth Kaydı
+            // YENİ DÜZEN: Firebase kuralları gereği veritabanına yazabilmek için ÖNCE Auth (Kayıt) işlemini yapmalıyız.
             await createUserWithEmailAndPassword(auth, realEmail, registerForm.password);
 
-            // 🛡️ ÇÖZÜM 2: EKSİK OLAN usersDb TABLOSUNU DOLDURMA
-            const updatedUsersDb = {
-              ...(globalData.usersDb || {}),
-              [usernameInput]: registerForm.password // Şifre değiştirme ekranının çökmemesi için gerekli
-            };
-
-            const updatedProfiles = {
-              ...(globalData.doctorProfiles || {}),
-              [usernameInput]: {
-                name: registerForm.name,
-                title: registerForm.title || "Başhekim",
-                addedBy: usernameInput,
-              },
-            };
-
-            const updatedUserProfiles = {
-               ...(globalData.userProfiles || {}),
-               [usernameInput]: {
-                  name: registerForm.name,
+            // GÜVENLİK KİLİDİ AŞILDI: Yeni kayıt esnasında currentUser henüz 'null' olduğu için 
+            // saveGlobalData fonksiyonu çalışmaz. Bu yüzden yeni kullanıcıyı veritabanına DOĞRUDAN yazıyoruz!
+            const newUserProfile = {
+                  username: usernameInput,
+                  displayName: registerForm.name,
                   role: "clinic_owner",
                   active: true,
                   clinicId: `clinic_${usernameInput}`,
                   createdBy: usernameInput,
-                  realEmail: realEmail 
-               }
+                  email: realEmail,
+                  createdAt: Date.now()
             };
 
-            // Global dataya tüm güncellemeleri tek seferde gönderiyoruz
-            await saveGlobalData({
-              ...globalData,
-              usersDb: updatedUsersDb, 
-              doctorProfiles: updatedProfiles,
-              userProfiles: updatedUserProfiles
+            await update(ref(db, "KlinikAnaVeritabani/users"), {
+                [usernameInput]: newUserProfile
             });
 
             if (!savedUsernames.includes(usernameInput)) {
@@ -4454,18 +4344,11 @@ useEffect(() => {
               localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
             }
 
-            showNotification("Klinik hesabınız güvenli bir şekilde oluşturuldu.");
-            setCurrentUser(usernameInput);
-            sessionStorage.setItem("klinikAktifKullanici", usernameInput);
-            sessionStorage.setItem("klinikOturumTokeni", "active");
-
+            showNotification("Hesap başarıyla oluşturuldu, sisteme giriş yapılıyor...", "success");
             if (btn) btn.disabled = false;
           } catch (error) {
-            if (error.code === 'auth/email-already-in-use') {
-               setAuthError("Bu e-posta adresi sistemde zaten kayıtlı!");
-            } else {
-               setAuthError("Kayıt olurken bir hata oluştu: " + error.message);
-            }
+            if (error.code === 'auth/email-already-in-use') setAuthError("Bu e-posta adresi sistemde zaten kayıtlı!");
+            else setAuthError("Kayıt olurken bir hata oluştu: " + error.message);
             if (btn) btn.disabled = false;
           }
         };
@@ -4526,16 +4409,24 @@ useEffect(() => {
 
         // UI Loading States
 
-        if (!isReady || isSyncing)
+        // 🛡️ GÜVENLİ YÜKLEME VE AÇILIŞ KONTROLÜ (Beyaz ekranı engeller)
+        if (!isReady || isAuthChecking || isLoggingOut) {
           return (
-            <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center gap-2">
-              <i className="fa-solid fa-spinner fa-spin text-lg text-indigo-600"></i>
+            <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+              <div className="absolute top-[-15%] left-[-10%] w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none"></div>
+              <div className="absolute bottom-[-15%] right-[-10%] w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-              <div className="text-slate-500 font-bold text-[13px]">
-                Klinik Verileriniz Senkronize Ediliyor...
+              <div className="flex flex-col items-center gap-3 z-10 animate-pop text-center">
+                <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                  <i className="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-600 dark:text-indigo-400"></i>
+                </div>
+                <div className="text-slate-700 dark:text-white font-bold text-[13px] bg-white/80 dark:bg-slate-800/80 px-4 py-2 rounded-xl backdrop-blur-md shadow-sm border border-slate-200 dark:border-slate-700">
+                  {isLoggingOut ? "Sistemden güvenli çıkış yapılıyor..." : "Klinik sistemi hazırlanıyor..."}
+                </div>
               </div>
             </div>
           );
+        }
 
         if (!currentUser)
           return (
@@ -6969,85 +6860,62 @@ if (isDayClosed) isPastSlot = true;
 
           const openDoctorDetails = (docUsername) => {
             setSelectedDoctorId(docUsername);
-            
-            // YENİ: Var olan profili güvenle al ve TÜM state'leri eksiksiz başlat
-            const existingProfile = globalData.doctorProfiles?.[docUsername] || {};
+            const existingProfile = globalData.systemUsers?.[docUsername] || {};
             setDoctorEditForm({
-              name: existingProfile.name || docUsername,
+              name: existingProfile.displayName || docUsername,
               title: existingProfile.title || "Hekim",
-              commissionRate: existingProfile.commissionRate || "", // Hakediş oranı eklendi!
+              commissionRate: existingProfile.commissionRate || "",
               avatar: existingProfile.avatar || null,
               zoom: existingProfile.zoom || 1,
               x: existingProfile.x || 50,
               y: existingProfile.y || 50
             });
-
-            // YENİ: Asistansa Ajanda sekmesini, Patron/Hekimse Profil sekmesini aç
             const defaultTab = currentUserProfile?.role === "assistant" ? "agenda" : "profile";
             setDocModalTab(defaultTab);
-            
-            setDocStatsStart("");
-            setDocStatsEnd("");
-            setDocStatsSelectedTreatment(null);
+            setDocStatsStart(""); setDocStatsEnd(""); setDocStatsSelectedTreatment(null);
             setIsDoctorDetailsModalOpen(true);
           };
 
           const handleUpdateDoctor = (e) => {
             e.preventDefault();
-
             const normalizedEditName = doctorEditForm.name.trim().toLowerCase();
             const isDuplicateName = allDoctors.some((docId) => {
               if (docId === selectedDoctorId) return false;
-              const docProfile = globalData.doctorProfiles?.[docId];
-              return docProfile?.name?.trim().toLowerCase() === normalizedEditName;
+              const docProfile = globalData.systemUsers?.[docId];
+              return docProfile?.displayName?.trim().toLowerCase() === normalizedEditName;
             });
 
             if (isDuplicateName) {
-              showNotification("Bu klinikte bu isimde başka bir hekim zaten bulunuyor.", "error");
-              return;
+              showNotification("Bu klinikte bu isimde başka bir hekim zaten bulunuyor.", "error"); return;
             }
 
-            // YENİ: commissionRate'i güvenlik için (Number) formatına çevir, boşsa 0 yap
-            const finalEditForm = { 
-              ...doctorEditForm, 
-              name: doctorEditForm.name.trim(),
-              commissionRate: parseFloat(doctorEditForm.commissionRate) || 0 
-            };
-            const updatedProfiles = {
-              ...globalData.doctorProfiles,
-              [selectedDoctorId]: finalEditForm,
-            };
+            const updatedSystemUsers = JSON.parse(JSON.stringify(globalData.systemUsers || {}));
+            if (updatedSystemUsers[selectedDoctorId]) {
+                updatedSystemUsers[selectedDoctorId].displayName = doctorEditForm.name.trim(); // ANA KİMLİKTE (Her yerde) DEĞİŞTİRİYORUZ!
+                updatedSystemUsers[selectedDoctorId].title = doctorEditForm.title;
+                updatedSystemUsers[selectedDoctorId].commissionRate = parseFloat(doctorEditForm.commissionRate) || 0;
+                updatedSystemUsers[selectedDoctorId].avatar = doctorEditForm.avatar || null;
+                updatedSystemUsers[selectedDoctorId].zoom = doctorEditForm.zoom || 1;
+                updatedSystemUsers[selectedDoctorId].x = doctorEditForm.x || 50;
+                updatedSystemUsers[selectedDoctorId].y = doctorEditForm.y || 50;
+            }
 
-            saveGlobalData({ ...globalData, doctorProfiles: updatedProfiles });
-            showNotification("Hekim profili güncellendi.");
+            saveGlobalData({ ...globalData, systemUsers: updatedSystemUsers });
+            showNotification("Hekim profili tüm sistemlerde güncellendi.");
             setIsDoctorDetailsModalOpen(false);
           };
 
           const handleDeleteDoctor = () => {
-            if (selectedDoctorId === currentUser) {
-              showNotification("Şu an aktif olan hesabınızı silemezsiniz!", "error");
-              return;
-            }
-
-            showConfirm(
-              `${selectedDoctorId} adlı hekimi pasife almak istediğinize emin misiniz? (Geçmiş randevuları ve ciroları korunacaktır)`,
-              () => {
-                const updatedUsers = { ...globalData.usersDb };
-                delete updatedUsers[selectedDoctorId];
-
-                const updatedProfiles = { ...globalData.doctorProfiles };
-                delete updatedProfiles[selectedDoctorId];
-
-                saveGlobalData({
-                  ...globalData,
-                  usersDb: updatedUsers,
-                  doctorProfiles: updatedProfiles,
-                });
-
-                showNotification("Hekim pasife alındı. Geçmiş randevu ve ciro kayıtları korundu.", "error");
+            if (selectedDoctorId === currentUser) { showNotification("Şu an aktif olan hesabınızı silemezsiniz!", "error"); return; }
+            showConfirm(`${selectedDoctorId} adlı hekimi pasife almak istediğinize emin misiniz? (Geçmiş randevuları korunacaktır)`, () => {
+                const updatedSystemUsers = { ...globalData.systemUsers };
+                if (updatedSystemUsers[selectedDoctorId]) {
+                    updatedSystemUsers[selectedDoctorId].active = false;
+                }
+                saveGlobalData({ ...globalData, systemUsers: updatedSystemUsers });
+                showNotification("Hekim pasife alındı.", "error");
                 setIsDoctorDetailsModalOpen(false);
-              }
-            );
+            });
           };
 
           const getDoctorFilteredStats = (docId) => {
@@ -8154,39 +8022,22 @@ if (isDayClosed) isPastSlot = true;
         // YENİ: KLİNİK KULLANICILARI (EKİP) YÖNETİMİ
         // ==========================================
         const renderUsers = () => {
-          // YENİ: Firebase Auth ve Eski veritabanındaki tüm kullanıcıları eksiksiz birleştir
-          const allSystemUsers = Array.from(new Set([
-            ...Object.keys(globalData.usersDb || {}),
-            ...Object.keys(globalData.userProfiles || {}),
-            ...Object.keys(globalData.doctorProfiles || {})
-          ]));
-
-          const usersList = allSystemUsers.map(username => {
-            const profile = globalData.userProfiles?.[username] || {};
-            const docProfile = globalData.doctorProfiles?.[username] || {};
-            
-            return {
-              username,
-              name: profile.name || docProfile.name || username,
-              role: profile.role || (docProfile.name ? "doctor" : "clinic_owner"),
-              active: profile.active !== false,
-              assignedDoctors: profile.assignedDoctors || []
-            };
-          }).filter(usr => {
-            // YENİ İZOLASYON FİLTRESİ: Kendi kliniğine (Aynı patrona) ait HERKESİ eksiksiz göster
-            return resolveClinicId(usr.username) === currentClinicId;
-          });
+          const usersList = Object.values(globalData.systemUsers || {})
+            .filter(u => u.clinicId === currentClinicId)
+            .map(u => ({
+              ...u,
+              name: u.displayName || u.username,
+              assignedDoctors: u.assignedDoctors || []
+            }));
 
           const handleSaveUser = async (e) => {
             e.preventDefault();
 
             if (editingUsername && !hasPermission("users.edit")) {
-              showNotification("Kullanıcı düzenleme yetkiniz bulunmuyor!", "error");
-              return;
+              showNotification("Kullanıcı düzenleme yetkiniz bulunmuyor!", "error"); return;
             }
             if (!editingUsername && !hasPermission("users.create")) {
-              showNotification("Yeni kullanıcı ekleme yetkiniz bulunmuyor!", "error");
-              return;
+              showNotification("Yeni kullanıcı ekleme yetkiniz bulunmuyor!", "error"); return;
             }
 
             const uname = normalizeUsername(newUserForm.username);
@@ -8195,119 +8046,72 @@ if (isDayClosed) isPastSlot = true;
             if (!editingUsername && !newUserForm.password) {
               showNotification("Yeni kullanıcı için şifre belirlemek zorunludur!", "error"); return;
             }
-            
             if (!editingUsername && newUserForm.password.length < 6) {
               showNotification("Güvenlik gereği şifre EN AZ 6 KARAKTER olmalıdır!", "error"); return;
             }
 
-            // 🛡️ YENİ ÇÖZÜM: Firebase alt çizgi (_) olan domainleri geçersiz sayar. Klinik ID'sini tertemiz yapıyoruz!
+            // PATRON KULLANICI EKLERKEN MAİL SORMASIN MANTIĞI:
             const safeClinicDomain = (currentClinicId || "klinik").replace(/[^a-zA-Z0-9]/g, "");
+            // Formda email girilmemişse, otomatik dahili email üret. Asla kullanıcıyı zorlama!
             const finalEmail = (newUserForm.email && newUserForm.email.includes("@")) 
                 ? newUserForm.email 
-                : `${uname}@${safeClinicDomain}.com`.toLowerCase();
+                : `${uname}@${safeClinicDomain}.internal`.toLowerCase();
 
-            // --- GLOBAL BENZERSİZLİK KONTROLÜ ---
             const oldUname = normalizeUsername(editingUsername);
             const isEditing = !!editingUsername;
             
             if (!isEditing || uname !== oldUname) {
-               const isTaken = Object.keys(globalData.userProfiles || {}).some(k => normalizeUsername(k) === uname) ||
-                               Object.keys(globalData.doctorProfiles || {}).some(k => normalizeUsername(k) === uname);
-               
-               if (isTaken) {
-                  showNotification("Bu kullanıcı adı başka bir hesap tarafından kullanılıyor.", "error");
-                  return; 
-               }
+               const isTaken = Object.values(globalData.systemUsers || {}).some(u => normalizeUsername(u.username) === uname);
+               if (isTaken) { showNotification("Bu kullanıcı adı sistemde kullanılıyor.", "error"); return; }
             }
 
-            // FIREBASE HAYALET MOTORU (GERÇEK VEYA SAHTE E-POSTA İLE KAYIT)
             if (newUserForm.password && !isEditing) {
               try {
                 const { initializeApp } = await import('firebase/app');
                 const ghostApp = initializeApp(auth.app.options, "GhostApp_" + Date.now());
                 const ghostAuth = getAuth(ghostApp);
-                
                 await createUserWithEmailAndPassword(ghostAuth, finalEmail, newUserForm.password);
                 await signOut(ghostAuth);
               } catch (err) {
                 console.error("Auth Kayıt Hatası:", err);
-                if (err.code === 'auth/email-already-in-use') {
-                   showNotification("Bu kullanıcıya ait e-posta veya ID sistemde zaten kullanımda!", "error"); 
-                } else if (err.code === 'auth/weak-password') {
-                   showNotification("Şifreniz çok zayıf! Lütfen en az 6 karakterli bir şifre girin.", "error"); 
-                } else if (err.code === 'auth/invalid-email') {
-                   showNotification("Geçersiz e-posta formatı tespit edildi! Lütfen geçerli karakterler kullanın.", "error"); 
-                } else {
-                   showNotification("Kullanıcı oluşturulamadı: " + err.message, "error");
-                }
-                return; // Firebase onay vermezse işlemi kesinlikle durdur!
+                if (err.code === 'auth/email-already-in-use') showNotification("Bu e-posta kullanımda!", "error"); 
+                else showNotification("Kullanıcı oluşturulamadı: " + err.message, "error");
+                return;
               }
             }
 
-            const isPracticingDoctor = newUserForm.role === "doctor" || (newUserForm.role === "clinic_owner" && newUserForm.isDoctor !== false);
-
-            // 1. KÖK DİZİN KAYDI (userProfiles)
-            const updatedUserProfiles = JSON.parse(JSON.stringify(globalData.userProfiles || {}));
-            updatedUserProfiles[uname] = {
-              name: newUserForm.name,
+            const updatedSystemUsers = JSON.parse(JSON.stringify(globalData.systemUsers || {}));
+            
+            updatedSystemUsers[uname] = {
+              ...(updatedSystemUsers[uname] || {}), // eski verileri koru
+              username: uname,
+              displayName: newUserForm.name,
               role: newUserForm.role,
               active: newUserForm.active,
               clinicId: currentClinicId,
-              assignedDoctors: newUserForm.role === "assistant" ? newUserForm.assignedDoctors : [uname],
-              createdAt: updatedUserProfiles[uname]?.createdAt || Date.now(),
-              createdBy: updatedUserProfiles[uname]?.createdBy || currentUser,
-              realEmail: isEditing ? (updatedUserProfiles[uname]?.realEmail || finalEmail) : finalEmail,
-              isDoctor: isPracticingDoctor
+              assignedDoctors: newUserForm.role === "assistant" ? newUserForm.assignedDoctors : [],
+              email: isEditing ? (updatedSystemUsers[uname]?.email || finalEmail) : finalEmail,
+              createdAt: updatedSystemUsers[uname]?.createdAt || Date.now()
             };
 
-            // 2. GİRİŞ KAPISI KAYDI (usersDb tablosuna eklenmesi ŞARTTIR)
-            const updatedUsersDb = JSON.parse(JSON.stringify(globalData.usersDb || {}));
-            updatedUsersDb[uname] = {
-              email: isEditing ? (updatedUsersDb[uname]?.email || finalEmail) : finalEmail,
-              role: newUserForm.role,
-              clinicId: currentClinicId
-            };
-
-            // 3. KLİNİK İZOLASYONLU DİZİN KAYDI (doctorProfiles)
-            const updatedDoctorProfiles = JSON.parse(JSON.stringify(globalData.doctorProfiles || {}));
-            
-            if (newUserForm.role === "doctor" || newUserForm.role === "clinic_owner") {
-               updatedDoctorProfiles[uname] = {
-                  ...(updatedDoctorProfiles[uname] || {}),
-                  name: newUserForm.name,
-                  title: newUserForm.role === "clinic_owner" ? "Başhekim" : "Hekim",
-                  addedBy: updatedDoctorProfiles[uname]?.addedBy || currentUser,
-                  isDeleted: !isPracticingDoctor 
-               };
-            }
-
-            saveGlobalData({
-              ...globalData,
-              userProfiles: updatedUserProfiles,
-              usersDb: updatedUsersDb, 
-              ...(newUserForm.role !== "assistant" && { doctorProfiles: updatedDoctorProfiles })
-            }).then(() => {
-              showNotification(isEditing ? "Kullanıcı güncellendi." : "Yeni kullanıcı sisteme eklendi.");
+            saveGlobalData({ ...globalData, systemUsers: updatedSystemUsers }).then(() => {
+              showNotification(isEditing ? "Kullanıcı güncellendi." : "Yeni kullanıcı eklendi.");
               setIsUserModalOpen(false);
             });
           };
 
           const handleToggleActive = (uname, currentStatus) => {
-            if (!hasPermission("users.edit")) {
-              showNotification("Kullanıcı durumunu değiştirme yetkiniz bulunmuyor!", "error");
-              return;
-            }
-            if (uname === currentUser) {
-              showNotification("Şu an kullandığınız kendi hesabınızı pasifleştiremezsiniz!", "error");
-              return;
-            }
+            if (!hasPermission("users.edit")) return showNotification("Yetkiniz yok!", "error");
+            if (uname === currentUser) return showNotification("Kendinizi pasifleştiremezsiniz!", "error");
+            
             showConfirm(`${uname} kullanıcısını ${currentStatus ? 'pasife almak' : 'aktifleştirmek'} istediğinize emin misiniz?`, () => {
-              const updatedUserProfiles = { ...globalData.userProfiles };
-              const profile = updatedUserProfiles[uname] || { role: "clinic_owner" };
-              updatedUserProfiles[uname] = { ...profile, active: !currentStatus };
-              saveGlobalData({ ...globalData, userProfiles: updatedUserProfiles }).then(() => {
-                showNotification("Kullanıcı durumu değiştirildi.");
-              });
+              const updatedUsers = { ...globalData.systemUsers };
+              if (updatedUsers[uname]) {
+                 updatedUsers[uname].active = !currentStatus;
+                 saveGlobalData({ ...globalData, systemUsers: updatedUsers }).then(() => {
+                   showNotification("Kullanıcı durumu değiştirildi.");
+                 });
+              }
             });
           };
 
@@ -11397,11 +11201,31 @@ const renderSettings = () => {
 
                         <div className="p-1.5 border-t border-slate-100 dark:border-slate-700/50">
                           <button
-                            onClick={async () => {
-                              if(auth) await signOut(auth); // FIREBASE ÇIKIŞI
-                              sessionStorage.removeItem("klinikAktifKullanici");
-                              sessionStorage.removeItem("klinikOturumTokeni");
-                              window.location.reload();
+                            onClick={() => {
+                              // 1. Tüm açık menüleri ve sekmeleri ANINDA kapat
+                              setIsUserMenuOpen(false);
+                              setIsUsersSubmenuOpen(false);
+                              setSearchDropdownOpen(false);
+                              setIsAptSearchOpen(false);
+                              
+                              // 2. Çıkış animasyonunu başlat
+                              setIsLoggingOut(true); 
+                              
+                              setTimeout(async () => {
+                                // 3. Tüm formları, şifreleri ve giriş ekranını tamamen SIFIRLA (Tertemiz Başlangıç)
+                                setAuthForm({ username: "", password: "" });
+                                setRegisterForm({ name: "", title: "", username: "", email: "", password: "" });
+                                setForgotForm({ email: "" });
+                                setAuthMode("login"); // Yeni girişte "Giriş Yap" sekmesi açık olsun
+                                setAuthError(""); // Varsa hata mesajlarını temizle
+                                setActiveTab("home"); // Yeni girişte her zaman anasayfadan başlasın
+                                
+                                // 4. Firebase'den güvenli çıkış yap
+                                if(auth) await signOut(auth);
+                                
+                                // 5. Animasyonu bitir
+                                setIsLoggingOut(false);
+                              }, 1500);
                             }}
                             className="w-full text-left px-2.5 py-2 text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-700 transition-colors rounded-xl flex items-center gap-1.5 group"
                           >
