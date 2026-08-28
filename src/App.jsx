@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase, ref, set, update, onValue, push, child, get } from 'firebase/database';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword, onAuthStateChanged, setPersistence, browserSessionPersistence } from 'firebase/auth';
 const MONTHS = [
         "Ocak",
 
@@ -198,6 +198,9 @@ const useFirebase = () => {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         const database = getDatabase(app);
         const firebaseAuth = getAuth(app); // YENİ: Auth motoru çalıştırıldı
+        
+        // YENİ GÜVENLİK: Tarayıcı veya sekme kapandığında oturumu anında Firebase sunucularından düşür
+        setPersistence(firebaseAuth, browserSessionPersistence).catch((err) => console.error("Oturum kalıcılık ayarı hatası:", err));
 
         setDb(database);
         setAuth(firebaseAuth); // YENİ: Auth state'e kaydedildi
@@ -245,7 +248,8 @@ const useFirebase = () => {
         showNotification,
         globalData,
         currentUser,
-        saveGlobalData // YENİ EKLENDİ
+        saveGlobalData,
+        dynamicPricingCategories // BEYAZ EKRAN ÇÖZÜMÜ
       }) => {
         const [isPediatric, setIsPediatric] = useState(false);
 
@@ -1625,21 +1629,20 @@ const useFirebase = () => {
       const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
       useEffect(() => {
-        if (!currentUser || !globalData.systemUsers) return;
+          if (!currentUser || !globalData.systemUsers) return;
 
-        const profile = globalData.systemUsers[currentUser];
-        if (profile) {
-          const cId = profile.clinicId;
-          const patronId = Object.values(globalData.systemUsers).find(u => u.clinicId === cId && u.role === "clinic_owner")?.username || currentUser;
-          const customMatrix = globalData.settingsDb?.[patronId]?.yetkiler?.[profile.role] || ROLE_PERMISSIONS[profile.role];
+          const profile = globalData.systemUsers[currentUser];
+          if (profile) {
+            // V2 MİMARİSİ DÜZELTMESİ: Veriler currentUser objesi altında toplanır. Bu yüzden ayarları doğrudan currentUser üzerinden okumalıyız.
+            const customMatrix = globalData.settingsDb?.[currentUser]?.yetkiler?.[profile.role] || ROLE_PERMISSIONS[profile.role];
 
-          setCurrentUserProfile({
-            ...profile,
-            name: profile.displayName || profile.username, // Eski sistemlerle tam uyumluluk
-            permissions: profile.role === "clinic_owner" ? ROLE_PERMISSIONS["clinic_owner"] : { ...customMatrix }
-          });
-        }
-      }, [currentUser, globalData.systemUsers, globalData.settingsDb]);
+            setCurrentUserProfile({
+              ...profile,
+              name: profile.displayName || profile.username, // Eski sistemlerle tam uyumluluk
+              permissions: profile.role === "clinic_owner" ? ROLE_PERMISSIONS["clinic_owner"] : { ...customMatrix }
+            });
+          }
+        }, [currentUser, globalData.systemUsers, globalData.settingsDb]);
 
       const hasPermission = (permissionString) => {
         if (!currentUserProfile) return false;
@@ -1892,7 +1895,7 @@ const useFirebase = () => {
             time: newHistoryForm.time,
             timestamp: Date.now(),
             doctorId: docId,
-            doctorName: globalData.doctorProfiles?.[docId]?.name || docId,
+            doctorName: globalData.systemUsers?.[docId]?.displayName || docId,
             appointmentStatus: "Geldi",
             visitType: newHistoryForm.visitType,
             treatment: newHistoryForm.treatment,
@@ -3065,7 +3068,7 @@ Tarih: ...../...../202...
                   time: timeStr,
                   timestamp: Date.now(),
                   doctorId: docId,
-                  doctorName: globalData.doctorProfiles?.[docId]?.name || docId,
+                  doctorName: globalData.systemUsers?.[docId]?.displayName || docId,
                   appointmentStatus: "Geldi",
                   visitType: "Gerçekleşen Klinik İşlem",
                   treatment: aptData.treatment || "Belirtilmedi",
@@ -3338,6 +3341,28 @@ Tarih: ...../...../202...
                   }
                 }
               });
+            });
+          }
+
+          // YENİ: Sisteme İlk Kayıt Epikrizini "Geçmiş Randevular" listesine de dahil et.
+          if (patientForm?.clinicalHistory) {
+            patientForm.clinicalHistory.forEach(h => {
+              if (!h.appointmentId && h.appointmentStatus === "İlk Kayıt") {
+                all.push({
+                  status: "Geldi",
+                  patientName: pName,
+                  patientId: patientForm.id,
+                  treatment: h.treatment || "Sisteme İlk Kayıt",
+                  notes: h.complaint || "Dosya Açılışı",
+                  docId: h.doctorId,
+                  dateStr: h.date,
+                  timeStr: h.time,
+                  timestamp: h.timestamp || 0,
+                  originalKey: h.id, // sahte key (hata verdirtmez, modalı açmaz)
+                  dateKey: "0000-00-00",
+                  duration: "-"
+                });
+              }
             });
           }
 
@@ -4133,7 +4158,7 @@ Tarih: ...../...../202...
 
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-1 flex justify-between">
                         <span>
-                          {globalData.doctorProfiles?.[a.docId]?.name ||
+                          {globalData.systemUsers?.[a.docId]?.displayName ||
                             a.docId}
                         </span>
 
@@ -4183,7 +4208,7 @@ Tarih: ...../...../202...
 
                       <div className="text-[10px] text-slate-400 font-bold mt-1 flex justify-between">
                         <span>
-                          {globalData.doctorProfiles?.[a.docId]?.name ||
+                          {globalData.systemUsers?.[a.docId]?.displayName ||
                             a.docId}
                         </span>
 
@@ -4813,7 +4838,7 @@ Tarih: ...../...../202...
                       ? "İyi Akşamlar 🌙"
                       : "İyi Geceler 🌜"}
                     ,{" "}
-                    {globalData.doctorProfiles?.[currentUser]?.name ||
+                    {globalData.systemUsers?.[currentUser]?.displayName ||
                       currentUser}
                   </h1>
 
@@ -4995,8 +5020,8 @@ Tarih: ...../...../202...
 
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-lg hidden sm:block">
-                              {globalData.doctorProfiles?.[apt.docId]?.name}
-                            </span>
+                            {globalData.systemUsers?.[apt.docId]?.displayName || apt.docId}
+                          </span>
 
                             {/* YENİ: Tıklanabilir Anasayfa Rozeti */}
                             {getStatusBadge(apt.status, (e) =>
@@ -5973,7 +5998,7 @@ if (isDayClosed) isPastSlot = true;
                     >
                       {allDoctors.map((doc) => (
                         <option key={doc} value={doc}>
-                          {globalData.doctorProfiles?.[doc]?.name || doc}
+                          {globalData.systemUsers?.[doc]?.displayName || doc}
                         </option>
                       ))}
                     </select>
@@ -6252,7 +6277,7 @@ if (isDayClosed) isPastSlot = true;
 
                       {allDoctors.map((doc) => (
                         <option key={doc} value={doc}>
-                          {globalData.doctorProfiles?.[doc]?.name || doc}
+                          {globalData.systemUsers?.[doc]?.displayName || doc}
                         </option>
                       ))}
                     </select>
@@ -6288,8 +6313,8 @@ if (isDayClosed) isPastSlot = true;
                         </div>
 
                         <span className="font-black text-slate-800 dark:text-white text-[10px] sm:text-[13px] truncate w-full text-center">
-                          {globalData.doctorProfiles?.[docId]?.name || docId}
-                        </span>
+                            {globalData.systemUsers?.[docId]?.displayName || docId}
+                          </span>
                       </div>
                     </div>
                   ))}
@@ -6929,6 +6954,7 @@ if (isDayClosed) isPastSlot = true;
             };
 
             const apts = globalData.appointments?.[docId] || {};
+            const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
 
             Object.entries(apts).forEach(([key, a]) => {
               const parts = key.split("-");
@@ -6955,7 +6981,8 @@ if (isDayClosed) isPastSlot = true;
                 if (a.selectedTreatments && a.selectedTreatments.length > 0) {
                     txList = a.selectedTreatments;
                 } else if (a.treatment) {
-                    const knownTreatments = Object.keys(globalData.pricingDb?.[docId] || DEFAULT_PRICING);
+                    const docPricing = globalData.pricingDb?.[ownerId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                    const knownTreatments = Object.keys(docPricing);
                     if (knownTreatments.includes(a.treatment.trim())) {
                         txList = [{ treatment: a.treatment.trim(), tooth: "" }];
                     } else {
@@ -6963,19 +6990,22 @@ if (isDayClosed) isPastSlot = true;
                     }
                 } else if (a.price) {
                     txList = [{ treatment: "İşlem Kaydı", tooth: "" }];
+                } else {
+                    txList = [{ treatment: "Belirtilmedi", tooth: "" }]; // BEYAZ EKRAN KALKANI 1
                 }
 
                 let aptOverallPrice = parseFloat(a.price) || 0;
                 let useOverallPrice = aptOverallPrice > 0 && txList.length <= 1;
 
                 txList.forEach((tx) => {
-                    stats.treatments[tx.treatment] = (stats.treatments[tx.treatment] || 0) + 1;
+                    const txName = tx.treatment || "Belirtilmedi"; // BEYAZ EKRAN KALKANI 2
+                    stats.treatments[txName] = (stats.treatments[txName] || 0) + 1;
                     
                     let itemPrice = 0;
                     let matchedPlan = null;
                     if (pData && pData.plannedTreatments) {
                         matchedPlan = pData.plannedTreatments.find(pt => 
-                            pt.treatment === tx.treatment && 
+                            pt.treatment === txName && 
                             (pt.tooth === tx.tooth || !tx.tooth || tx.tooth === "")
                         );
                     }
@@ -6987,8 +7017,8 @@ if (isDayClosed) isPastSlot = true;
                         itemPrice = aptOverallPrice;
                     } 
                     else {
-                        const docPricing = globalData.pricingDb?.[docId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
-                        const matchedStandardTx = Object.keys(docPricing).find(t => tx.treatment.includes(t));
+                        const docPricing = globalData.pricingDb?.[ownerId] || (typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING);
+                        const matchedStandardTx = Object.keys(docPricing).find(t => txName.includes(t));
                         if (matchedStandardTx && docPricing[matchedStandardTx] !== undefined) {
                             itemPrice = parseFloat(docPricing[matchedStandardTx]) || 0;
                         }
@@ -7002,8 +7032,8 @@ if (isDayClosed) isPastSlot = true;
                         date: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
                         time: key.split("-")[3] || "00:00",
                         patient: a.patientName,
-                        treatment: tx.tooth ? `Diş: ${tx.tooth} - ${tx.treatment}` : tx.treatment,
-                        rawTreatment: tx.treatment,
+                        treatment: tx.tooth ? `Diş: ${tx.tooth} - ${txName}` : txName,
+                        rawTreatment: txName,
                         selectedTreatments: [tx],
                         status: a.status,
                         price: itemPrice,
@@ -7025,9 +7055,10 @@ if (isDayClosed) isPastSlot = true;
                             if (docStatsEnd && txDateStr > docStatsEnd) inRange = false;
                             
                             if (inRange) {
+                                const txName = tx.treatment || "Belirtilmedi";
                                 const alreadyAdded = stats.ptList.some(listItem => 
                                     listItem.patient === p.name && 
-                                    listItem.rawTreatment === tx.treatment && 
+                                    listItem.rawTreatment === txName && 
                                     listItem.status === "Geldi" &&
                                     (listItem.selectedTreatments[0]?.tooth === tx.tooth || !tx.tooth)
                                 );
@@ -7039,15 +7070,15 @@ if (isDayClosed) isPastSlot = true;
                                     let finalPrice = parseFloat(tx.price) || 0;
                                     stats.revenue += finalPrice;
                                     
-                                    stats.treatments[tx.treatment] = (stats.treatments[tx.treatment] || 0) + 1;
+                                    stats.treatments[txName] = (stats.treatments[txName] || 0) + 1;
                                     
                                     stats.ptList.push({
                                         date: `${String(completedDate.getDate()).padStart(2, "0")}/${String(completedDate.getMonth() + 1).padStart(2, "0")}/${completedDate.getFullYear()}`,
                                         time: completedDate.toLocaleTimeString("tr-TR", {hour: "2-digit", minute: "2-digit"}),
                                         patient: p.name,
-                                        treatment: tx.tooth === "Tüm Çene" ? tx.treatment : `Diş: ${tx.tooth} - ${tx.treatment}`,
-                                        rawTreatment: tx.treatment,
-                                        selectedTreatments: [{treatment: tx.treatment, tooth: tx.tooth}],
+                                        treatment: tx.tooth === "Tüm Çene" ? txName : `Diş: ${tx.tooth} - ${txName}`,
+                                        rawTreatment: txName,
+                                        selectedTreatments: [{treatment: txName, tooth: tx.tooth}],
                                         status: "Geldi",
                                         price: finalPrice,
                                         timestamp: completedDate.getTime()
@@ -7075,7 +7106,7 @@ if (isDayClosed) isPastSlot = true;
 
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5 content-start">
                     {allDoctors.map((doc) => {
-                      const prof = globalData.doctorProfiles?.[doc] || {};
+                      const prof = globalData.systemUsers?.[doc] || {};
 
                       return (
                         <div
@@ -7100,7 +7131,7 @@ if (isDayClosed) isPastSlot = true;
 
                           <div className="flex-1">
                             <div className="font-black text-slate-800 dark:text-white text-base">
-                              {prof.name || doc}
+                              {prof.displayName || doc}
                             </div>
                             <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/50 inline-block px-2 py-0.5 rounded-lg mt-0.5 shadow-sm">
                               {prof.title || "Hekim"}
@@ -7140,14 +7171,17 @@ if (isDayClosed) isPastSlot = true;
                       if (pt.selectedTreatments && pt.selectedTreatments.length > 0) {
                          return pt.selectedTreatments.some(t => t.treatment === docStatsSelectedTreatment);
                       }
-                      if (!pt.rawTreatment) return false;
+                      const rawTx = pt.rawTreatment || "";
+                      if (!rawTx) return false;
                       
-                      const knownTreatments = Object.keys(globalData.pricingDb?.[selectedDoctorId] || DEFAULT_PRICING);
-                      if (knownTreatments.includes(pt.rawTreatment.trim())) {
-                         return pt.rawTreatment.trim() === docStatsSelectedTreatment;
+                      const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                      const knownTreatments = Object.keys(globalData.pricingDb?.[ownerId] || DEFAULT_PRICING);
+                      
+                      if (knownTreatments.includes(rawTx.trim())) {
+                         return rawTx.trim() === docStatsSelectedTreatment;
                       }
                       
-                      const txList = pt.rawTreatment.split(",").map(t => t.trim());
+                      const txList = rawTx.split(",").map(t => t.trim());
                       return txList.includes(docStatsSelectedTreatment);
                     });
                   }
@@ -7937,7 +7971,7 @@ if (isDayClosed) isPastSlot = true;
                                   {renderMoney(stats.revenue)} {isPrivacyMode ? "" : "₺"}
                                 </div>
                                 <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 bg-white/50 dark:bg-black/20 rounded py-0.5">
-                                  Hakediş: {renderMoney((stats.revenue * (globalData.doctorProfiles?.[selectedDoctorId]?.commissionRate || 0)) / 100)} {isPrivacyMode ? "" : "₺"}
+                                  Hakediş: {renderMoney((stats.revenue * (globalData.systemUsers?.[selectedDoctorId]?.commissionRate || 0)) / 100)} {isPrivacyMode ? "" : "₺"}
                                 </div>
                               </div>
                             </div>
@@ -8052,10 +8086,11 @@ if (isDayClosed) isPastSlot = true;
 
             // PATRON KULLANICI EKLERKEN MAİL SORMASIN MANTIĞI:
             const safeClinicDomain = (currentClinicId || "klinik").replace(/[^a-zA-Z0-9]/g, "");
-            // Formda email girilmemişse, otomatik dahili email üret. Asla kullanıcıyı zorlama!
+            // YENİ: Formda email girilmemişse, BENZERSİZ (Tarih damgalı) dahili email üret. 
+            // Böylece hesap silinip aynı adla tekrar açıldığında Firebase Auth "Bu mail kullanılıyor" demez!
             const finalEmail = (newUserForm.email && newUserForm.email.includes("@")) 
                 ? newUserForm.email 
-                : `${uname}@${safeClinicDomain}.internal`.toLowerCase();
+                : `${uname}_${Date.now()}@${safeClinicDomain}.internal`.toLowerCase();
 
             const oldUname = normalizeUsername(editingUsername);
             const isEditing = !!editingUsername;
@@ -8215,28 +8250,23 @@ if (isDayClosed) isPastSlot = true;
                                     return;
                                   }
 
-                                  showConfirm(`${usernameToDelete} adlı kullanıcıyı sistemden KALICI OLARAK silmek istediğinize emin misiniz? (Dikkat: Kökten silinirse geçmiş verilerde sorun yaşanabilir!)`, () => {
+                                  showConfirm(`${usernameToDelete} adlı kullanıcıyı sistemden KALICI OLARAK silmek istediğinize emin misiniz?\n\nBu işlem sonucunda bu kullanıcı adı boşa çıkacak ve yeni kayıtlarda kullanılabilecektir. Kullanıcının daha önce oluşturduğu randevular, hastalar ve klinik geçmiş verileri ise SİLİNMEYECEKTİR.`, () => {
                                     
-                                    const updatedUserProfiles = { ...globalData.userProfiles };
-                                    delete updatedUserProfiles[usernameToDelete]; // Profil kökten silinir
-
-                                    const updatedDoctorProfiles = { ...globalData.doctorProfiles };
-                                    delete updatedDoctorProfiles[usernameToDelete]; // Takvim verisi kökten silinir
-
-                                    const updatedUsersDb = { ...globalData.usersDb };
-                                    delete updatedUsersDb[usernameToDelete]; // Giriş verisi kökten silinir
+                                    // YENİ V2 MİMARİSİ: Kullanıcıyı sadece Ana Rehberden (systemUsers) siliyoruz.
+                                    // Böylece hesaba giriş yetkisi tamamen yok olur ve isim boşa çıkar.
+                                    // Ancak appointments veya patients tablolarına DOKUNMUYORUZ ki geçmiş kayıtları bozulmasın!
+                                    const updatedSystemUsers = JSON.parse(JSON.stringify(globalData.systemUsers || {}));
+                                    delete updatedSystemUsers[usernameToDelete];
 
                                     saveGlobalData({
                                       ...globalData,
-                                      userProfiles: updatedUserProfiles,
-                                      doctorProfiles: updatedDoctorProfiles,
-                                      usersDb: updatedUsersDb
+                                      systemUsers: updatedSystemUsers
                                     }).then(() => {
-                                      showNotification(`${usernameToDelete} kalıcı olarak sistemden kazındı.`);
+                                      showNotification(`${usernameToDelete} sistemden silindi, eski verileri korundu.`, "success");
                                     }).catch(() => {
-                                      showNotification("Silme başarısız oldu.", "error");
+                                      showNotification("Silme işlemi başarısız oldu.", "error");
                                     });
-                                  }); 
+                                  });
                                 }} 
                                 className="px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[11px] font-bold hover:bg-rose-100 transition shadow-sm border border-rose-100 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50 ml-1.5"
                                 title="Kullanıcıyı Sil"
@@ -8939,25 +8969,71 @@ const renderSettings = () => {
                            </button>
                         </div>
 
-                        {/* YENİ: Özel Finans Şifresi Paneli (Kompakt Tıklanabilir) */}
-                        <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col justify-center col-span-1 md:col-span-2 mt-2">
-                           <div className="text-[11px] font-bold text-slate-400 uppercase mb-2 flex items-center justify-between">
-                             <span>Finansal Bilgi Şifresi</span>
-                             <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[9px]"><i className="fa-solid fa-lock"></i> 4 Haneli PIN</span>
-                           </div>
-                           <div className="text-[11px] text-slate-500 mb-3">
-                             <div className="mb-1 font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                                <i className="fa-solid fa-eye-slash text-rose-500"></i>
-                                Finansal Gizlilik Kilidi
+                        {/* YENİ: Özel Finans Şifresi Paneli - SADECE PATRON GÖREBİLİR */}
+                        {isOwner && (
+                          <div className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm flex flex-col justify-center col-span-1 md:col-span-2 mt-2">
+                             <div className="text-[11px] font-bold text-slate-400 uppercase mb-2 flex items-center justify-between">
+                               <span>Finansal Bilgi Şifresi</span>
+                               <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-[9px]"><i className="fa-solid fa-lock"></i> 4 Haneli PIN</span>
                              </div>
-                             Uygulama açıldığında finansal bilgiler gizli başlar. Göz ikonuna tıklandığında istenecek 4 haneli bağımsız PIN kodunu buradan değiştirebilirsiniz. (Varsayılan PIN: 0000)
+                             <div className="text-[11px] text-slate-500 mb-3">
+                               <div className="mb-1 font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                  <i className="fa-solid fa-eye-slash text-rose-500"></i>
+                                  Finansal Gizlilik Kilidi
+                               </div>
+                               Uygulama açıldığında finansal bilgiler gizli başlar. Göz ikonuna tıklandığında istenecek 4 haneli bağımsız PIN kodunu buradan değiştirebilirsiniz. (Varsayılan PIN: 0000)
+                             </div>
+                             <button onClick={() => {
+                                setPinChangeForm({ oldPin: "", newPin: "", confirmPin: "" });
+                                setIsPinChangeModalOpen(true);
+                             }} className="w-full bg-rose-50 text-rose-600 border border-rose-200 py-2.5 rounded-xl text-[12px] font-bold hover:bg-rose-500 hover:text-white transition shadow-sm dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-600">
+                               <i className="fa-solid fa-eye-slash mr-1.5"></i> Finans Şifresini Yönet
+                             </button>
+                          </div>
+                        )}
+                     </div>
+
+                     {/* YENİ: HESABIMI SİL TEHLİKELİ ALANI (TÜM KULLANICILAR İÇİN) */}
+                     <div className="mt-8 border-2 border-rose-200 dark:border-rose-900/50 rounded-xl overflow-hidden shadow-sm relative">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-[repeating-linear-gradient(45deg,#ef4444,#ef4444_10px,transparent_10px,transparent_20px)] opacity-50"></div>
+                        <div className="bg-rose-50/50 dark:bg-rose-900/10 p-5 pt-6">
+                           <h4 className="font-black text-rose-600 dark:text-rose-500 text-[14px] flex items-center gap-2 mb-2">
+                             <i className="fa-solid fa-user-xmark"></i> HESABIMI KALICI OLARAK SİL
+                           </h4>
+                           <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80 font-semibold mb-4">
+                             Bu işlem hesabınızı sistemden tamamen kaldırır. Kullanıcı adınız boşa çıkar. Geçmiş randevu ve hasta kayıtlarınız klinikte korunmaya devam eder.
+                           </p>
+                           
+                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-lg border border-rose-100 dark:border-rose-900/30">
+                             <div>
+                               <span className="block font-bold text-[12px] text-slate-800 dark:text-slate-200">Kendi Hesabımı Sil</span>
+                               <span className="block text-[10px] text-slate-500">Bu işlem geri alınamaz ve anında çıkış yapılır.</span>
+                             </div>
+                             <button type="button" onClick={() => {
+                                showPromptConfirm(
+                                  "Hesabımı Kalıcı Olarak Sil",
+                                  "DİKKAT! Bu işlem sonucunda hesabınız sistemden tamamen silinecektir.\n\nGeçmişte oluşturduğunuz randevular ve hasta kayıtları sistemde (klinikte) kalmaya devam edecektir.\n\nOnaylamak için aşağıdaki kutucuğa SİL yazın:",
+                                  "SİL",
+                                  () => {
+                                     const updatedSystemUsers = JSON.parse(JSON.stringify(globalData.systemUsers || {}));
+                                     delete updatedSystemUsers[currentUser];
+
+                                     saveGlobalData({
+                                        ...globalData,
+                                        systemUsers: updatedSystemUsers
+                                     }).then(() => {
+                                        setIsLoggingOut(true);
+                                        setTimeout(async () => {
+                                           if(auth) await signOut(auth);
+                                           window.location.reload();
+                                        }, 1500);
+                                     });
+                                  }
+                                );
+                             }} className="shrink-0 px-4 py-2 bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-[11px] font-black transition-colors shadow-md flex items-center gap-1.5">
+                               <i className="fa-solid fa-trash"></i> Hesabımı Sil
+                             </button>
                            </div>
-                           <button onClick={() => {
-                              setPinChangeForm({ oldPin: "", newPin: "", confirmPin: "" });
-                              setIsPinChangeModalOpen(true);
-                           }} className="w-full bg-rose-50 text-rose-600 border border-rose-200 py-2.5 rounded-xl text-[12px] font-bold hover:bg-rose-500 hover:text-white transition shadow-sm dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-600">
-                             <i className="fa-solid fa-eye-slash mr-1.5"></i> Finans Şifresini Yönet
-                           </button>
                         </div>
                      </div>
                   </div>
@@ -9776,8 +9852,9 @@ const renderSettings = () => {
 
           allDoctors.forEach((docId) => {
             doctorStats[docId] = {
-              name: globalData.doctorProfiles?.[docId]?.name || docId,
-
+              // YENİ: Gerçek adı ve komisyon oranını doğru tablodan (systemUsers) çek
+              name: globalData.systemUsers?.[docId]?.displayName || docId,
+              commissionRate: parseFloat(globalData.systemUsers?.[docId]?.commissionRate || 0),
               revenue: 0,
             };
           });
@@ -11091,9 +11168,9 @@ const renderSettings = () => {
                     >
                       <div className="text-right hidden xl:block">
                         <div className="text-[13px] font-black dark:text-white">
-                          {globalData.doctorProfiles?.[currentUser]?.name ||
-                            currentUser}
-                        </div>
+                              {globalData.systemUsers?.[currentUser]?.displayName ||
+                                currentUser}
+                            </div>
                       </div>
                       <div className="w-9 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-black text-base border shadow-sm shrink-0 overflow-hidden relative">
                         {globalData.doctorProfiles?.[currentUser]?.avatar ? (
@@ -11122,10 +11199,10 @@ const renderSettings = () => {
                         {/* Menü İçi Kullanıcı Özeti */}
                         <div className="p-2.5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-900/50 rounded-t-xl">
                           <div className="font-black text-[13px] text-slate-800 dark:text-white truncate">
-                            {currentUserProfile?.name || globalData.doctorProfiles?.[currentUser]?.name || currentUser}
+                            {currentUserProfile?.displayName || globalData.systemUsers?.[currentUser]?.displayName || currentUser}
                           </div>
                           <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5">
-                            {currentUserProfile?.role === 'assistant' ? 'Klinik Asistanı' : (globalData.doctorProfiles?.[currentUser]?.title || "Klinik Hekimi")}
+                            {currentUserProfile?.role === 'assistant' ? 'Klinik Asistanı' : (globalData.systemUsers?.[currentUser]?.title || "Klinik Hekimi")}
                           </div>
                         </div>
 
@@ -12882,7 +12959,7 @@ const renderSettings = () => {
                                   future.map((a, idx) => (
                                     <div
                                       key={idx}
-                                      className="bg-indigo-50/50 p-2 rounded-xl border border-indigo-100 text-[11px] dark:bg-indigo-900/30 dark:border-indigo-800/50"
+                                      className="bg-indigo-50/50 p-2 rounded-xl border border-indigo-100 text-[11px] dark:bg-indigo-900/30 dark:border-indigo-800/50 flex flex-col"
                                     >
                                       <div className="flex justify-between items-center mb-0.5">
                                         <span className="font-black text-indigo-900 dark:text-indigo-300">
@@ -12901,6 +12978,9 @@ const renderSettings = () => {
                                         <span className="text-indigo-600 dark:text-indigo-400">
                                           Planlı İle Entegre
                                         </span>
+                                      </div>
+                                      <div className="text-[10px] font-bold text-indigo-500/80 dark:text-indigo-400/80 mt-1 flex items-center gap-1">
+                                        <i className="fa-solid fa-user-doctor"></i> {globalData.systemUsers?.[a.docId]?.displayName || a.docId}
                                       </div>
                                     </div>
                                   ))
@@ -12945,14 +13025,12 @@ const renderSettings = () => {
                                             </time>
                                             {getStatusBadge(a.status)}
                                           </div>
-                                          <h4 className="font-black text-slate-800 dark:text-slate-200 text-[13px] mb-0.5 mt-1">
+                                          <h4 className="font-black text-slate-800 dark:text-white text-[13px] mb-0.5 mt-1">
                                             {renderTreatmentText(a)}
                                           </h4>
-                                          <div className="text-[10px] font-bold text-slate-400 mt-1.5">
-                                            <i className="fa-solid fa-user-doctor mr-1"></i>{" "}
-                                            {globalData.doctorProfiles?.[
-                                              a.docId
-                                            ]?.name || a.docId}
+                                          <div className="text-[10px] font-bold text-slate-400 mt-1.5 flex items-center gap-1">
+                                            <i className="fa-solid fa-user-doctor"></i>{" "}
+                                            {globalData.systemUsers?.[a.docId]?.displayName || a.docId}
                                           </div>
                                         </div>
                                       </div>
@@ -13542,6 +13620,7 @@ const renderSettings = () => {
                                 globalData={globalData}
                                 currentUser={currentUser}
                                 saveGlobalData={saveGlobalData} 
+                                dynamicPricingCategories={DYNAMIC_PRICING_CATEGORIES}
                               />
 
                               {/* --- YAZDIRMA İŞLEM TABLOSU (Gizli, Sadece Baskıda) --- */}
@@ -13601,7 +13680,7 @@ const renderSettings = () => {
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar p-0.5">
-                                  {Object.entries(DYNAMIC_PRICING_CATEGORIES).map(([catName, data]) => (
+                                  {Object.entries(DYNAMIC_PRICING_CATEGORIES || {}).map(([catName, data]) => (
                                     <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-1.5 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
                                       <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2 flex items-center gap-1 ${data.color}`}>
                                         <i className={`fa-solid ${data.icon}`}></i> {catName}
@@ -13829,7 +13908,7 @@ const renderSettings = () => {
                                         <span className="text-slate-600 font-normal">{h.time}</span>
                                       </td>
                                       <td className="border border-slate-300 p-1.5 font-semibold align-top">
-                                        {h.doctorName}
+                                        {globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}
                                       </td>
                                       <td className="border border-slate-300 p-1.5 font-semibold align-top">
                                         {h.visitType || "Tedavi"}
@@ -13933,7 +14012,7 @@ const renderSettings = () => {
                             >
                               <option value="all">Tüm Hekimler</option>
                               {allDoctors.map(doc => (
-                                <option key={doc} value={doc}>{globalData.doctorProfiles?.[doc]?.name || doc}</option>
+                                <option key={doc} value={doc}>{globalData.systemUsers?.[doc]?.displayName || doc}</option>
                               ))}
                             </select>
                           </div>
@@ -13997,7 +14076,7 @@ const renderSettings = () => {
                                         <h4 className="font-black text-[13px] text-slate-800 dark:text-white mb-1.5">{h.treatment}</h4>
                                         <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-col gap-0.5">
                                           <div className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300">
-                                            <i className="fa-solid fa-user-doctor w-3 text-center"></i> {h.doctorName}
+                                            <i className="fa-solid fa-user-doctor w-3 text-center"></i> {globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}
                                           </div>
                                           {h.selectedTeeth?.length > 0 && (
                                             <div className="flex items-center gap-1">
@@ -14054,7 +14133,7 @@ const renderSettings = () => {
                                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">İlgili Hekim *</label>
                                   <select required value={newHistoryForm.doctorId || ""} onClick={(e) => e.stopPropagation()} onChange={e => setNewHistoryForm({...newHistoryForm, doctorId: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700">
                                     <option value="" disabled>Seçiniz</option>
-                                    {allDoctors.map(doc => (<option key={doc} value={doc}>{globalData.doctorProfiles?.[doc]?.name || doc}</option>))}
+                                    {allDoctors.map(doc => (<option key={doc} value={doc}>{globalData.systemUsers?.[doc]?.displayName || doc}</option>))}
                                   </select>
                                 </div>
                               </div>
