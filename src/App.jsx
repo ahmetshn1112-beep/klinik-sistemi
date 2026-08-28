@@ -1357,6 +1357,162 @@ const useFirebase = () => {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
       };
+      // ==========================================
+      // ✨ KLİNİK AI / ASSISTANT SERVİS KATMANI ✨
+      // ==========================================
+      const AI_TEST_MODE = true;
+
+      const requestAI = async ({ type, context }) => {
+        if (AI_TEST_MODE) {
+          return simulateAIResponse(type, context);
+        }
+      };
+
+      // ==========================================
+// ✨ KLİNİK AI / ASSISTANT SERVİS KATMANI ✨
+// ==========================================
+const simulateAIResponse = (type, context) => {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            let responseText = "";
+
+            if (type === "patientSummary") {
+              const { patient, plans } = context;
+              let anamnezYorumu = "Hastanın sistemik risk profili düşük görünmektedir.";
+              const anamnezStr = (patient.anamnesis || "").toLowerCase();
+              if (anamnezStr.includes("kalp") || anamnezStr.includes("hipertansiyon") || anamnezStr.includes("kan")) anamnezYorumu = "⚠️ Kardiyovasküler veya kanama riski tespit edildi. Cerrahi işlemlerde ve anestezi seçiminde dikkatli olunması önerilir.";
+              else if (anamnezStr.includes("şeker") || anamnezStr.includes("diyabet")) anamnezYorumu = "⚠️ Diyabet öyküsü mevcut. Yara iyileşmesinde gecikme ve enfeksiyon riski göz önünde bulundurulmalıdır.";
+              else if (anamnezStr.includes("alerji")) anamnezYorumu = "⚠️ Alerji öyküsü mevcut. İlaç reaksiyonlarına dikkat edilmelidir.";
+              else if (patient.anamnesis) anamnezYorumu = `📌 Belirtilen Tıbbi Durum: "${patient.anamnesis}" işleme başlamadan önce hekim tarafından değerlendirilmelidir.`;
+
+              const hist = patient.clinicalHistory || [];
+              let uyumYorumu = "Hastanın randevu uyumu standart görünmektedir.";
+              if (hist.length > 0) {
+                 const iptalSayisi = hist.filter(h => h.appointmentStatus === "İptal" || h.appointmentStatus === "Gelmedi").length;
+                 const iptalOrani = (iptalSayisi / hist.length) * 100;
+                 if (iptalOrani > 30 && hist.length > 2) uyumYorumu = `⚠️ Randevu Sadakati Düşük: %${Math.round(iptalOrani)} oranında devamsızlık/iptal mevcut. Hatırlatmaların aktif kullanılması önerilir.`;
+                 else uyumYorumu = `Klinik geçmişinde ${hist.length} kayıt bulunmaktadır. Genel randevu sadakati olumludur.`;
+              }
+
+              const openPlans = (plans || []).filter(p => !p.isCompleted);
+              let planYorumu = "Açıkta bekleyen acil bir tedavi planı bulunmuyor.";
+              if (openPlans.length > 0) {
+                 const islemListesi = openPlans.map(p => p.treatment).slice(0, 3).join(", ");
+                 planYorumu = `Bekleyen ${openPlans.length} adet planlı işlem var (Örn: ${islemListesi}).`;
+              }
+
+              responseText = `🧑‍⚕️ KLİNİK AI HASTA ÖZETİ\n\n📌 TIBBİ DEĞERLENDİRME & RİSKLER\n${anamnezYorumu}\n\n📅 HASTA UYUMU\n${uyumYorumu}\n\n⚙️ OPERASYONEL ÖNERİ\n${planYorumu}`;
+            } 
+            else if (type === "clinicalNote") {
+              const rawText = context.rawText || "";
+              if (rawText.length < 5) responseText = "Lütfen klinik not için en az birkaç kelime giriniz.";
+              else responseText = `[KLİNİK SÜREÇ NOTU]\nİşlem Özeti: ${rawText}\n\n• Uygulanan Prosedür: Belirtilen işlemler standart protokollere uygun olarak gerçekleştirilmiştir.\n• Komplikasyon: İşlem sırasında herhangi bir klinik komplikasyon gözlemlenmemiştir.\n• Hasta Durumu: Hasta işlemi tolere etmiş olup, operasyon sonu genel durumu stabildir.`;
+            }
+            else if (type === "treatmentAnalysis") {
+              const { plans } = context;
+              const completed = plans.filter(p => p.isCompleted);
+              const pending = plans.filter(p => !p.isCompleted);
+              responseText = `📋 TEDAVİ PLANI ANALİZİ\n\n✅ Tamamlanan İşlemler: ${completed.length} adet\n⏳ Bekleyen İşlemler: ${pending.length} adet\n\n💡 AI YORUMU\n`;
+              if (pending.length > 0) {
+                const aciller = pending.filter(p => p.treatment.toLowerCase().includes("kanal") || p.treatment.toLowerCase().includes("çekim"));
+                if (aciller.length > 0) responseText += `Kayıtlarda ${aciller.length} adet kanal/çekim gibi öncelikli olabilecek işlem tespit edildi. Bu işlemlerin sıradaki randevuda planlanması klinik süreç açısından faydalı olabilir.`;
+                else responseText += `Mevcut kayıtlara göre rutin tedaviler devam etmektedir. İlerleyen seanslarda planlı işlemlerin sırayla uygulanması önerilir.`;
+              } else {
+                responseText += `Mevcut kayıtlarda bekleyen açık bir işlem bulunmamaktadır. Tedavi planı başarıyla tamamlanmış görünmektedir.`;
+              }
+            }
+            else if (type === "recordCheck") {
+              const { history, pastAppointments } = context;
+              let eksikEpikriz = 0;
+              pastAppointments.forEach(apt => {
+                 if (apt.status === "Geldi") {
+                    const isHistoryExist = history.some(h => h.appointmentId === apt.originalKey || h.date === apt.dateStr);
+                    if (!isHistoryExist) eksikEpikriz++;
+                 }
+              });
+              responseText = `🔎 KAYIT TUTARLILIĞI DENETİMİ\n\n`;
+              if (eksikEpikriz > 0) responseText += `⚠️ DİKKAT GEREKTİREN KAYITLAR\nSistemde "Geldi" olarak işaretlenmiş ancak epikriz/klinik notu girilmemiş ${eksikEpikriz} adet randevu tespit edildi. Yasal ve tıbbi takip açısından bu kayıtların doldurulması önerilir.`;
+              else responseText += `✅ KAYITLAR TUTARLI\nHastanın gerçekleşen tüm randevuları ile epikriz kayıtları eşleşmektedir. Eksik bir klinik not tespit edilmedi.`;
+            }
+            else if (type === "epikrizEdit") {
+              const { record } = context;
+              responseText = `[PROFESYONEL EPİKRİZ TASLAĞI]\n\nİşlem/Tedavi: ${record.treatment || "Belirtilmedi"}\nİlgili Dişler: ${record.selectedTeeth?.join(", ") || "-"}\n\n📌 KLİNİK DURUM VE ŞİKAYET\nHasta şikayeti: ${record.complaint || "Rutin başvuru."}\nBulgular: ${record.diagnosis || "Mevcut klinik bulgular dahilinde işlem planlandı."}\n\n⚙️ UYGULANAN PROSEDÜR\n${record.procedureNotes || "Standart tedavi prosedürü uygulandı."}\nKullanılan Materyal/Anestezi: ${record.anesthesia || "-"}\n\n📝 SONUÇ VE ÖNERİLER\n${record.prescription ? "Reçete/Öneri: " + record.prescription : "İşlem sorunsuz tamamlanmış olup rutin ağız bakımı önerilmiştir."}`;
+            }
+            // YENİ EKLENEN FAZ 4: KLİNİK RADAR VE COPILOT
+            else if (type === "clinicRadar") {
+              const { todayApts, waiting, done, cancelled, revenue } = context;
+              responseText = `🎯 KLİNİK RADAR (GÜNLÜK ÖZET)
+
+📊 OPERASYONEL DURUM
+Bugün planlanan toplam randevu: ${todayApts}
+Bekleyen / Aktif Hasta: ${waiting}
+İşlemi Tamamlanan: ${done}
+İptal / Gelmeyen: ${cancelled}
+
+💰 FİNANSAL BAKIŞ
+Bugünkü gerçekleşen ciro (tahmini): ${revenue} ₺
+
+💡 AI STRATEJİ ÖNERİSİ\n` + 
+              (cancelled > 0 ? "⚠️ İptal oranınız dikkat çekiyor. Bekleme listesindeki (eğer varsa) veya sonraki günlerdeki hastaları öne çekmek verimliliği artırabilir.\n" : "✅ İptal veya gelmeyen hasta yok, operasyonel verimlilik %100.\n") +
+              (waiting > 2 ? "⚠️ Bekleme salonunda yoğunluk görünüyor. İşlem sürelerini optimize etmek veya asistan yönlendirmesini hızlandırmak hasta memnuniyetini artıracaktır." : "Klinik akışı şu an stabil ve sakin ilerliyor.");
+            }
+            else if (type === "copilot") {
+              const { tab } = context;
+              if (tab === "home") responseText = "Ana sayfadasınız. Günlük işleyişinizi, randevu doluluğunu ve aktif bekleyen hastaları buradan takip edebilirsiniz. Detaylı analiz için 'Klinik Radar'ı çalıştırabilirsiniz.";
+              else if (tab === "patients") responseText = "Hasta veritabanındasınız. Bir hastanın profiline girip 'AI Hastayı Özetle' butonunu kullanarak o hastanın tıbbi geçmişini saniyeler içinde okuyabilirsiniz.";
+              else if (tab === "calendar") responseText = "Randevu takvimindesiniz. Çakışmaları önlemek için sürükle-bırak yapabilir, sağ tıklayarak hızlıca randevu durumlarını güncelleyebilirsiniz.";
+              else if (tab === "finance") responseText = "Finans ekranındasınız. Ciro, hakediş ve tahsilatları dönemsel olarak inceleyebilirsiniz. Göz ikonuna basarak gizlilik modunu açıp kapatabilirsiniz.";
+              else responseText = "Klinik sistemindesiniz. Herhangi bir ekranda yardıma ihtiyacınız olursa bana sorabilirsiniz.";
+            }
+
+            resolve(responseText);
+          }, 1500);
+        });
+      };
+
+      const AIResultPanel = ({ isOpen, loading, result, error, onClose, onApply, title }) => {
+        if (!isOpen) return null;
+        return (
+          <div className="mt-2.5 mb-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl overflow-hidden shadow-md relative animate-pop">
+            <div className="bg-indigo-100/80 dark:bg-indigo-900/60 px-3 py-2 flex justify-between items-center border-b border-indigo-200 dark:border-indigo-800">
+              <h4 className="font-black text-[11px] text-indigo-800 dark:text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
+                <i className="fa-solid fa-wand-magic-sparkles animate-pulse text-indigo-500"></i> {title || "Klinik AI Analizi"}
+              </h4>
+              <button type="button" onClick={onClose} className="w-5 h-5 rounded-md flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors">
+                <i className="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+            <div className="p-3 text-[12px] text-slate-700 dark:text-slate-200">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-4 gap-2 text-indigo-600 dark:text-indigo-400">
+                  <i className="fa-solid fa-circle-notch fa-spin text-2xl"></i>
+                  <span className="font-bold text-[11px] animate-pulse">Klinik kayıtları analiz ediliyor...</span>
+                </div>
+              ) : error ? (
+                <div className="text-rose-500 font-bold flex items-center gap-1.5 text-[11px]">
+                  <i className="fa-solid fa-triangle-exclamation"></i> {error}
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap font-medium leading-relaxed font-sans text-[11px] sm:text-[12px]">
+                  {result}
+                </div>
+              )}
+            </div>
+            {!loading && !error && result && (
+              <div className="bg-white/80 dark:bg-slate-900/60 px-3 py-2 border-t border-indigo-100 dark:border-indigo-800/60 flex justify-end gap-2">
+                <button type="button" onClick={() => { navigator.clipboard.writeText(result); alert("AI Analiz özeti panoya kopyalandı."); }} className="px-2.5 py-1 rounded-lg font-bold text-[10px] text-slate-600 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1 shadow-sm">
+                  <i className="fa-regular fa-copy"></i> Kopyala
+                </button>
+                {onApply && (
+                  <button type="button" onClick={() => onApply(result)} className="px-2.5 py-1 rounded-lg font-black text-[10px] text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition flex items-center gap-1">
+                    <i className="fa-solid fa-check"></i> Uygula
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      };
       function App() {
   const { fbUser, auth, db, isReady } = useFirebase();
 
@@ -1431,6 +1587,36 @@ const useFirebase = () => {
           setTimeout(() => setNotification(null), 3000);
         };
         // ---------------------------------------------------------
+
+        const [aiState, setAiState] = useState({
+        patientSummary: { isOpen: false, loading: false, result: null, error: null },
+        clinicalNote: { isOpen: false, loading: false, result: null, error: null },
+        epikrizEdit: { isOpen: false, loading: false, result: null, error: null },
+        treatmentAnalysis: { isOpen: false, loading: false, result: null, error: null },
+        recordCheck: { isOpen: false, loading: false, result: null, error: null },
+        clinicRadar: { isOpen: false, loading: false, result: null, error: null },
+        copilot: { isOpen: false, loading: false, result: null, error: null }
+      });
+
+    const handleRunAI = async (type, contextData) => {
+      setAiState(prev => ({
+        ...prev,
+        [type]: { isOpen: true, loading: true, result: null, error: null }
+      }));
+
+      try {
+        const response = await simulateAIResponse(type, contextData);
+        setAiState(prev => ({
+          ...prev,
+          [type]: { isOpen: true, loading: false, result: response, error: null }
+        }));
+      } catch (err) {
+        setAiState(prev => ({
+          ...prev,
+          [type]: { isOpen: true, loading: false, result: null, error: "AI analizi tamamlanamadı." }
+        }));
+      }
+    };
 
         const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -4136,7 +4322,7 @@ Tarih: ...../...../202...
 
                           a.originalKey,
 
-                          activeTab,
+                          "calendar",
 
                           a.docId
                         );
@@ -4186,7 +4372,7 @@ Tarih: ...../...../202...
 
                           a.originalKey,
 
-                          activeTab,
+                          "calendar",
 
                           a.docId
                         );
@@ -4844,6 +5030,15 @@ Tarih: ...../...../202...
 
                   <RealtimeClock />
                 </div>
+                {currentUserProfile?.role === "clinic_owner" && (
+                  <button onClick={() => {
+                    // Ciro hesaplama (basitçe bugün tamamlananlar)
+                    const todayRevenue = todaysApts.filter(a => a.status === "Geldi").reduce((sum, a) => sum + (parseFloat(a.price) || 0), 0);
+                    handleRunAI("clinicRadar", { todayApts: totalApts, waiting: waitingCount, done: todaysApts.filter(a=>a.status==="Geldi").length, cancelled: todaysApts.filter(a=>a.status==="İptal"||a.status==="Gelmedi").length, revenue: todayRevenue });
+                  }} className="z-10 bg-indigo-900/50 hover:bg-indigo-800 text-white border border-indigo-400/30 px-3 py-1.5 rounded-xl font-black text-[11px] flex items-center gap-1.5 shadow-md transition-all">
+                    <i className="fa-solid fa-radar text-indigo-300"></i> AI Klinik Radar
+                  </button>
+                )}
 
                 {/* YENİ: Akıllı Sistem Bilgi Barı (Sıradaki Hasta & Hızlı Kısayollar) */}
                 <div className="z-10 flex bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1.5 gap-1.5 shadow-inner w-full lg:w-auto overflow-x-auto custom-scrollbar">
@@ -4915,6 +5110,11 @@ Tarih: ...../...../202...
                   </div>
                 </div>
               </div>
+              <AIResultPanel 
+                title="AI Klinik Radar Özeti"
+                isOpen={aiState.clinicRadar.isOpen} loading={aiState.clinicRadar.loading} result={aiState.clinicRadar.result} error={aiState.clinicRadar.error}
+                onClose={() => setAiState(prev => ({ ...prev, clinicRadar: { ...prev.clinicRadar, isOpen: false } }))}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 shrink-0">
                 <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5">
@@ -9382,7 +9582,7 @@ const renderSettings = () => {
                          </div>
                          <button onClick={() => {
     // 1. Hastaları bul
-    const myPatients = Object.values(globalData.patientsDb || {}).filter(p => {
+    const myPats = Object.values(globalData.patientsDb || {}).filter(p => {
           if (p.isDeleted) return false;
           if (currentUserProfile?.role === "assistant") {
               return (currentUserProfile.assignedDoctors || []).includes(p.addedBy) && resolveClinicId(p.addedBy) === currentClinicId;
@@ -9392,9 +9592,9 @@ const renderSettings = () => {
     if(myPats.length === 0) return showNotification("Dışa aktarılacak hasta bulunamadı.", "error");
     
     // 2. Türkçe Excel Uyumlu CSV Oluştur
-    let csv = "ID;Ad Soyad;Telefon;TC Kimlik;Kayit Tarihi;Durum\n";
+    let csv = "ID;Ad Soyad;Telefon;TC Kimlik;Durum\n";
     myPats.forEach(p => {
-       csv += `${p.id};"${p.name}";"${p.phone}";"${p.tc || ""}";"${p.date}";"${p.lastStatus || ""}"\n`;
+       csv += `${p.id};"${p.name}";"${p.phone || "-"}";"${p.tc || "-"}";"${p.lastStatus || "Yeni Kayıt"}"\n`;
     });
     
     // 3. Dosyayı indir
@@ -10628,7 +10828,8 @@ const renderSettings = () => {
                         <button
                           onClick={() => {
                             setPatientForm(contextMenu.data);
-                            handleDeletePatient();
+                            // ZIRH: React'in veriyi hafızaya alması için çok kısa bir süre bekleyip siliyoruz
+                            setTimeout(() => { handleDeletePatient(); }, 100);
                           }}
                           className="w-full text-left px-2.5 py-2 text-[13px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 flex items-center gap-1.5 transition"
                         >
@@ -11349,6 +11550,36 @@ const renderSettings = () => {
                 {activeTab === "users" && renderUsers()}
               </div>
             </main>
+            {/* YENİ: UÇAN AI ASİSTAN (COPILOT) */}
+            {currentUser && (
+              <div className="fixed bottom-4 right-4 z-[9999] no-print flex flex-col items-end">
+                {aiState.copilot.isOpen && (
+                  <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] border border-indigo-100 dark:border-indigo-800/50 w-72 mb-3 overflow-hidden animate-pop flex flex-col">
+                    <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-3 text-white flex justify-between items-center">
+                      <h4 className="font-black text-[13px] flex items-center gap-1.5"><i className="fa-solid fa-robot animate-bounce"></i> Klinik Copilot</h4>
+                      <button onClick={() => setAiState(prev => ({ ...prev, copilot: { ...prev.copilot, isOpen: false } }))} className="text-indigo-200 hover:text-white transition"><i className="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div className="p-4 text-[12px] font-medium text-slate-600 dark:text-slate-300 min-h-[100px]">
+                      {aiState.copilot.loading ? (
+                        <div className="flex items-center gap-2 text-indigo-500 font-bold"><i className="fa-solid fa-circle-notch fa-spin"></i> Sayfa analiz ediliyor...</div>
+                      ) : (
+                        aiState.copilot.result || "Size nasıl yardımcı olabilirim?"
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-wrap gap-1.5">
+                      <button onClick={() => handleRunAI("copilot", { tab: activeTab })} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 px-2 py-1 rounded text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 transition shadow-sm">Bu sayfayı analiz et</button>
+                    </div>
+                  </div>
+                )}
+                
+                <button onClick={() => {
+                  if(!aiState.copilot.isOpen) handleRunAI("copilot", { tab: activeTab });
+                  else setAiState(prev => ({ ...prev, copilot: { ...prev.copilot, isOpen: false } }));
+                }} className={`w-14 h-14 rounded-full shadow-[0_10px_20px_rgba(79,70,229,0.4)] flex items-center justify-center text-2xl transition-all duration-300 hover:scale-110 ${aiState.copilot.isOpen ? "bg-rose-500 text-white" : "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"}`}>
+                  <i className={`fa-solid ${aiState.copilot.isOpen ? "fa-xmark" : "fa-wand-magic-sparkles"}`}></i>
+                </button>
+              </div>
+            )}
 
             {isPasswordModalOpen && (
               <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-md flex items-center justify-center z-[350] p-3 animate-fadeIn" onClick={() => setIsPasswordModalOpen(false)}>
@@ -12515,10 +12746,41 @@ const renderSettings = () => {
                               </div>
                             )}
 
-                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                              <h4 className="font-black text-slate-800 mb-2 border-b border-slate-100 pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
-                                Kimlik & İletişim
-                              </h4>
+                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 relative">
+  <div className="flex justify-between items-center mb-2 border-b border-slate-100 pb-2 dark:border-slate-700">
+    <h4 className="font-black text-slate-800 text-[13px] uppercase tracking-wider dark:text-white">
+      Kimlik & İletişim
+    </h4>
+    
+    {/* YENİ AI BUTONU */}
+    {patientForm?.id && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleRunAI("patientSummary", {
+                patient: patientForm,
+                plans: patientForm.plannedTreatments || [],
+                appointments: globalData.appointments || {}
+              });
+            }}
+        className="bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 dark:hover:bg-indigo-900/50 px-2.5 py-1 rounded-lg text-[10px] font-black transition flex items-center gap-1.5 shadow-sm"
+      >
+        <i className="fa-solid fa-wand-magic-sparkles"></i> AI Hastayı Özetle
+      </button>
+    )}
+  </div>
+
+  {/* YENİ AI SONUÇ PANELİ */}
+  <AIResultPanel 
+    title="AI Hasta Özeti"
+    isOpen={aiState.patientSummary.isOpen}
+    loading={aiState.patientSummary.loading}
+    result={aiState.patientSummary.result}
+    error={aiState.patientSummary.error}
+    onClose={() => setAiState(prev => ({ ...prev, patientSummary: { ...prev.patientSummary, isOpen: false } }))}
+  />
 
                               <form className="space-y-1.5">
                                 <div
@@ -13717,14 +13979,30 @@ const renderSettings = () => {
 
                               {/* --- PLANLANAN TEDAVİ DETAYLARI TABLOSU --- */}
                               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col shrink-0 no-print">
-                                <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
-                                  <h4 className="font-black text-[13px] uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-5 h-5 rounded-md flex items-center justify-center text-[11px]">2</span>
-                                    Planlanan Tedavi Tablosu
-                                  </h4>
+                                <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center flex-wrap gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-black text-[13px] uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                      <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-5 h-5 rounded-md flex items-center justify-center text-[11px]">2</span>
+                                      Planlanan Tedavi Tablosu
+                                    </h4>
+                                    {patientForm?.plannedTreatments?.length > 0 && (
+                                      <button type="button" onClick={(e) => { e.preventDefault(); handleRunAI("treatmentAnalysis", { plans: patientForm.plannedTreatments }); }} className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 px-2 py-0.5 rounded-lg font-black transition flex items-center gap-1 shadow-sm">
+                                        <i className="fa-solid fa-wand-magic-sparkles"></i> AI Plan Analizi
+                                      </button>
+                                    )}
+                                  </div>
                                   <div className="text-[11px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2.5 py-1 rounded-lg shadow-sm">
                                     Toplam: {patientForm.plannedTreatments?.reduce((sum, tx) => sum + (parseFloat(tx.price) || 0), 0).toLocaleString("tr-TR")} ₺
                                   </div>
+                                </div>
+                                
+                                {/* AI SONUÇ PANELİ (Plan Analizi) */}
+                                <div className="px-2">
+                                  <AIResultPanel 
+                                    title="AI Tedavi Planı Analizi"
+                                    isOpen={aiState.treatmentAnalysis.isOpen} loading={aiState.treatmentAnalysis.loading} result={aiState.treatmentAnalysis.result} error={aiState.treatmentAnalysis.error}
+                                    onClose={() => setAiState(prev => ({ ...prev, treatmentAnalysis: { ...prev.treatmentAnalysis, isOpen: false } }))}
+                                  />
                                 </div>
 
                                 <div className="overflow-x-auto w-full max-h-[260px] overflow-y-auto custom-scrollbar">
@@ -13964,11 +14242,18 @@ const renderSettings = () => {
                           </div>
 
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1.5 shrink-0">
-                            <div>
+                            <div className="flex items-center gap-3 flex-wrap">
                               <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-1 text-base">
                                 <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i>
                                 Klinik Geçmiş (Epikriz)
                               </h3>
+                              <button type="button" onClick={(e) => {
+                                  e.preventDefault();
+                                  const { past } = getPatientAppointmentsList(patientForm.name);
+                                  handleRunAI("recordCheck", { history: patientForm.clinicalHistory || [], pastAppointments: past });
+                                }} className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 px-2 py-1 rounded-lg font-black transition flex items-center gap-1 shadow-sm">
+                                <i className="fa-solid fa-magnifying-glass"></i> AI Kayıt Denetimi
+                              </button>
                             </div>
                             <div className="flex gap-1 w-full sm:w-auto">
                               <button
@@ -14016,6 +14301,13 @@ const renderSettings = () => {
                               ))}
                             </select>
                           </div>
+
+                          {/* AI SONUÇ PANELİ (Kayıt Denetimi) */}
+                          <AIResultPanel 
+                            title="AI Kayıt Tutarlılık Raporu"
+                            isOpen={aiState.recordCheck.isOpen} loading={aiState.recordCheck.loading} result={aiState.recordCheck.result} error={aiState.recordCheck.error}
+                            onClose={() => setAiState(prev => ({ ...prev, recordCheck: { ...prev.recordCheck, isOpen: false } }))}
+                          />
 
                           {/* Timeline Görünümü */}
                           <div className="flex-1 overflow-y-auto no-print pr-1.5 relative mt-1.5 custom-scrollbar">
@@ -14200,8 +14492,36 @@ const renderSettings = () => {
                                   <textarea rows="2" value={newHistoryForm.anesthesia} onChange={e => setNewHistoryForm({...newHistoryForm, anesthesia: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Hekim Notu / Prosedür Notu</label>
-                                  <textarea rows="2" value={newHistoryForm.procedureNotes} onChange={e => setNewHistoryForm({...newHistoryForm, procedureNotes: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700"></textarea>
+                                  <div className="flex justify-between items-end mb-0.5">
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase">Hekim Notu / Prosedür Notu</label>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => handleRunAI("clinicalNote", { rawText: newHistoryForm.procedureNotes })}
+                                      className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded shadow-sm hover:bg-indigo-100 transition flex items-center gap-1"
+                                    >
+                                      <i className="fa-solid fa-wand-magic-sparkles"></i> AI Düzenle
+                                    </button>
+                                  </div>
+                                  <textarea rows="2" value={newHistoryForm.procedureNotes} onChange={e => setNewHistoryForm({...newHistoryForm, procedureNotes: e.target.value})} className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold outline-none focus:border-indigo-500 resize-none dark:bg-slate-900 dark:text-white dark:border-slate-700 placeholder:opacity-50" placeholder="Kısa bir not girin, AI sizin için toparlasın..."></textarea>
+                                  
+                                  {/* AI SONUÇ PANELİ (Sadece Not için) */}
+                                  {aiState.clinicalNote.isOpen && (
+                                    <div className="mt-1">
+                                      <AIResultPanel 
+                                        title="AI Klinik Not Taslağı"
+                                        isOpen={aiState.clinicalNote.isOpen}
+                                        loading={aiState.clinicalNote.loading}
+                                        result={aiState.clinicalNote.result}
+                                        error={aiState.clinicalNote.error}
+                                        onClose={() => setAiState(prev => ({ ...prev, clinicalNote: { ...prev.clinicalNote, isOpen: false } }))}
+                                        onApply={(resultText) => {
+                                           setNewHistoryForm({...newHistoryForm, procedureNotes: resultText});
+                                           setAiState(prev => ({ ...prev, clinicalNote: { ...prev.clinicalNote, isOpen: false } }));
+                                           showNotification("AI taslağı nota uygulandı.", "success");
+                                        }}
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -14244,6 +14564,11 @@ const renderSettings = () => {
                               <div>
                                 <h3 className="font-black text-[13px] uppercase tracking-wider flex items-center gap-1">
                                   <i className="fa-solid fa-pen-to-square text-indigo-400"></i> Klinik Geçmişi Düzenle
+                                  
+                                  {/* YENİ AI BUTONU: EPİKRİZ DÜZENLE */}
+                                  <button type="button" onClick={(e) => { e.preventDefault(); handleRunAI("epikrizEdit", { record: selectedHistoryRecord }); }} className="ml-2 text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 hover:bg-indigo-500 hover:text-white px-2 py-0.5 rounded-lg font-black transition flex items-center gap-1 shadow-sm">
+                                    <i className="fa-solid fa-wand-magic-sparkles"></i> AI İle Toparla
+                                  </button>
                                 </h3>
                                 <div className="text-[10px] text-slate-400 mt-0.5">{selectedHistoryRecord.date} • {selectedHistoryRecord.time}</div>
                               </div>
@@ -14309,6 +14634,18 @@ const renderSettings = () => {
                                 showNotification("Klinik detaylar başarıyla kaydedildi ve işlemler ciroya eklendi.");
                             }} className="p-2.5 overflow-y-auto custom-scrollbar flex-1 space-y-1.5">
                               
+                              {/* YENİ: AI SONUÇ PANELİ (Epikriz Düzenleyici İçin) */}
+                              <AIResultPanel 
+                                title="AI Epikriz Taslağı"
+                                isOpen={aiState.epikrizEdit.isOpen} loading={aiState.epikrizEdit.loading} result={aiState.epikrizEdit.result} error={aiState.epikrizEdit.error}
+                                onClose={() => setAiState(prev => ({ ...prev, epikrizEdit: { ...prev.epikrizEdit, isOpen: false } }))}
+                                onApply={(resultText) => {
+                                  setSelectedHistoryRecord({...selectedHistoryRecord, procedureNotes: resultText});
+                                  setAiState(prev => ({ ...prev, epikrizEdit: { ...prev.epikrizEdit, isOpen: false } }));
+                                  showNotification("AI taslağı hekim notu alanına uygulandı.", "success");
+                                }}
+                              />
+
                               {/* Otomatik Bilgiler (Kilitli Alanlar) */}
                               <div className="grid grid-cols-2 gap-1.5 mb-2 border-b border-slate-100 dark:border-slate-700 pb-2">
                                   <div className="bg-slate-50 dark:bg-slate-900/50 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 opacity-80 cursor-not-allowed">
