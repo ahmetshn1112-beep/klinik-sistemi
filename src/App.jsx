@@ -1978,12 +1978,14 @@ const useFirebase = () => {
 
         const [patientLocalSearch, setPatientLocalSearch] = useState("");
 
-        const [patientFilterStatus, setPatientFilterStatus] = useState("all");
+        const [patientFilterStatus, setPatientFilterStatus] = useState("all");
 
-        const [patientFilterTreatment, setPatientFilterTreatment] =
-          useState("all");
+        const [patientFilterTreatment, setPatientFilterTreatment] =
+          useState("all");
+          
+        const [patientSortOrder, setPatientSortOrder] = useState("default"); // YENİ: Kod sıralama durumu (default, asc, desc)
 
-        const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+        const [isHeaderVisible, setIsHeaderVisible] = useState(true);
         const [showAttendanceDetails, setShowAttendanceDetails] =
           useState(false);
           // --- KLİNİK DOSYA MASASI STATE'LERİ ---
@@ -3402,27 +3404,58 @@ Tarih: ...../...../202...
           setIsUserMenuOpen(false);
         };
 
-        const handleSavePatient = (e) => {
-          if (e) e.preventDefault();
+        // YENİ: Kliniğe Özel Karma (Hash) Kodu Üreten Fonksiyon
+        const getClinicNumericCode = (str) => {
+          let hash = 0;
+          for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          return Math.abs(hash % 90) + 10; // 10 ile 99 arası eşsiz 2 haneli klinik kimliği
+        };
 
-          // 🛡️ ZIRH 1: Eğer form henüz belleğe yüklenmediyse işlemi durdur
-          if (!patientForm) return;
+        // YENİ: Gelişmiş Hasta Kodu Üretici (Yıl + Klinik Kodu + Sıra)
+        const generatePatientCode = () => {
+          const year = new Date().getFullYear().toString();
+          const clinicNum = getClinicNumericCode(currentClinicId || "default").toString();
+          const prefix = year + clinicNum; // Örn: 202645
+          
+          const existingCodes = Object.values(globalData.patientsDb || {})
+            .filter(p => p.patientCode && p.patientCode.startsWith(prefix) && resolveClinicId(p.addedBy) === currentClinicId)
+            .map(p => parseInt(p.patientCode.slice(prefix.length), 10))
+            .filter(n => !isNaN(n));
+          
+          const max = existingCodes.length > 0 ? Math.max(...existingCodes) : 0;
+          const next = (max + 1).toString().padStart(4, '0');
+          return prefix + next; // Örn: 2026450001
+        };
 
-          // 🛡️ ZIRH 2: YETKİ KONTROLÜ
-          const isNewPatient = !patientForm.id;
-          if (isNewPatient && !hasPermission("patients_create")) {
-            showNotification("Yeni hasta ekleme yetkiniz bulunmuyor!", "error");
-            return;
-          }
-          if (!isNewPatient && !hasPermission("patients_edit")) {
-            showNotification("Hasta bilgilerini düzenleme yetkiniz bulunmuyor!", "error");
-            return;
-          }
+        const handleSavePatient = (e) => {
+          if (e) e.preventDefault();
 
-          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
-          const clinicOwner = patientForm.addedBy || ownerId;
-          
-          const normalizedTc = (patientForm.tc || "").replace(/\D/g, "");
+          // 🛡️ ZIRH 1: Eğer form henüz belleğe yüklenmediyse işlemi durdur
+          if (!patientForm) return;
+
+          // 🛡️ ZIRH 2: YETKİ KONTROLÜ
+          const isNewPatient = !patientForm.id;
+          if (isNewPatient && !hasPermission("patients_create")) {
+            showNotification("Yeni hasta ekleme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+          if (!isNewPatient && !hasPermission("patients_edit")) {
+            showNotification("Hasta bilgilerini düzenleme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+
+          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+          const clinicOwner = patientForm.addedBy || ownerId;
+          
+          const normalizedTc = (patientForm.tc || "").replace(/\D/g, "");
+
+          // YENİ: Hasta Kaydedilirken Kodun Atanması
+          let finalPatientCode = patientForm.patientCode;
+          if (!finalPatientCode) {
+            finalPatientCode = generatePatientCode();
+          }
 
           // KLİNİK İÇİ TC KOPYA KONTROLÜ
           if (normalizedTc && normalizedTc.length > 0) {
@@ -3470,15 +3503,16 @@ Tarih: ...../...../202...
 
           const safePatientForm = JSON.parse(JSON.stringify(patientForm || {}));
 
-          const updatedPatients = {
-            ...globalData.patientsDb,
-            [pId]: {
-              ...safePatientForm,
-              id: pId,
-              addedBy: clinicOwner, 
-              clinicalHistory: isNewPatient ? currentHistory : (safePatientForm.clinicalHistory || [])
-            },
-          };
+          const updatedPatients = {
+            ...globalData.patientsDb,
+            [pId]: {
+              ...safePatientForm,
+              id: pId,
+              patientCode: finalPatientCode,
+              addedBy: clinicOwner, 
+              clinicalHistory: isNewPatient ? currentHistory : (safePatientForm.clinicalHistory || [])
+            },
+          };
 
           setGlobalData(prev => ({ ...prev, patientsDb: updatedPatients }));
           setPatientForm({ ...safePatientForm, id: pId });
@@ -4854,22 +4888,24 @@ Tarih: ...../...../202...
                     </span>
                     <div className="flex gap-1">
                       <button
-                        onClick={() => {
-                          setActiveTab("patients");
-                          setPatientForm({
-                            id: "",
-                            name: "",
-                            phone: "",
-                            tc: "",
-                            age: "",
-                            gender: "Belirtilmemiş",
-                            anamnesis: "",
-                            payments: [],
-                            plannedTreatments: [],
-                          });
-                          setPatientModalTab("info");
-                          setIsPatientModalOpen(true);
-                        }}
+                        onClick={() => {
+                          setActiveTab("patients");
+                          setPatientForm({
+                            id: "",
+                            patientCode: "",
+                            name: "",
+                            phone: "",
+                            tc: "",
+                            age: "",
+                            gender: "Belirtilmemiş",
+                            anamnesis: "",
+                            isEmergency: false,
+                            payments: [],
+                            plannedTreatments: [],
+                          });
+                          setPatientModalTab("info");
+                          setIsPatientModalOpen(true);
+                        }}
                         className="text-[11px] bg-white text-indigo-600 px-2.5 py-1 rounded-lg font-black hover:bg-slate-100 transition shadow-sm"
                       >
                         Yeni Hasta
@@ -5098,16 +5134,17 @@ Tarih: ...../...../202...
                   const sevenDaysAgoTime = nowTime - (7 * 24 * 60 * 60 * 1000);
 
                   // AKILLI FİLTRE MOTORU: Hem manuel etiketleri hem de otomatik koşulları denetler
-                  const checkFolderLogic = (p, folderKey, keywords) => {
-                      const manualStatus = p[folderKey] || "";
-                      if (manualStatus === "Tamamlandı") return false; // Manuel tamamlandıysa gizle
-                      if (manualStatus !== "") return true; // Manuel etiket atanmışsa göster
-                      
-                      const status = (p.lastStatus || "").toLowerCase();
-                      return keywords.some(k => status.includes(k));
-                  };
+                  const checkFolderLogic = (p, folderKey, keywords) => {
+                      const manualStatus = p[folderKey] || "";
+                      if (manualStatus === "Tamamlandı") return false; // Manuel tamamlandıysa gizle
+                      if (manualStatus !== "") return true; // Manuel etiket atanmışsa göster
+                      
+                      const status = (p.lastStatus || "").toLowerCase();
+                      return keywords.some(k => status.includes(k));
+                  };
 
-                  const fAcil = myPatientsForHome.filter(p => checkFolderLogic(p, 'folder_acil', ['acil', 'ağrı', 'kanama']));
+                  // YENİ: isEmergency (Acil Hasta) işareti varsa da bu klasöre düşer
+                  const fAcil = myPatientsForHome.filter(p => p.isEmergency || checkFolderLogic(p, 'folder_acil', ['acil', 'ağrı', 'kanama']));
                   
                   const fKontrol = myPatientsForHome.filter(p => checkFolderLogic(p, 'folder_kontrol', ['kontrol', 'takip', 'sonraki']));
                   
@@ -5343,10 +5380,11 @@ Tarih: ...../...../202...
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <h4 className="font-black text-[13px] text-slate-800 dark:text-white flex items-center flex-wrap gap-1.5">
-                                        <span className="truncate max-w-[140px] sm:max-w-[200px]">{pt.name}</span>
-                                        {pt.anamnesis && <i className="fa-solid fa-triangle-exclamation text-rose-500" title="Önemli Not"></i>}
-                                        
-                                        {/* DİNAMİK AÇILIR MENÜ (QUICK UPDATE) */}
+                                        <span className="truncate max-w-[140px] sm:max-w-[200px]">{pt.name}</span>
+                                        {pt.anamnesis && <i className="fa-solid fa-triangle-exclamation text-rose-500 cursor-help" title={pt.anamnesis}></i>}
+                                        {pt.isEmergency && <span className="animate-pulse bg-rose-500 text-white px-1.5 py-0.5 rounded text-[9px] font-black shadow-sm">ACİL</span>}
+                                        
+                                        {/* DİNAMİK AÇILIR MENÜ (QUICK UPDATE) */}
                                         {options.length > 0 ? (
                                             <div className="relative inline-block ml-1 group/select">
                                               <select 
@@ -5698,10 +5736,22 @@ if (isDayClosed) isPastSlot = true;
                                 >
                                   <div className="flex items-center gap-1.5 overflow-hidden">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-0.5 gap-0.5 overflow-hidden">
-  <div className="flex flex-wrap items-center gap-1 truncate">
-    <span className="font-black text-slate-800 dark:text-white text-[11px] sm:text-[13px] truncate">
-      {apt.patientName} {anamnesis && (<i className="fa-solid fa-triangle-exclamation text-rose-500"></i>)}
-    </span>
+  <div className="flex flex-wrap items-center gap-1 truncate overflow-visible">
+    <span className="font-black text-slate-800 dark:text-white text-[11px] sm:text-[13px] flex items-center gap-1.5 truncate">
+      <span className="truncate">{apt.patientName}</span>
+      {anamnesis && (
+        <div className="relative group/tooltip flex items-center shrink-0">
+          <i className="fa-solid fa-triangle-exclamation text-rose-500 cursor-help animate-pulse"></i>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2.5 bg-rose-600 text-white text-[11px] font-bold rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[99999] shadow-2xl whitespace-normal pointer-events-none">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-rose-600"></div>
+            <div className="flex items-start gap-1.5">
+              <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+              <span className="leading-tight">{anamnesis}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </span>
     <span className="text-[10px] sm:text-[11px] font-bold opacity-80 truncate">
       • {renderTreatmentText(apt)} {apt.duration ? `(${apt.duration} Dk)` : ""}
     </span>
@@ -5721,10 +5771,10 @@ if (isDayClosed) isPastSlot = true;
                                 </div>
                               </div>
                             ) : (
-                              <div className="text-slate-300 dark:text-slate-600 font-semibold text-[11px] flex items-center gap-1.5 opacity-0 hover:opacity-100 transition pointer-events-none">
-                                <i className="fa-solid fa-plus"></i> Boş Seans
-                              </div>
-                            )}
+                              <div className="text-emerald-500/50 dark:text-emerald-400/50 font-bold text-[11px] flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-all cursor-pointer">
+                                <i className="fa-solid fa-plus bg-emerald-100/50 dark:bg-emerald-900/50 rounded p-1"></i> Yeni
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -5931,10 +5981,22 @@ if (isDayClosed) isPastSlot = true;
                                     }}
                                   >
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-0.5 gap-0.5 overflow-hidden">
-  <div className="flex flex-wrap items-center gap-1 truncate">
-    <span className="font-black text-slate-800 dark:text-white text-[11px] truncate">
-      {apt.patientName} {anamnesis && (<i className="fa-solid fa-triangle-exclamation text-rose-500"></i>)}
-    </span>
+  <div className="flex flex-wrap items-center gap-1 truncate overflow-visible">
+    <span className="font-black text-slate-800 dark:text-white text-[11px] sm:text-[13px] flex items-center gap-1.5 truncate">
+      <span className="truncate">{apt.patientName}</span>
+      {anamnesis && (
+        <div className="relative group/tooltip flex items-center shrink-0">
+          <i className="fa-solid fa-triangle-exclamation text-rose-500 cursor-help animate-pulse"></i>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2.5 bg-rose-600 text-white text-[11px] font-bold rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[99999] shadow-2xl whitespace-normal pointer-events-none">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-rose-600"></div>
+            <div className="flex items-start gap-1.5">
+              <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+              <span className="leading-tight">{anamnesis}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </span>
     <span className="text-[10px] font-bold opacity-80 truncate">
       • {renderTreatmentText(apt)} {apt.duration ? `(${apt.duration} Dk)` : ""}
     </span>
@@ -6389,23 +6451,28 @@ if (isDayClosed) isPastSlot = true;
                               if (!apt && !isPastSlot)
                                 openAppointmentModal(time, selectedDate, docId);
                             }}
-                            className={`doc-col slot-cell grid-row-h flex items-center px-1 transition-all duration-300 ${
-                              isHighlighted ? "flash-highlight" : ""
-                            } ${
-                              apt
-                                ? "has-apt bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm"
-                                : isPastSlot
-                                ? "border-b border-rose-100 dark:border-rose-900/30 bg-rose-50/30 dark:bg-rose-900/10 opacity-60 grayscale cursor-not-allowed pointer-events-none"
-                                : "border-b border-dashed border-emerald-300 dark:border-emerald-700/50 hover:border-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20 bg-emerald-50/30 dark:bg-emerald-900/10 cursor-pointer"
-                            } ${
-                              dragOverTargetKey === dropTargetKey
-                                ? "drag-over"
-                                : ""
-                            }`}
-                          >
-                            {apt && (
-                              <div
-                                draggable
+                            className={`doc-col slot-cell grid-row-h flex items-center px-1 transition-all duration-300 group ${
+                                isHighlighted ? "flash-highlight" : ""
+                              } ${
+                                apt
+                                  ? "has-apt bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm"
+                                  : isPastSlot
+                                  ? "border-b border-rose-100 dark:border-rose-900/30 bg-rose-50/30 dark:bg-rose-900/10 opacity-60 grayscale cursor-not-allowed pointer-events-none"
+                                  : "border-b border-dashed border-emerald-300 dark:border-emerald-700/50 hover:border-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20 bg-emerald-50/30 dark:bg-emerald-900/10 cursor-pointer"
+                              } ${
+                                dragOverTargetKey === dropTargetKey
+                                  ? "drag-over"
+                                  : ""
+                              }`}
+                            >
+                              {!apt && !isPastSlot && (
+                                <div className="text-emerald-500/50 dark:text-emerald-400/50 font-bold text-[11px] flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all cursor-pointer w-full">
+                                  <i className="fa-solid fa-plus bg-emerald-100/50 dark:bg-emerald-900/50 rounded p-0.5"></i> Yeni
+                                </div>
+                              )}
+                              {apt && (
+                                <div
+                                  draggable
                                 onDragStart={(e) =>
                                   handleDragStart(
                                     e,
@@ -6445,14 +6512,20 @@ if (isDayClosed) isPastSlot = true;
                                   borderLeftColor: tColor.border,
                                 }}
                               >
-                                <div className="font-black truncate flex items-center gap-1 text-[10px] sm:text-[11px]">
-                                  {apt.patientName}
-                                  {anamnesis && (
-                                    <i
-                                      className="fa-solid fa-triangle-exclamation text-rose-500"
-                                      title="Önemli Uyarı Var"
-                                    ></i>
-                                  )}
+                                <div className="font-black truncate flex items-center gap-1.5 text-[10px] sm:text-[11px] overflow-visible">
+                                  <span className="truncate">{apt.patientName}</span>
+                                  {anamnesis && (
+                                    <div className="relative group/tooltip flex items-center shrink-0">
+                                      <i className="fa-solid fa-triangle-exclamation text-rose-500 cursor-help animate-pulse"></i>
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2.5 bg-rose-600 text-white text-[11px] font-bold rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[99999] shadow-2xl whitespace-normal pointer-events-none">
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-rose-600"></div>
+                                        <div className="flex items-start gap-1.5">
+                                          <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
+                                          <span className="leading-tight">{anamnesis}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                   {apt.notes && (
                                     <i
                                       className="fa-regular fa-note-sticky text-amber-600 dark:text-amber-500 ml-0.5"
@@ -6488,16 +6561,13 @@ if (isDayClosed) isPastSlot = true;
             (p) => resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted
           );
           if (patientLocalSearch)
-            patientsList = patientsList.filter(
-              (p) =>
-                p.name
-
-                  .toLowerCase()
-
-                  .includes(patientLocalSearch.toLowerCase()) ||
-                (p.phone && p.phone.includes(patientLocalSearch)) ||
-                (p.tc && p.tc.includes(patientLocalSearch))
-            );
+            patientsList = patientsList.filter(
+              (p) =>
+                p.name.toLowerCase().includes(patientLocalSearch.toLowerCase()) ||
+                (p.phone && p.phone.includes(patientLocalSearch)) ||
+                (p.tc && p.tc.includes(patientLocalSearch)) ||
+                (p.patientCode && p.patientCode.includes(patientLocalSearch))
+            );
 
           if (patientFilterStatus !== "all")
             patientsList = patientsList.filter(
@@ -6505,12 +6575,22 @@ if (isDayClosed) isPastSlot = true;
             );
 
           if (patientFilterTreatment !== "all")
-            patientsList = patientsList.filter(
-              (p) => p.lastTreatment === patientFilterTreatment
-            );
+            patientsList = patientsList.filter(
+              (p) => p.lastTreatment === patientFilterTreatment
+            );
 
-          return (
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-full flex flex-col animate-pop w-full">
+          // YENİ: HASTA KODUNA GÖRE SIRALAMA MOTORU
+          if (patientSortOrder === "asc") {
+            patientsList.sort((a, b) => (a.patientCode || "").localeCompare(b.patientCode || ""));
+          } else if (patientSortOrder === "desc") {
+            patientsList.sort((a, b) => (b.patientCode || "").localeCompare(a.patientCode || ""));
+          } else {
+            // Varsayılan: İsim Alfabetik
+            patientsList.sort((a, b) => a.name.localeCompare(b.name));
+          }
+
+          return (
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-full flex flex-col animate-pop w-full">
               <div className="p-2 border-b border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-1.5 bg-slate-50 dark:bg-slate-900 rounded-t-2xl shrink-0">
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
@@ -6537,31 +6617,25 @@ if (isDayClosed) isPastSlot = true;
                   </div>
 
                   <button
-                    onClick={() => {
-                      setPatientForm({
-                        id: "",
+                    onClick={() => {
+                      setPatientForm({
+                        id: "",
+                        patientCode: "",
+                        name: "",
+                        phone: "",
+                        tc: "",
+                        age: "",
+                        gender: "Belirtilmemiş",
+                        anamnesis: "",
+                        isEmergency: false,
+                        payments: [],
+                        plannedTreatments: [],
+                      });
 
-                        name: "",
+                      setPatientModalTab("info");
 
-                        phone: "",
-
-                        tc: "",
-
-                        age: "",
-
-                        gender: "Belirtilmemiş",
-
-                        anamnesis: "",
-
-                        payments: [],
-
-                        plannedTreatments: [],
-                      });
-
-                      setPatientModalTab("info");
-
-                      setIsPatientModalOpen(true);
-                    }}
+                      setIsPatientModalOpen(true);
+                    }}
                     className="bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-1.5 rounded-xl text-[13px] font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
                   >
                     <i className="fa-solid fa-plus mr-1"></i> Yeni
@@ -6572,11 +6646,27 @@ if (isDayClosed) isPastSlot = true;
               <div className="flex-1 overflow-x-auto overflow-y-auto w-full">
                 <table className="w-full text-left text-[13px] text-slate-600 dark:text-slate-300 min-w-[700px] border-separate border-spacing-y-1.5">
                   <thead className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider bg-transparent sticky top-0 z-10 backdrop-blur-md">
-                    <tr>
-                      <th className="px-2.5 py-1.5 font-semibold">Hasta Adı</th>
-                      <th className="px-2.5 py-1.5 font-semibold">
-                        Kişisel Bilgiler
-                      </th>
+                    <tr>
+                      <th 
+                        className="px-2.5 py-1.5 font-semibold w-28 cursor-pointer hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors select-none group"
+                        onClick={() => {
+                          if (patientSortOrder === "default") setPatientSortOrder("asc");
+                          else if (patientSortOrder === "asc") setPatientSortOrder("desc");
+                          else setPatientSortOrder("default");
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Hasta Kodu
+                          <div className="flex flex-col text-[8px] opacity-40 group-hover:opacity-100 transition-opacity">
+                            <i className={`fa-solid fa-chevron-up ${patientSortOrder === "asc" ? "text-indigo-600 dark:text-indigo-400 opacity-100 scale-125" : ""}`}></i>
+                            <i className={`fa-solid fa-chevron-down ${patientSortOrder === "desc" ? "text-indigo-600 dark:text-indigo-400 opacity-100 scale-125" : ""}`}></i>
+                          </div>
+                        </div>
+                      </th>
+                      <th className="px-2.5 py-1.5 font-semibold">Hasta Adı</th>
+                      <th className="px-2.5 py-1.5 font-semibold">
+                        Kişisel Bilgiler
+                      </th>
                       <th className="px-2.5 py-1.5 font-semibold">
                         Uyarı / Anamnez
                       </th>
@@ -6594,27 +6684,37 @@ if (isDayClosed) isPastSlot = true;
 
                       return (
                         <tr
-                          key={p.id}
-                          className="bg-white dark:bg-slate-800/80 shadow-sm border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group rounded-xl overflow-hidden relative"
-                          onClick={() => {
-                            setPatientForm(p);
-                            setPatientModalTab("info");
-                            setIsPatientModalOpen(true);
-                          }}
-                          onContextMenu={(e) =>
-                            handleContextMenu(e, "patient", p)
-                          }
-                        >
-                          <td className="px-2.5 py-1.5 font-black text-slate-800 dark:text-slate-100">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
-                                <i className="fa-regular fa-user"></i>
-                              </div>
+                          key={p.id}
+                          className="bg-white dark:bg-slate-800/80 shadow-sm border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group rounded-xl overflow-hidden relative"
+                          onClick={() => {
+                            setPatientForm(p);
+                            setPatientModalTab("info");
+                            setIsPatientModalOpen(true);
+                          }}
+                          onContextMenu={(e) =>
+                            handleContextMenu(e, "patient", p)
+                          }
+                        >
+                          <td className="px-2.5 py-1.5 font-bold text-slate-500 dark:text-slate-400 text-[11px]">
+                            #{p.patientCode || "Kayıtsız"}
+                          </td>
+                          <td className="px-2.5 py-1.5 font-black text-slate-800 dark:text-slate-100">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                                <i className="fa-regular fa-user"></i>
+                              </div>
 
-                              <div>
-                                <div>{p.name}</div>
+                              <div>
+                                <div className="flex items-center">
+                                  {p.name}
+                                  {p.isEmergency && (
+                                    <span className="animate-pulse bg-rose-500 text-white px-1.5 py-0.5 rounded text-[9px] font-black ml-1.5 shadow-sm">
+                                      ACİL
+                                    </span>
+                                  )}
+                                </div>
 
-                                {/* YENİ: Tek tıkla kopyalama özelliği */}
+                                {/* YENİ: Tek tıkla kopyalama özelliği */}
                                 <div
                                   onClick={(e) =>
                                     handleCopyPhone(e, p.phone, p.id)
@@ -11069,15 +11169,16 @@ const renderSettings = () => {
                       </div>
 
                       <div className="max-h-56 overflow-y-auto">
-                        {Object.values(globalData.patientsDb || {})
-                            .filter((p) => {
-                              // KLİNİK İZOLASYONU
-                              return resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted &&
-                                (p.name.toLowerCase().includes(globalSearch.toLowerCase()) ||
-                                (p.phone && p.phone.includes(globalSearch)) ||
-                                (p.tc && p.tc.includes(globalSearch)));
-                            })
-                          .slice(0, 8)
+                        {Object.values(globalData.patientsDb || {})
+                            .filter((p) => {
+                              // KLİNİK İZOLASYONU
+                              return resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted &&
+                                (p.name.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                                (p.phone && p.phone.includes(globalSearch)) ||
+                                (p.tc && p.tc.includes(globalSearch)) ||
+                                (p.patientCode && p.patientCode.includes(globalSearch)));
+                            })
+                          .slice(0, 8)
 
                           .map((p, i) => (
                             <div
@@ -12407,12 +12508,18 @@ const renderSettings = () => {
                       }
                     >
                       <div className="px-3 py-2 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0 no-print">
-                        <h3 className="font-black text-[13px] sm:text-base flex items-center gap-1 truncate pr-1.5">
-                          <i className="fa-regular fa-folder-open text-indigo-400 shrink-0"></i>{" "}
-                          <span className="truncate">{patientForm.name}</span>
-                        </h3>
+                        <h3 className="font-black text-[13px] sm:text-base flex items-center gap-1.5 truncate pr-1.5">
+                          <i className="fa-regular fa-folder-open text-indigo-400 shrink-0"></i>{" "}
+                          <span className="text-slate-400 text-[11px] hidden sm:inline">#{patientForm.patientCode || "YENİ"}</span>
+                          <span className="truncate">{patientForm.name}</span>
+                          {patientForm.isEmergency && (
+                            <span className="animate-pulse bg-rose-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold shadow-[0_0_8px_rgba(244,63,94,0.6)] ml-1">
+                              ACİL HASTA
+                            </span>
+                          )}
+                        </h3>
 
-                        <div className="flex gap-1 items-center shrink-0">
+                        <div className="flex gap-1 items-center shrink-0">
 
                           {patientForm.id && !isSplitMode && (
                             <button
@@ -12796,13 +12903,24 @@ const renderSettings = () => {
                                 </div>
 
                                 <div>
-                                  <label className="block text-[10px] font-black text-rose-500 uppercase mb-0.5 tracking-wider">
-                                    Sistemik Hastalık / Anamnez / Alerji
-                                  </label>
+                                  <div className="flex justify-between items-center mb-0.5">
+                                    <label className="block text-[10px] font-black text-rose-500 uppercase tracking-wider">
+                                      Sistemik Hastalık / Anamnez / Alerji
+                                    </label>
+                                    <label className="flex items-center gap-1.5 cursor-pointer bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={patientForm.isEmergency || false} 
+                                        onChange={(e) => setPatientForm({...patientForm, isEmergency: e.target.checked})}
+                                        className="accent-rose-600 w-3 h-3 cursor-pointer"
+                                      />
+                                      <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">Acil Hasta</span>
+                                    </label>
+                                  </div>
 
-                                  <textarea
-                                    rows="2"
-                                    value={patientForm.anamnesis}
+                                  <textarea
+                                    rows="2"
+                                    value={patientForm.anamnesis}
                                     onChange={(e) =>
                                       setPatientForm({
                                         ...patientForm,
@@ -13596,10 +13714,10 @@ const renderSettings = () => {
                                   </div>
                                 </div>
                                 <div className="bg-gray-50 border border-gray-300 p-1.5 rounded-lg flex justify-between items-center text-[10px]">
-                                  <div>
-                                    <span className="font-black text-gray-500 uppercase text-[8px] block">Hasta Adı</span>
-                                    <span className="font-bold text-[11px] text-black">{patientForm.name}</span>
-                                  </div>
+                                  <div>
+                                    <span className="font-black text-gray-500 uppercase text-[8px] block">Hasta Adı / Kodu</span>
+                                    <span className="font-bold text-[11px] text-black">{patientForm.name} <span className="text-gray-500 ml-1">#{patientForm.patientCode || 'YENİ'}</span></span>
+                                  </div>
                                   <div>
                                     <span className="font-black text-gray-500 uppercase text-[8px] block">İletişim / TC</span>
                                     <span className="font-bold text-[11px] text-black">{patientForm.phone || "-"} {patientForm.tc ? ` / ${patientForm.tc}` : ""}</span>
