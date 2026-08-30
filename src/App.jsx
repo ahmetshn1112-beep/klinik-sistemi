@@ -1046,20 +1046,21 @@ const useFirebase = () => {
                   </div>
 
                   {/* Tabs */}
-                  <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-1.5 gap-1 overflow-x-auto custom-scrollbar shrink-0">
-                    {["genel", "randevular"].map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setDetailTab(tab)}
-                        className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition-all ${
-                          detailTab === tab ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 shadow-sm" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                        }`}
-                      >
-                        {tab === "genel" ? <><i className="fa-solid fa-notes-medical mr-1"></i> Genel Durum & Tanı</> :
-                         <><i className="fa-regular fa-calendar-check mr-1"></i> İlgili Randevular</>}
-                      </button>
-                    ))}
-                  </div>
+                  <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-1.5 gap-1 overflow-x-auto custom-scrollbar shrink-0">
+                    {["genel", "randevular", "sicil"].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setDetailTab(tab)}
+                        className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition-all ${
+                          detailTab === tab ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 shadow-sm" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        {tab === "genel" ? <><i className="fa-solid fa-notes-medical mr-1"></i> Genel Durum & Tanı</> :
+                         tab === "randevular" ? <><i className="fa-regular fa-calendar-check mr-1"></i> İlgili Randevular</> :
+                         <><i className="fa-solid fa-clock-rotate-left mr-1"></i> Dişin Geçmişi (Sicil)</>}
+                      </button>
+                    ))}
+                  </div>
 
                   {/* Tab Contents */}
                   <div className="p-2 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-slate-800" id="print-tooth-detail">
@@ -1302,35 +1303,107 @@ const useFirebase = () => {
 
 
                     {detailTab === "randevular" && (() => {
-                      const apts = [];
-                      if (globalData.appointments) {
-                        Object.values(globalData.appointments).forEach(docApts => {
-                          Object.entries(docApts).forEach(([key, apt]) => {
-                            if (apt.patientName === patientForm.name && (apt.selectedTeeth?.includes(detailToothModal) || apt.selectedTeeth?.includes("Tüm Çene"))) {
-                              const [y, m, d] = key.split("-").map(Number);
-                              apts.push({ ...apt, dateStr: `${d}/${m}/${y}`, timeStr: key.split("-")[3] });
-                            }
-                          });
-                        });
-                      }
-                      return (
-                        <div className="space-y-1.5">
-                          {apts.length > 0 ? apts.map((a, i) => (
-                            <div key={i} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm border-l-4 border-l-indigo-500">
-                              <div>
-                                <div className="font-black text-[13px] text-indigo-700 dark:text-indigo-400">{a.treatment || "Genel İşlem"}</div>
-                                <div className="text-[11px] text-slate-500 font-bold mt-0.5"><i className="fa-regular fa-calendar mr-1"></i> {a.dateStr} - {a.timeStr}</div>
-                              </div>
-                              <div className="text-[10px] font-bold px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{a.status}</div>
-                            </div>
-                          )) : <div className="text-center py-8 text-slate-400 text-[13px] font-medium">Bu dişi içeren bir randevu bulunmuyor.</div>}
-                        </div>
-                      );
-                    })()}
+                      const apts = [];
+                      if (globalData.appointments) {
+                        Object.values(globalData.appointments).forEach(docApts => {
+                          Object.entries(docApts).forEach(([key, apt]) => {
+                            if (apt.patientName === patientForm.name && (apt.selectedTeeth?.includes(detailToothModal) || apt.selectedTeeth?.includes("Tüm Çene"))) {
+                              const [y, m, d] = key.split("-").map(Number);
+                              apts.push({ ...apt, dateStr: `${d}/${m}/${y}`, timeStr: key.split("-")[3] });
+                            }
+                          });
+                        });
+                      }
+                      return (
+                        <div className="space-y-1.5">
+                          {apts.length > 0 ? apts.map((a, i) => (
+                            <div key={i} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm border-l-4 border-l-indigo-500">
+                              <div>
+                                <div className="font-black text-[13px] text-indigo-700 dark:text-indigo-400">{a.treatment || "Genel İşlem"}</div>
+                                <div className="text-[11px] text-slate-500 font-bold mt-0.5"><i className="fa-regular fa-calendar mr-1"></i> {a.dateStr} - {a.timeStr}</div>
+                              </div>
+                              <div className="text-[10px] font-bold px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{a.status}</div>
+                            </div>
+                          )) : <div className="text-center py-8 text-slate-400 text-[13px] font-medium">Bu dişi içeren bir randevu bulunmuyor.</div>}
+                        </div>
+                      );
+                    })()}
 
-                  </div>
-                  
-                  {/* Modal Footer (Sadece Genel sekmesinde Kaydet butonu aktif) */}
+                    {detailTab === "sicil" && (() => {
+                      const toothHistory = (patientForm.clinicalHistory || []).filter(h => {
+                        if (!h.selectedTeeth) return false;
+                        const teethArr = Array.isArray(h.selectedTeeth) ? h.selectedTeeth : h.selectedTeeth.split(",").map(s => s.trim());
+                        return teethArr.includes(detailToothModal.toString());
+                      }).sort((a, b) => {
+                         const parseDate = (dStr, tStr) => {
+                           if (!dStr) return 0;
+                           let day = 0, month = 0, year = 0;
+                           if (dStr.includes(".")) [day, month, year] = dStr.split(".");
+                           else if (dStr.includes("/")) [day, month, year] = dStr.split("/");
+                           else if (dStr.includes("-")) [year, month, day] = dStr.split("-");
+                           const [hr, min] = (tStr || "00:00").split(":");
+                           return new Date(year, month - 1, day, hr, min).getTime();
+                         };
+                         return parseDate(b.date, b.time) - parseDate(a.date, a.time);
+                      });
+
+                      if (toothHistory.length === 0) {
+                        return (
+                          <div className="flex flex-col items-center justify-center h-40 text-center opacity-50 py-10">
+                            <i className="fa-solid fa-clock-rotate-left text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                            <span className="text-slate-500 dark:text-slate-400 font-black text-[13px]">
+                              Bu dişe ait geçmiş bir klinik kayıt bulunmuyor.
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="p-2 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px before:h-full before:w-[3px] before:bg-gradient-to-b before:from-indigo-500 before:via-emerald-400 before:to-transparent dark:before:via-emerald-700">
+                          {toothHistory.map((h, idx) => (
+                            <div key={idx} className="relative flex items-start justify-start group mb-6 pl-10 animate-pop" style={{animationDelay: `${idx * 0.1}s`}}>
+                              <div className="absolute left-2.5 flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white dark:border-[#0f172a] bg-white dark:bg-slate-800 shadow-md shrink-0 z-10 text-slate-500 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 -translate-x-1/2 mt-1">
+                                {h.visitType === "İlk Muayene" ? <i className="fa-solid fa-eye text-[12px]"></i> :
+                                 h.treatment.toLowerCase().includes("kanal") ? <i className="fa-solid fa-tooth text-[12px] text-rose-500 group-hover:text-white"></i> :
+                                 h.treatment.toLowerCase().includes("dolgu") ? <i className="fa-solid fa-fill-drip text-[12px] text-amber-500 group-hover:text-white"></i> :
+                                 h.treatment.toLowerCase().includes("çekim") ? <i className="fa-solid fa-pliers text-[12px] text-red-600 group-hover:text-white"></i> :
+                                 h.treatment.toLowerCase().includes("implant") ? <i className="fa-solid fa-screw text-[12px] text-purple-500 group-hover:text-white"></i> :
+                                 <i className="fa-solid fa-stethoscope text-[12px]"></i>}
+                              </div>
+                              
+                              <div className="w-full bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow relative">
+                                <div className="absolute top-4 left-[-6px] w-3 h-3 bg-slate-50 dark:bg-slate-900/50 border-b border-l border-slate-200 dark:border-slate-700 transform rotate-45"></div>
+                                <div className="flex justify-between items-center mb-2">
+                                  <div className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider border border-indigo-200 dark:border-indigo-800">
+                                    {h.date} • {h.time}
+                                  </div>
+                                  <div className="text-[9px] font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded bg-white dark:bg-slate-800">{h.visitType}</div>
+                                </div>
+                                
+                                <h5 className="font-black text-slate-800 dark:text-white text-[13px] leading-snug mb-1.5">{h.treatment}</h5>
+                                
+                                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                                  <i className="fa-solid fa-user-doctor"></i> Hekim: <span className="text-slate-700 dark:text-slate-300">{globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}</span>
+                                </div>
+                                
+                                {(h.diagnosis || h.complaint || h.procedureNotes || h.materials) && (
+                                  <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700/50 text-[10px] space-y-1 shadow-inner mt-2">
+                                    {h.diagnosis && <div className="flex gap-2"><span className="font-black text-rose-500 shrink-0 w-14">Tanı:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.diagnosis}</span></div>}
+                                    {h.complaint && <div className="flex gap-2"><span className="font-black text-amber-500 shrink-0 w-14">Şikayet:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.complaint}</span></div>}
+                                    {h.procedureNotes && <div className="flex gap-2"><span className="font-black text-indigo-500 shrink-0 w-14">Not:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.procedureNotes}</span></div>}
+                                    {h.materials && <div className="flex gap-2"><span className="font-black text-emerald-500 shrink-0 w-14">Materyal:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.materials}</span></div>}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                  </div>
+                  
+                  {/* Modal Footer (Sadece Genel sekmesinde Kaydet butonu aktif) */}
                   <div className="px-2 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2 shrink-0 no-print">
                     <button onClick={() => setDetailToothModal(null)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[13px] hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-sm">
                       Kapat
@@ -1815,9 +1888,14 @@ const useFirebase = () => {
         });
 
         const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
-        const [isSplitMode, setIsSplitMode] = useState(false); // YENİ: Bölünmüş Ekran Kontrolcüsü
+        const [isSplitMode, setIsSplitMode] = useState(false); // YENİ: Bölünmüş Ekran Kontrolcüsü
 
-        const [patientForm, setPatientForm] = useState(null);
+        const [patientForm, setPatientForm] = useState(null);
+        
+        // YENİ: Gelişmiş Randevu İptal ve Takip Modalı State'i
+        const [cancelAptModal, setCancelAptModal] = useState({ 
+          isOpen: false, aptKey: null, docId: null, aptData: null, reasonNote: "" 
+        });
         // YENİ EKLENEN: Takvime aktarılacak hastayı tutan React State'i
         const [pendingAptPatient, setPendingAptPatient] = useState(null);
 
@@ -1990,7 +2068,8 @@ const useFirebase = () => {
           useState(false);
           // --- KLİNİK DOSYA MASASI STATE'LERİ ---
         const [activeFolderId, setActiveFolderId] = useState(null);
-        const [folderSearch, setFolderSearch] = useState("");
+        const [folderSearch, setFolderSearch] = useState("");
+        const [takipSubFilter, setTakipSubFilter] = useState("all"); // YENİ: Takip Havuzu İçin Alt Filtre
         // --------------------------------------
         const [dashboardPeriod, setDashboardPeriod] = useState("month");
         const [expandedTx, setExpandedTx] = useState(null); // Ana sayfa detayları için
@@ -4003,10 +4082,15 @@ Tarih: ...../...../202...
               clinicalHistory: initialHistory
             };
           } else {
-            if (formData.phone) updatedPatientsDb[patientId].phone = formData.phone;
-            if (formData.anamnesis) updatedPatientsDb[patientId].anamnesis = formData.anamnesis;
-            updatedPatientsDb[patientId].lastStatus = formData.status;
-            updatedPatientsDb[patientId].lastTreatment = treatmentStr;
+            if (formData.phone) updatedPatientsDb[patientId].phone = formData.phone;
+            if (formData.anamnesis) updatedPatientsDb[patientId].anamnesis = formData.anamnesis;
+            updatedPatientsDb[patientId].lastStatus = formData.status;
+            updatedPatientsDb[patientId].lastTreatment = treatmentStr;
+            
+            // YENİ: HASTA TAKİP HAVUZUNDAYSA, YENİ RANDEVU ALDIĞI İÇİN HAVUZDAN OTOMATİK ÇIKAR (RESOLVE)
+            if (updatedPatientsDb[patientId].followUpStatus && updatedPatientsDb[patientId].followUpStatus !== "none") {
+                updatedPatientsDb[patientId].followUpStatus = "resolved"; // Çözüldü
+            }
             
             // Eğer VAR OLAN bir hastaya randevu yazılıyorsa ve durumu "Geldi" olarak işaretlendiyse geçmişe ekle
             if (formData.status === "Geldi" && settings?.otomasyon?.otoEpikriz !== false) {
@@ -4048,46 +4132,81 @@ Tarih: ...../...../202...
         };
 
         const handleDeleteAppointment = () => {
-          if (!hasPermission("appointments.delete")) {
-            showNotification("Randevu silme veya iptal etme yetkiniz bulunmuyor!", "error");
-            return;
-          }
-          showConfirm("Bu randevuyu silmek istediğinize emin misiniz?", () => {
-            const key = `${formatDateKey(activeSlotDate)}-${selectedSlot}`;
-            const updatedDocApts = { ...(globalData.appointments?.[activeSlotDoctor] || {}) };
-            
-            const aptToDelete = updatedDocApts[key];
-            let updatedPatientsDb = { ...globalData.patientsDb };
+          if (!hasPermission("appointments.delete")) {
+            showNotification("Randevu silme veya iptal etme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+          const key = `${formatDateKey(activeSlotDate)}-${selectedSlot}`;
+          const aptToDelete = globalData.appointments?.[activeSlotDoctor]?.[key];
+          
+          if (!aptToDelete) return;
+          
+          // Modalı aç, düzenleme ekranını kapat
+          setCancelAptModal({ isOpen: true, aptKey: key, docId: activeSlotDoctor, aptData: aptToDelete, reasonNote: "" });
+          setIsModalOpen(false); 
+        };
 
-            // YENİ (UNDO MOTORU): Eğer silinen randevu bir "Plan" üzerinden oluşturulduysa, planı tekrar "Bekliyor" (Tamamlanmadı) durumuna al
-            if (aptToDelete && aptToDelete.linkedPlanId && aptToDelete.patientId) {
-               const pId = aptToDelete.patientId;
-               if (updatedPatientsDb[pId] && updatedPatientsDb[pId].plannedTreatments) {
-                   updatedPatientsDb[pId].plannedTreatments = updatedPatientsDb[pId].plannedTreatments.map(t => 
-                       t.id === aptToDelete.linkedPlanId 
-                       ? { ...t, isCompleted: false, completedAt: null, completedBy: null } 
-                       : t
-                   );
-               }
-            }
+        // YENİ: Randevu Aksiyon ve Havuz Motoru
+        const processCancelAppointment = (actionType) => {
+          const { aptKey, docId, aptData, reasonNote } = cancelAptModal;
+          let updatedDocApts = { ...(globalData.appointments?.[docId] || {}) };
+          let updatedPatientsDb = JSON.parse(JSON.stringify(globalData.patientsDb || {}));
+          
+          let pId = aptData.patientId;
+          if (!pId) {
+            const foundP = Object.values(updatedPatientsDb).find(p => p.name === aptData.patientName);
+            if (foundP) pId = foundP.id;
+          }
 
-            delete updatedDocApts[key];
+          // Undo Motoru: Plandan geldiyse geri al
+          if (aptData.linkedPlanId && pId && updatedPatientsDb[pId]?.plannedTreatments) {
+             updatedPatientsDb[pId].plannedTreatments = updatedPatientsDb[pId].plannedTreatments.map(t => 
+                 t.id === aptData.linkedPlanId ? { ...t, isCompleted: false, completedAt: null, completedBy: null } : t
+             );
+          }
 
-            saveGlobalData({
-              ...globalData,
-              appointments: {
-                ...globalData.appointments,
-                [activeSlotDoctor]: updatedDocApts,
-              },
-              patientsDb: updatedPatientsDb, // Güncellenmiş hasta planlarını da kaydet
-            });
+          let notifMsg = "";
 
-            setIsModalOpen(false);
-            showNotification("Randevu silindi. Varsa bağlı işlemler tekrar plana alındı.", "error");
-            
-            // YENİ: KARA KUTUYA YAZ (LOG)
-          });
-        };
+          if (actionType === "delete") {
+            // KALICI SİLME
+            delete updatedDocApts[aptKey];
+            notifMsg = "Randevu sistemden kalıcı olarak silindi.";
+          } else {
+            // İPTAL VEYA GELMEDİ VEYA TAKİBE AL
+            let newStatus = "İptal";
+            let followUpStatus = "none";
+            
+            if (actionType === "cancel") { newStatus = "İptal"; followUpStatus = "cancelled"; notifMsg = "Randevu iptal edildi."; }
+            if (actionType === "noshow") { newStatus = "Gelmedi"; followUpStatus = "no_show"; notifMsg = "Hasta gelmedi olarak işaretlendi."; }
+            if (actionType === "recall") { newStatus = "İptal"; followUpStatus = "recall"; notifMsg = "Hasta 'Yeniden Aranacaklar' listesine alındı."; }
+
+            // Randevuyu silme, durumunu güncelle
+            updatedDocApts[aptKey] = {
+              ...aptData,
+              status: newStatus,
+              cancelReason: reasonNote,
+              cancelledAt: Date.now(),
+              cancelledBy: currentUser
+            };
+
+            // Hastayı Havuza (File Desk) Gönder
+            if (pId && updatedPatientsDb[pId]) {
+              updatedPatientsDb[pId].followUpStatus = followUpStatus;
+              updatedPatientsDb[pId].followUpNote = reasonNote;
+              updatedPatientsDb[pId].followUpDate = Date.now();
+              updatedPatientsDb[pId].lastStatus = newStatus;
+            }
+          }
+
+          saveGlobalData({
+            ...globalData,
+            appointments: { ...globalData.appointments, [docId]: updatedDocApts },
+            patientsDb: updatedPatientsDb,
+          });
+
+          setCancelAptModal({ isOpen: false, aptKey: null, docId: null, aptData: null, reasonNote: "" });
+          showNotification(notifMsg, actionType === "delete" ? "error" : "success");
+        };
 
         const getSearchedAppointments = (query) => {
           if (!query || query.trim().length < 2) return { past: [], future: [] };
@@ -5168,6 +5287,10 @@ Tarih: ...../...../202...
                       if (manualStatus !== "") return true;
 
                       if ((p.lastStatus || "").toLowerCase().includes("yeni")) return true;
+// YENİ: TAKİP HAVUZU KLASÖRLERİ FİLTRELERİ
+                  const fNoShow = myPatientsForHome.filter(p => p.followUpStatus === 'no_show');
+                  const fRecall = myPatientsForHome.filter(p => p.followUpStatus === 'recall');
+                  const fCancelled = myPatientsForHome.filter(p => p.followUpStatus === 'cancelled');
 
                       // Sisteme kayıt tarihini benzersiz ID'sinden (Timestamp) çıkarıyoruz
                       let creationTime = 0;
@@ -5195,14 +5318,25 @@ Tarih: ...../...../202...
                   });
 
                   // 4. Dosya Masası (Folders) Dizisi ve Kullanıcı Ayarlarına Göre Gizleme/Gösterme
-                  const folders = [
-                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil.length, data: fAcil, desc: "Aktif acil & ağrı", info: "Hasta dosyasında 'Acil', 'Ağrı', 'Kanama' kelimeleri geçenler." },
-                    { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol.length, data: fKontrol, desc: "Yaklaşan kontroller", info: "Son durumunda 'Kontrol' veya 'Takip' geçen hastalar." },
-                    { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTedavi.length, data: fTedavi, desc: "İşlem bekleyenler", info: "Tedavisi süren, planlanmış işlemi olan hastalar." },
-                    { id: "lab", title: "LABORATUVAR BEKLEYENLER", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab.length, data: fLab, desc: "Laboratuvar süreçleri", info: "Ölçü alınmış, provası olan veya laba iş gönderilen hastalar." },
-                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak.length, data: fEvrak, desc: "Eksik belgeler", info: "Onam formu, röntgen veya eksik evrakı olan hastalar." },
-                    { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fYeni.length, data: fYeni, desc: "Son 7 gün ve randevusuzlar", info: "Sisteme son 7 günde eklenen veya henüz hiç randevusu olmayan hastalar." }
-                  ].filter(f => settings?.dosya?.[f.id] !== false);
+                 // GÜVENLİK: Hata vermemesi için yeni değişkenleri burada güvenli bir şekilde tanımlıyoruz
+                  const fNoShow = myPatientsForHome.filter(p => p.followUpStatus === 'no_show');
+                  const fRecall = myPatientsForHome.filter(p => p.followUpStatus === 'recall');
+                  const fCancelled = myPatientsForHome.filter(p => p.followUpStatus === 'cancelled');
+                  const fTakip = [...fNoShow, ...fRecall, ...fCancelled]; // 3'ünü tek havuzda birleştirdik
+
+                  const folders = [
+                    { id: "acil", title: "ACİL TAKİP", icon: "fa-truck-medical", colorClass: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800", count: fAcil?.length || 0, data: fAcil || [], desc: "Aktif acil & ağrı", info: "Hasta dosyasında 'Acil', 'Ağrı', 'Kanama' kelimeleri geçenler." },
+                    
+                    // YENİ: BİRLEŞTİRİLMİŞ TAKİP HAVUZU
+                    { id: "takip", title: "İPTAL & TAKİP HAVUZU", icon: "fa-layer-group", colorClass: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800", count: fTakip?.length || 0, data: fTakip || [], desc: "İptal, Gelmeyen & Aranacak", info: "Randevusu iptal olan, gelmeyen veya yeniden aranacak hastalar." },
+                    
+                    // MEVCUT KLASÖRLER DEVAM EDİYOR (Beyaz ekran kalkanı ile)
+                    { id: "kontrol", title: "KONTROL BEKLEYENLER", icon: "fa-calendar-check", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fKontrol?.length || 0, data: fKontrol || [], desc: "Yaklaşan kontroller", info: "Son durumunda 'Kontrol' veya 'Takip' geçen hastalar." },
+                    { id: "tedavi", title: "TEDAVİSİ DEVAM EDENLER", icon: "fa-tooth", colorClass: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800", count: fTedavi?.length || 0, data: fTedavi || [], desc: "İşlem bekleyenler", info: "Tedavisi süren, planlanmış işlemi olan hastalar." },
+                    { id: "lab", title: "LABORATUVAR", icon: "fa-flask", colorClass: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800", count: fLab?.length || 0, data: fLab || [], desc: "Lab süreçleri", info: "Ölçü alınmış, provası olan veya laba iş gönderilen hastalar." },
+                    { id: "evrak", title: "EVRAK BEKLEYENLER", icon: "fa-file-signature", colorClass: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700", count: fEvrak?.length || 0, data: fEvrak || [], desc: "Eksik belgeler", info: "Onam formu, röntgen veya eksik evrakı olan hastalar." },
+                    { id: "yeni", title: "YENİ HASTALAR", icon: "fa-user-plus", colorClass: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800", count: fYeni?.length || 0, data: fYeni || [], desc: "Sisteme yeni girilenler", info: "Sisteme yeni eklenen hastalar." }
+                  ].filter(f => settings?.dosya?.[f.id] !== false);
 
                   const activeFolderData = activeFolderId ? folders.find(f => f.id === activeFolderId) : null;
 
@@ -5282,99 +5416,151 @@ Tarih: ...../...../202...
                         </div>
                       ) : (
                         <div className="flex flex-col flex-1 animate-pop">
-                          <div className="flex items-center gap-2 mb-3">
-                            <button onClick={() => { setActiveFolderId(null); setFolderSearch(""); }} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-lg font-bold text-[11px] hover:bg-slate-200 dark:hover:bg-slate-600 transition">
-                              <i className="fa-solid fa-arrow-left mr-1"></i> Geri Dön
-                            </button>
-                            <span className={`px-2 py-0.5 rounded font-black text-[11px] border ${activeFolderData.colorClass}`}>
-                              <i className={`fa-solid ${activeFolderData.icon} mr-1`}></i> {activeFolderData.title}
-                            </span>
-                            <span className="text-[11px] font-bold text-slate-400">({displayedData.length} Dosya)</span>
-                          </div>
+                          <div className="flex flex-col gap-3 mb-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => { setActiveFolderId(null); setFolderSearch(""); setTakipSubFilter("all"); }} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 rounded-lg font-bold text-[11px] hover:bg-slate-200 dark:hover:bg-slate-600 transition shrink-0">
+                                <i className="fa-solid fa-arrow-left mr-1"></i> Geri Dön
+                              </button>
+                              <span className={`px-2 py-0.5 rounded font-black text-[11px] border ${activeFolderData.colorClass} truncate`}>
+                                <i className={`fa-solid ${activeFolderData.icon} mr-1`}></i> {activeFolderData.title}
+                              </span>
+                              <span className="text-[11px] font-bold text-slate-400 shrink-0">({displayedData.length} Dosya)</span>
+                            </div>
 
-                          <div className="space-y-2 overflow-y-auto max-h-[450px] custom-scrollbar pr-1.5">
-                            {displayedData.length > 0 ? (
-                              displayedData.map((pt, i) => {
-                                // 6 KLASÖR İÇİN ENTEGRE DURUM GÜNCELLEME (QUICK STATUS UPDATE)
+                            {activeFolderId === "takip" && (
+                              <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+                                <button onClick={() => setTakipSubFilter("all")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors border shadow-sm ${takipSubFilter === "all" ? "bg-indigo-600 text-white border-indigo-700" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"}`}>
+                                  Tümü
+                                </button>
+                                <button onClick={() => setTakipSubFilter("no_show")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors border shadow-sm ${takipSubFilter === "no_show" ? "bg-rose-600 text-white border-rose-700" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"}`}>
+                                  🚫 Gelmeyenler
+                                </button>
+                                <button onClick={() => setTakipSubFilter("recall")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors border shadow-sm ${takipSubFilter === "recall" ? "bg-amber-500 text-white border-amber-600" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"}`}>
+                                  🔄 Yeniden Aranacaklar
+                                </button>
+                                <button onClick={() => setTakipSubFilter("cancelled")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors border shadow-sm ${takipSubFilter === "cancelled" ? "bg-slate-600 text-white border-slate-700" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"}`}>
+                                  ❌ İptal Edilenler
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-2 overflow-y-auto max-h-[450px] custom-scrollbar pr-1.5">
+                            {displayedData.length > 0 && activeFolderId === "takip" && takipSubFilter !== "all" && displayedData.filter(p => p.followUpStatus === takipSubFilter).length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 text-[11px] font-bold border border-dashed border-slate-200 dark:border-slate-700 rounded-xl">Bu alt filtreye uygun kayıt bulunmuyor.</div>
+                            ) : displayedData.length > 0 ? (
+                              (activeFolderId === "takip" 
+                                ? [...displayedData].filter(p => takipSubFilter === "all" || p.followUpStatus === takipSubFilter).sort((a, b) => (a.followUpStatus || "").localeCompare(b.followUpStatus || ""))
+                                : displayedData
+                              ).map((pt, i, arr) => {
+                                // "Takip Havuzu" için grup başlıkları
+                                let groupHeader = null;
+                                if (activeFolderId === "takip") {
+                                  const prevPt = arr[i - 1];
+                                  if (!prevPt || prevPt.followUpStatus !== pt.followUpStatus) {
+                                    const groupTitle = pt.followUpStatus === 'no_show' ? "Gelmeyenler (No-Show)" : pt.followUpStatus === 'recall' ? "Yeniden Aranacaklar" : "İptal Edilenler";
+                                    const groupIcon = pt.followUpStatus === 'no_show' ? "fa-user-xmark text-rose-500" : pt.followUpStatus === 'recall' ? "fa-phone-volume text-amber-500" : "fa-ban text-slate-500";
+                                    groupHeader = (
+                                      <div className="col-span-full font-black text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 mt-3 border-b border-slate-200 dark:border-slate-700 pb-1.5 flex items-center gap-1.5">
+                                        <i className={`fa-solid ${groupIcon}`}></i> {groupTitle}
+                                      </div>
+                                    );
+                                  }
+                                }
+
+                                // 6 KLASÖR İÇİN ENTEGRE DURUM GÜNCELLEME (QUICK STATUS UPDATE)
                                 let specificStatus = null;
                                 let badgeColor = "";
                                 let options = [];
                                 let fieldToUpdate = "";
                                 
-                                if (activeFolderId === "acil") { 
-                                  specificStatus = pt.folder_acil || ""; 
-                                  fieldToUpdate = "folder_acil";
-                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-400"; 
-                                  options = [
-                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
-                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
-                                    {val: "Aktif Acil", label: "🔴 Aktif Acil Durum"},
-                                    {val: "Ağrı Takibi", label: "🟠 Ağrı Takibi"},
-                                    {val: "İlaç Kullanıyor", label: "🟡 İlaç Kullanıyor"},
-                                    {val: "", label: "🔄 Otomatik Moda Dön"}
-                                  ];
-                                } else if (activeFolderId === "kontrol") { 
-                                  specificStatus = pt.folder_kontrol || ""; 
-                                  fieldToUpdate = "folder_kontrol";
-                                  badgeColor = (specificStatus === "Tamamlandı" || specificStatus === "Gizle") ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400"; 
-                                  options = [
-                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
-                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
-                                    {val: "Kontrol Bekliyor", label: "⏳ Kontrol Bekliyor"},
-                                    {val: "Randevu Verildi", label: "📅 Randevu Verildi"},
-                                    {val: "", label: "🔄 Otomatik Moda Dön"}
-                                  ];
-                                } else if (activeFolderId === "tedavi") { 
-                                  specificStatus = pt.folder_tedavi || ""; 
-                                  fieldToUpdate = "folder_tedavi";
-                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-400"; 
-                                  options = [
-                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
-                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
-                                    {val: "Tedavisi Sürüyor", label: "🦷 Tedavisi Sürüyor"},
-                                    {val: "Planlama Aşamasında", label: "📋 Planlama Aşamasında"},
-                                    {val: "", label: "🔄 Otomatik Moda Dön"}
-                                  ];
-                                } else if (activeFolderId === "lab") { 
-                                  specificStatus = pt.folder_lab || ""; 
-                                  fieldToUpdate = "folder_lab";
-                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400"; 
-                                  options = [
-                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
-                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
-                                    {val: "Ölçü Alınacak", label: "⏳ Ölçü Alınacak"},
-                                    {val: "Laboratuvarda", label: "🧪 Laboratuvarda"},
-                                    {val: "Klinikte (Provaya Hazır)", label: "🏢 Klinikte (Provaya Hazır)"},
-                                    {val: "", label: "🔄 Otomatik Moda Dön"}
-                                  ];
-                                } else if (activeFolderId === "evrak") { 
-                                  specificStatus = pt.folder_evrak || ""; 
-                                  fieldToUpdate = "folder_evrak";
-                                  badgeColor = (specificStatus === "Tamamlandı" || specificStatus === "Gizle") ? "bg-slate-100 text-slate-500 border-slate-300 dark:bg-slate-700 dark:text-slate-400" : "bg-emerald-100 text-emerald-700 border-emerald-200"; 
-                                  options = [
-                                    {val: "Tamamlandı", label: "✅ Evraklar Tamamlandı"},
-                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
-                                    {val: "Onam Formu Eksik", label: "📄 Onam Formu Eksik"},
-                                    {val: "Röntgen Bekliyor", label: "🦴 Röntgen Bekliyor"},
-                                    {val: "Kimlik/Pasaport Eksik", label: "🪪 Kimlik/Pasaport Eksik"},
-                                    {val: "", label: "🔄 Otomatik Moda Dön"}
-                                  ];
-                                } else if (activeFolderId === "yeni") { 
-                                  specificStatus = pt.folder_yeni || ""; 
-                                  fieldToUpdate = "folder_yeni";
-                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400"; 
-                                  options = [
-                                    {val: "Tamamlandı", label: "✅ İşlem Gördü / Tam"},
-                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
-                                    {val: "Randevu Bekliyor", label: "⏳ Randevu Bekliyor"},
-                                    {val: "Ulaşılamadı", label: "☎️ Ulaşılamadı"},
-                                    {val: "", label: "🔄 Otomatik Moda Dön"}
-                                  ];
-                                }
+                                if (activeFolderId === "acil") { 
+                                  specificStatus = pt.folder_acil || ""; 
+                                  fieldToUpdate = "folder_acil";
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/40 dark:text-rose-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Aktif Acil", label: "🔴 Aktif Acil Durum"},
+                                    {val: "Ağrı Takibi", label: "🟠 Ağrı Takibi"},
+                                    {val: "İlaç Kullanıyor", label: "🟡 İlaç Kullanıyor"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "takip") { 
+                                  // YENİ: BİRLEŞİK TAKİP HAVUZU KONTROLLERİ
+                                  specificStatus = pt.followUpStatus === 'no_show' ? 'Gelmeyen (No-Show)' : pt.followUpStatus === 'recall' ? 'Yeniden Aranacak' : pt.followUpStatus === 'cancelled' ? 'İptal Edilen' : 'Çözüldü'; 
+                                  fieldToUpdate = "followUpStatus";
+                                  badgeColor = pt.followUpStatus === 'no_show' ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400" : pt.followUpStatus === 'recall' ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400" : pt.followUpStatus === 'cancelled' ? "bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-700 dark:text-slate-300" : "bg-emerald-100 text-emerald-700 border-emerald-200"; 
+                                  options = [
+                                    {val: "resolved", label: "✅ Takibi Sonlandır (Çözüldü)"},
+                                    {val: "no_show", label: "🚫 Gelmeyen (No-Show)"},
+                                    {val: "recall", label: "🔄 Yeniden Aranacak"},
+                                    {val: "cancelled", label: "❌ İptal Edilen"}
+                                  ];
+                                } else if (activeFolderId === "kontrol") { 
+                                  specificStatus = pt.folder_kontrol || ""; 
+                                  fieldToUpdate = "folder_kontrol";
+                                  badgeColor = (specificStatus === "Tamamlandı" || specificStatus === "Gizle") ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Kontrol Bekliyor", label: "⏳ Kontrol Bekliyor"},
+                                    {val: "Randevu Verildi", label: "📅 Randevu Verildi"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "tedavi") { 
+                                  specificStatus = pt.folder_tedavi || ""; 
+                                  fieldToUpdate = "folder_tedavi";
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Tedavisi Sürüyor", label: "🦷 Tedavisi Sürüyor"},
+                                    {val: "Planlama Aşamasında", label: "📋 Planlama Aşamasında"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "lab") { 
+                                  specificStatus = pt.folder_lab || ""; 
+                                  fieldToUpdate = "folder_lab";
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Ölçü Alınacak", label: "⏳ Ölçü Alınacak"},
+                                    {val: "Laboratuvarda", label: "🧪 Laboratuvarda"},
+                                    {val: "Klinikte (Provaya Hazır)", label: "🏢 Klinikte (Provaya Hazır)"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "evrak") { 
+                                  specificStatus = pt.folder_evrak || ""; 
+                                  fieldToUpdate = "folder_evrak";
+                                  badgeColor = (specificStatus === "Tamamlandı" || specificStatus === "Gizle") ? "bg-slate-100 text-slate-500 border-slate-300 dark:bg-slate-700 dark:text-slate-400" : "bg-emerald-100 text-emerald-700 border-emerald-200"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ Evraklar Tamamlandı"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Onam Formu Eksik", label: "📄 Onam Formu Eksik"},
+                                    {val: "Röntgen Bekliyor", label: "🦴 Röntgen Bekliyor"},
+                                    {val: "Kimlik/Pasaport Eksik", label: "🪪 Kimlik/Pasaport Eksik"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                } else if (activeFolderId === "yeni") { 
+                                  specificStatus = pt.folder_yeni || ""; 
+                                  fieldToUpdate = "folder_yeni";
+                                  badgeColor = specificStatus === "Tamamlandı" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : specificStatus === "Gizle" ? "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400" : "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400"; 
+                                  options = [
+                                    {val: "Tamamlandı", label: "✅ İşlem Gördü / Tam"},
+                                    {val: "Gizle", label: "👁️ Klasörden Gizle"},
+                                    {val: "Randevu Bekliyor", label: "⏳ Randevu Bekliyor"},
+                                    {val: "Ulaşılamadı", label: "☎️ Ulaşılamadı"},
+                                    {val: "", label: "🔄 Otomatik Moda Dön"}
+                                  ];
+                                }
 
                                 return (
-                                <div key={i} className="bg-white dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-2 hover:border-indigo-300 transition-colors">
-                                  <div className="flex items-start gap-2 w-full md:w-auto">
+                                <React.Fragment key={i}>
+                                  {groupHeader}
+                                  <div className="bg-white dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-2 hover:border-indigo-300 transition-colors">
+                                    <div className="flex items-start gap-2 w-full md:w-auto">
                                     <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-600 shrink-0 mt-0.5">
                                       <i className="fa-regular fa-folder-open text-base"></i>
                                     </div>
@@ -5425,14 +5611,15 @@ Tarih: ...../...../202...
                                   </div>
 
                                   <div className="flex flex-wrap gap-1.5 mt-2 md:mt-0 w-full md:w-auto shrink-0 justify-end">
-                                    <button onClick={() => { setPatientForm(pt); setPatientModalTab("info"); setIsPatientModalOpen(true); }} className="flex-1 md:flex-none px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-black text-[10px] hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-sm transition flex items-center justify-center gap-1">
-                                      <i className="fa-solid fa-folder-open"></i> Detay
-                                    </button>
-                                  </div>
-                                </div>
-                                );
-                            })
-                            ) : (
+                                    <button onClick={() => { setPatientForm(pt); setPatientModalTab("info"); setIsPatientModalOpen(true); }} className="flex-1 md:flex-none px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg font-black text-[10px] hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-sm transition flex items-center justify-center gap-1">
+                                      <i className="fa-solid fa-folder-open"></i> Detay
+                                    </button>
+                                  </div>
+                                </div>
+                                </React.Fragment>
+                                );
+                              })
+                            ) : (
                               <div className="flex flex-col items-center justify-center py-10 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
                                 <i className="fa-regular fa-folder-open text-3xl text-slate-300 mb-2"></i>
                                 <span className="text-[11px] font-bold text-slate-500">Bu klasörde aranan kriterlere uygun dosya bulunmuyor.</span>
@@ -9375,14 +9562,15 @@ const renderSettings = () => {
                 )}
 
                 {currentSettingsTab === "dosya" && (() => {
-                  const DOSYA_KLASORLERI = [
-                     { id: "acil", isim: "Acil Takip", icon: "fa-truck-medical", color: "bg-rose-500" },
-                     { id: "lab", isim: "Laboratuvar Bekleyenler", icon: "fa-flask", color: "bg-purple-500" },
-                     { id: "evrak", isim: "Evrak Bekleyenler", icon: "fa-file-signature", color: "bg-slate-500" },
-                     { id: "kontrol", isim: "Kontrol Bekleyenler", icon: "fa-calendar-check", color: "bg-emerald-500" },
-                     { id: "tedavi", isim: "Tedavisi Devam Edenler", icon: "fa-tooth", color: "bg-amber-500" },
-                     { id: "yeni", isim: "Yeni Hastalar", icon: "fa-user-plus", color: "bg-blue-500" }
-                  ];
+                  const DOSYA_KLASORLERI = [
+                     { id: "acil", isim: "Acil Takip", icon: "fa-truck-medical", color: "bg-rose-600" },
+                     { id: "takip", isim: "İptal & Takip Havuzu", icon: "fa-layer-group", color: "bg-amber-600" },
+                     { id: "kontrol", isim: "Kontrol Bekleyenler", icon: "fa-calendar-check", color: "bg-emerald-500" },
+                     { id: "tedavi", isim: "Tedavisi Devam Edenler", icon: "fa-tooth", color: "bg-blue-500" },
+                     { id: "lab", isim: "Laboratuvar Bekleyenler", icon: "fa-flask", color: "bg-purple-500" },
+                     { id: "evrak", isim: "Evrak Bekleyenler", icon: "fa-file-signature", color: "bg-slate-500" },
+                     { id: "yeni", isim: "Yeni Hastalar", icon: "fa-user-plus", color: "bg-teal-500" }
+                  ];
                   return (
                     <div className="animate-pop max-w-4xl space-y-4">
                         <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
@@ -10880,67 +11068,135 @@ const renderSettings = () => {
             )}
 
             {confirmModal.isOpen && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[99998] p-2">
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop border border-slate-200 dark:border-slate-700">
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
-                    <h3 className="font-black text-[13px] uppercase tracking-wider">
-                      <i className="fa-solid fa-circle-exclamation mr-2 text-rose-400"></i>
-                      {confirmModal.title}
-                    </h3>
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[99998] p-2">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop border border-slate-200 dark:border-slate-700">
+                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
+                    <h3 className="font-black text-[13px] uppercase tracking-wider">
+                      <i className="fa-solid fa-circle-exclamation mr-2 text-rose-400"></i>
+                      {confirmModal.title}
+                    </h3>
 
-                    <button
-                      onClick={handleCancelConfirm}
-                      className="text-slate-400 hover:text-white"
-                    >
-                      <i className="fa-solid fa-xmark text-base"></i>
-                    </button>
-                  </div>
+                    <button
+                      onClick={handleCancelConfirm}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      <i className="fa-solid fa-xmark text-base"></i>
+                    </button>
+                  </div>
 
-                  <div className="p-3 space-y-2">
-                    <p className="text-slate-700 dark:text-slate-300 font-bold text-[13px] whitespace-pre-wrap">
-                      {confirmModal.message}
-                    </p>
-                    
-                    {confirmModal.requireInput && (
-                      <div className="mt-3 bg-rose-50 dark:bg-rose-900/20 p-2.5 rounded-lg border border-rose-200 dark:border-rose-800">
-                         <label className="block text-[11px] font-black text-rose-600 dark:text-rose-400 uppercase mb-1.5">
-                           Güvenlik Onayı: <br/>
-                           {confirmModal.isPassword ? (
-                               <span className="text-slate-700 dark:text-slate-300 font-bold capitalize">İşleme devam etmek için lütfen <b className="text-rose-600 dark:text-rose-400">hesap giriş şifrenizi</b> girin.</span>
-                           ) : (
-                               <span className="text-slate-700 dark:text-slate-300 font-bold capitalize">Lütfen kutuya <b className="text-rose-600 dark:text-rose-400">"{confirmModal.expectedText}"</b> yazın.</span>
-                           )}
-                         </label>
-                         <input 
-                           type={confirmModal.isPassword ? "password" : "text"} 
-                           value={confirmModal.inputText}
-                           onChange={(e) => setConfirmModal({...confirmModal, inputText: e.target.value})}
-                           placeholder={confirmModal.isPassword ? "Şifrenizi girin..." : confirmModal.expectedText}
-                           className="w-full p-2 rounded-lg border border-rose-300 dark:border-rose-700 text-[13px] font-bold outline-none focus:ring-2 focus:ring-rose-500 dark:bg-slate-900 dark:text-white shadow-inner"
-                           autoFocus
-                         />
-                      </div>
-                    )}
+                  <div className="p-3 space-y-2">
+                    <p className="text-slate-700 dark:text-slate-300 font-bold text-[13px] whitespace-pre-wrap">
+                      {confirmModal.message}
+                    </p>
+                    
+                    {confirmModal.requireInput && (
+                      <div className="mt-3 bg-rose-50 dark:bg-rose-900/20 p-2.5 rounded-lg border border-rose-200 dark:border-rose-800">
+                         <label className="block text-[11px] font-black text-rose-600 dark:text-rose-400 uppercase mb-1.5">
+                           Güvenlik Onayı: <br/>
+                           {confirmModal.isPassword ? (
+                               <span className="text-slate-700 dark:text-slate-300 font-bold capitalize">İşleme devam etmek için lütfen <b className="text-rose-600 dark:text-rose-400">hesap giriş şifrenizi</b> girin.</span>
+                           ) : (
+                               <span className="text-slate-700 dark:text-slate-300 font-bold capitalize">Lütfen kutuya <b className="text-rose-600 dark:text-rose-400">"{confirmModal.expectedText}"</b> yazın.</span>
+                           )}
+                         </label>
+                         <input 
+                           type={confirmModal.isPassword ? "password" : "text"} 
+                           value={confirmModal.inputText}
+                           onChange={(e) => setConfirmModal({...confirmModal, inputText: e.target.value})}
+                           placeholder={confirmModal.isPassword ? "Şifrenizi girin..." : confirmModal.expectedText}
+                           className="w-full p-2 rounded-lg border border-rose-300 dark:border-rose-700 text-[13px] font-bold outline-none focus:ring-2 focus:ring-rose-500 dark:bg-slate-900 dark:text-white shadow-inner"
+                           autoFocus
+                         />
+                      </div>
+                    )}
 
-                    <div className="flex gap-1.5 pt-2">
-                      <button
-                        onClick={handleCancelConfirm}
-                        className="flex-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-200"
-                      >
-                        Vazgeç
-                      </button>
+                    <div className="flex gap-1.5 pt-2">
+                      <button
+                        onClick={handleCancelConfirm}
+                        className="flex-1 px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition dark:bg-slate-700 dark:text-slate-200"
+                      >
+                        Vazgeç
+                      </button>
 
-                      <button
-                        onClick={handleConfirm}
-                        className="flex-[2] px-2.5 py-1.5 bg-rose-500 text-white rounded-xl font-black hover:bg-rose-600 transition shadow-sm"
-                      >
-                        {confirmModal.requireInput ? "Onayla ve Sil" : "Evet, Devam Et"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                      <button
+                        onClick={handleConfirm}
+                        className="flex-[2] px-2.5 py-1.5 bg-rose-500 text-white rounded-xl font-black hover:bg-rose-600 transition shadow-sm"
+                      >
+                        {confirmModal.requireInput ? "Onayla ve Sil" : "Evet, Devam Et"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* YENİ: GELİŞMİŞ RANDEVU İPTAL VE HAVUZ MODALI */}
+            {cancelAptModal.isOpen && (
+              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[99999] p-3 animate-fadeIn">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-pop border border-slate-200 dark:border-slate-700 flex flex-col">
+                  
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80 flex justify-between items-center">
+                    <h3 className="font-black text-[14px] text-slate-800 dark:text-white flex items-center gap-2">
+                      <i className="fa-solid fa-list-check text-indigo-500"></i> Randevu İşlem Seçimi
+                    </h3>
+                    <button onClick={() => setCancelAptModal({ isOpen: false, aptKey: null, docId: null, aptData: null, reasonNote: "" })} className="text-slate-400 hover:text-rose-500 transition">
+                      <i className="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                  </div>
+
+                  <div className="p-4 space-y-3">
+                    <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-2.5 rounded-xl flex justify-between items-center">
+                      <div className="font-bold text-[12px] text-indigo-900 dark:text-indigo-300">{cancelAptModal.aptData?.patientName}</div>
+                      <div className="text-[10px] font-black bg-white dark:bg-slate-800 px-2 py-1 rounded text-indigo-500">{cancelAptModal.aptData?.time || cancelAptModal.aptKey?.split('-')[3]}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Takip / İptal Notu (İsteğe Bağlı)</label>
+                      <input 
+                        type="text" 
+                        placeholder="Örn: Hasta şehir dışında, haftaya aranacak..." 
+                        value={cancelAptModal.reasonNote}
+                        onChange={e => setCancelAptModal({...cancelAptModal, reasonNote: e.target.value})}
+                        className="w-full p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[12px] font-medium outline-none focus:border-indigo-500 dark:text-white"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 pt-2">
+                      <button onClick={() => processCancelAppointment("cancel")} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 transition text-left group">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0 group-hover:bg-slate-200"><i className="fa-solid fa-ban"></i></div>
+                        <div>
+                          <div className="font-bold text-[13px] text-slate-800 dark:text-white">Randevuyu İptal Et</div>
+                          <div className="text-[10px] text-slate-500">Randevu 'İptal' olarak işaretlenir.</div>
+                        </div>
+                      </button>
+
+                      <button onClick={() => processCancelAppointment("noshow")} className="flex items-center gap-3 p-3 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition text-left group">
+                        <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/50 text-rose-500 flex items-center justify-center shrink-0 group-hover:bg-rose-200"><i className="fa-solid fa-user-xmark"></i></div>
+                        <div>
+                          <div className="font-bold text-[13px] text-rose-700 dark:text-rose-400">Hasta Gelmedi (No-Show)</div>
+                          <div className="text-[10px] text-rose-500/70 dark:text-rose-500">Randevu 'Gelmedi' olarak işaretlenir ve masaya düşer.</div>
+                        </div>
+                      </button>
+
+                      <button onClick={() => processCancelAppointment("recall")} className="flex items-center gap-3 p-3 rounded-xl border border-amber-200 dark:border-amber-900/50 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition text-left group">
+                        <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 flex items-center justify-center shrink-0 group-hover:bg-amber-200"><i className="fa-solid fa-phone-volume"></i></div>
+                        <div>
+                          <div className="font-bold text-[13px] text-amber-700 dark:text-amber-400">Yeniden Aranacaklar Listesine Al</div>
+                          <div className="text-[10px] text-amber-600/70 dark:text-amber-500">Hasta, dosya masasında 'Aranacaklar' klasörüne düşer.</div>
+                        </div>
+                      </button>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-700 mt-2">
+                       <button onClick={() => showConfirm("Randevuyu veritabanından kalıcı olarak silmek istediğinize emin misiniz?", () => processCancelAppointment("delete"))} className="w-full py-2 text-[11px] font-bold text-slate-400 hover:text-rose-600 transition underline decoration-dotted underline-offset-2">
+                          İşlemi Kalıcı Olarak Sil (Önerilmez)
+                       </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <aside
               ref={sidebarRef}
@@ -12600,487 +12856,475 @@ const renderSettings = () => {
                       </div>
 
                       {patientModalTab === "info" && (
-                        <div
-                          className={`flex-1 overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-900/50 ${
-                            isSplitMode ? "" : "lg:flex-row"
-                          }`}
-                        >
-                          <div className="flex-[3] space-y-1.5">
-                            {patientForm.anamnesis && (
-                              <div className="bg-rose-100 text-rose-700 p-2.5 rounded-xl border shadow-sm animate-pop flex items-start gap-1.5 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
-                                <i className="fa-solid fa-triangle-exclamation text-base"></i>
+                        <div
+                          className={`flex-1 overflow-y-auto p-2 flex flex-col gap-2 bg-slate-50/50 dark:bg-slate-900/50 custom-scrollbar ${
+                            isSplitMode ? "" : "lg:flex-row"
+                          }`}
+                        >
+                          <div className="flex-[3] space-y-1.5">
+                            {patientForm.anamnesis && (
+                              <div className="bg-rose-100 text-rose-700 p-2 rounded-lg border shadow-sm animate-pop flex items-start gap-1.5 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800/50">
+                                <i className="fa-solid fa-triangle-exclamation text-sm mt-0.5"></i>
 
-                                <div>
-                                  <div className="font-black text-[13px] mb-0.5 uppercase tracking-wider">
-                                    Önemli Uyarı (Anamnez)
-                                  </div>
+                                <div>
+                                  <div className="font-black text-[11px] mb-0.5 uppercase tracking-wider">
+                                    Önemli Uyarı (Anamnez)
+                                  </div>
 
-                                  <div className="text-[13px] font-semibold whitespace-pre-wrap">
-                                    {patientForm.anamnesis}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                                  <div className="text-[11px] font-semibold whitespace-pre-wrap">
+                                    {patientForm.anamnesis}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
-                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                              <h4 className="font-black text-slate-800 mb-2 border-b border-slate-100 pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
-                                Kimlik & İletişim
-                              </h4>
+                            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                              <h4 className="font-black text-slate-800 mb-1.5 border-b border-slate-100 pb-1.5 text-[11px] uppercase tracking-wider dark:text-white dark:border-slate-700">
+                                Kimlik & İletişim
+                              </h4>
 
-                              <form className="space-y-1.5">
-                                <div
-                                  className={`grid gap-2 ${
-                                    isSplitMode ? "grid-cols-1" : "grid-cols-2"
-                                  }`}
-                                >
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
-                                      Ad Soyad *
-                                    </label>
+                              <form className="space-y-1.5">
+                                <div
+                                  className={`grid gap-1.5 ${
+                                    isSplitMode ? "grid-cols-1" : "grid-cols-2"
+                                  }`}
+                                >
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">
+                                      Ad Soyad *
+                                    </label>
 
-                                    <input
-                                      required
-                                      value={patientForm.name}
-                                      onChange={(e) =>
-                                        setPatientForm({
-                                          ...patientForm,
+                                    <input
+                                      required
+                                      value={patientForm.name}
+                                      onChange={(e) =>
+                                        setPatientForm({
+                                          ...patientForm,
+                                          name: e.target.value,
+                                        })
+                                      }
+                                      className="w-full p-1 px-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                    />
+                                  </div>
 
-                                          name: e.target.value,
-                                        })
-                                      }
-                                      className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
-                                    />
-                                  </div>
+                                  <div>
+                                    <div className="flex justify-between items-center mb-0.5">
+                                      <label className="block text-[9px] font-bold text-slate-500 uppercase">
+                                        TC Kimlik / Pasaport No
+                                      </label>
+                                      <label className="flex items-center gap-1 text-[9px] font-bold text-slate-500 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={
+                                            patientForm.isForeign || false
+                                          }
+                                          onChange={(e) =>
+                                            setPatientForm({
+                                              ...patientForm,
+                                              isForeign: e.target.checked,
+                                              tc: "",
+                                            })
+                                          }
+                                          className="accent-indigo-600 w-2.5 h-2.5 cursor-pointer"
+                                        />
+                                        Yurt Dışı Hasta
+                                      </label>
+                                    </div>
 
-                                  <div>
-                                    <div className="flex justify-between items-center mb-0.5">
-                                      <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                                        TC Kimlik / Pasaport No
-                                      </label>
-                                      <label className="flex items-center gap-1 text-[10px] font-bold text-slate-500 cursor-pointer">
-                                        <input
-                                          type="checkbox"
-                                          checked={
-                                            patientForm.isForeign || false
-                                          }
-                                          onChange={(e) =>
-                                            setPatientForm({
-                                              ...patientForm,
-                                              isForeign: e.target.checked,
-                                              tc: "",
-                                            })
-                                          }
-                                          className="accent-indigo-600 w-3 h-3 cursor-pointer"
-                                        />
-                                        Yurt Dışı Hasta
-                                      </label>
-                                    </div>
+                                    <div className="relative">
+                                      <input
+                                        maxLength={
+                                          patientForm.isForeign ? "20" : "11"
+                                        }
+                                        value={patientForm.tc || ""}
+                                        placeholder={
+                                          patientForm.isForeign
+                                            ? "Pasaport No Giriniz"
+                                            : "11 Haneli TC Giriniz"
+                                        }
+                                        onChange={(e) => {
+                                          let val = e.target.value;
+                                          if (!patientForm.isForeign) {
+                                            val = val.replace(/\D/g, ""); 
+                                          }
+                                          setPatientForm({
+                                            ...patientForm,
+                                            tc: val,
+                                          });
+                                        }}
+                                        className="w-full p-1 px-1.5 pr-8 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                      />
+                                      {patientForm.tc &&
+                                        !patientForm.isForeign && (
+                                          <div className="absolute right-2 top-1.5">
+                                            {(() => {
+                                              const tc = patientForm.tc;
+                                              if (tc.length < 11) {
+                                                return (
+                                                  <i
+                                                    className="fa-solid fa-triangle-exclamation text-amber-500 text-[11px]"
+                                                    title="TC 11 hane olmalıdır"
+                                                  ></i>
+                                                );
+                                              }
+                                              const isAllSame = /^[0-9]$/.test(
+                                                tc
+                                              )
+                                                ? false
+                                                : tc
+                                                    .split("")
+                                                    .every(
+                                                      (char) => char === tc[0]
+                                                    );
+                                              if (tc[0] === "0" || isAllSame)
+                                                return (
+                                                  <i
+                                                    className="fa-solid fa-circle-xmark text-rose-500 text-[11px]"
+                                                    title="Geçersiz TC"
+                                                  ></i>
+                                                );
 
-                                    <div className="relative">
-                                      <input
-                                        maxLength={
-                                          patientForm.isForeign ? "20" : "11"
-                                        }
-                                        value={patientForm.tc || ""}
-                                        placeholder={
-                                          patientForm.isForeign
-                                            ? "Pasaport No Giriniz"
-                                            : "11 Haneli TC Giriniz"
-                                        }
-                                        onChange={(e) => {
-                                          let val = e.target.value;
-                                          if (!patientForm.isForeign) {
-                                            val = val.replace(/\D/g, ""); // TC için sadece rakam
-                                          }
-                                          setPatientForm({
-                                            ...patientForm,
-                                            tc: val,
-                                          });
-                                        }}
-                                        className="w-full p-1.5 pr-9 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
-                                      />
-                                      {patientForm.tc &&
-                                        !patientForm.isForeign && (
-                                          <div className="absolute right-2.5 top-2">
-                                            {(() => {
-                                              const tc = patientForm.tc;
-                                              if (tc.length < 11) {
-                                                return (
-                                                  <i
-                                                    className="fa-solid fa-triangle-exclamation text-amber-500 text-base"
-                                                    title="TC 11 hane olmalıdır"
-                                                  ></i>
-                                                );
-                                              }
-                                              const isAllSame = /^[0-9]$/.test(
-                                                tc
-                                              )
-                                                ? false
-                                                : tc
-                                                    .split("")
-                                                    .every(
-                                                      (char) => char === tc[0]
-                                                    );
-                                              if (tc[0] === "0" || isAllSame)
-                                                return (
-                                                  <i
-                                                    className="fa-solid fa-circle-xmark text-rose-500 text-base"
-                                                    title="Geçersiz TC"
-                                                  ></i>
-                                                );
+                                              const digits = tc
+                                                .split("")
+                                                .map(Number);
+                                              const sumOdd =
+                                                digits[0] +
+                                                digits[2] +
+                                                digits[4] +
+                                                digits[6] +
+                                                digits[8];
+                                              const sumEven =
+                                                digits[1] +
+                                                digits[3] +
+                                                digits[5] +
+                                                digits[7];
+                                              const check10 =
+                                                (sumOdd * 7 - sumEven) % 10;
+                                              const check11 =
+                                                (sumOdd + sumEven + digits[9]) %
+                                                10;
 
-                                              const digits = tc
-                                                .split("")
-                                                .map(Number);
-                                              const sumOdd =
-                                                digits[0] +
-                                                digits[2] +
-                                                digits[4] +
-                                                digits[6] +
-                                                digits[8];
-                                              const sumEven =
-                                                digits[1] +
-                                                digits[3] +
-                                                digits[5] +
-                                                digits[7];
-                                              const check10 =
-                                                (sumOdd * 7 - sumEven) % 10;
-                                              const check11 =
-                                                (sumOdd + sumEven + digits[9]) %
-                                                10;
+                                              if (
+                                                check10 === digits[9] &&
+                                                check11 === digits[10]
+                                              ) {
+                                                return (
+                                                  <i
+                                                    className="fa-solid fa-circle-check text-emerald-500 text-[11px]"
+                                                    title="Geçerli TC"
+                                                  ></i>
+                                                );
+                                              }
+                                              return (
+                                                <i
+                                                  className="fa-solid fa-circle-xmark text-rose-500 text-[11px]"
+                                                  title="Geçersiz TC Algoritması"
+                                                ></i>
+                                              );
+                                            })()}
+                                          </div>
+                                        )}
+                                      {patientForm.tc &&
+                                        patientForm.isForeign && (
+                                          <div className="absolute right-2 top-1.5">
+                                            <i
+                                              className="fa-solid fa-earth-americas text-indigo-400 text-[11px]"
+                                              title="Yurt Dışı Hasta Belgesi"
+                                            ></i>
+                                          </div>
+                                        )}
+                                    </div>
+                                  </div>
+                                </div>
 
-                                              if (
-                                                check10 === digits[9] &&
-                                                check11 === digits[10]
-                                              ) {
-                                                return (
-                                                  <i
-                                                    className="fa-solid fa-circle-check text-emerald-500 text-base"
-                                                    title="Geçerli TC"
-                                                  ></i>
-                                                );
-                                              }
-                                              return (
-                                                <i
-                                                  className="fa-solid fa-circle-xmark text-rose-500 text-base"
-                                                  title="Geçersiz TC Algoritması"
-                                                ></i>
-                                              );
-                                            })()}
-                                          </div>
-                                        )}
-                                      {patientForm.tc &&
-                                        patientForm.isForeign && (
-                                          <div className="absolute right-2.5 top-2">
-                                            <i
-                                              className="fa-solid fa-earth-americas text-indigo-400 text-base"
-                                              title="Yurt Dışı Hasta Belgesi"
-                                            ></i>
-                                          </div>
-                                        )}
-                                    </div>
-                                  </div>
-                                </div>
+                                <div
+                                  className={`grid gap-1.5 ${
+                                    isSplitMode ? "grid-cols-1" : "grid-cols-3"
+                                  }`}
+                                >
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">
+                                      Yaş
+                                    </label>
 
-                                <div
-                                  className={`grid gap-2 ${
-                                    isSplitMode ? "grid-cols-1" : "grid-cols-3"
-                                  }`}
-                                >
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
-                                      Yaş
-                                    </label>
+                                    <input
+                                      type="number"
+                                      value={patientForm.age || ""}
+                                      onChange={(e) =>
+                                        setPatientForm({
+                                          ...patientForm,
+                                          age: e.target.value,
+                                        })
+                                      }
+                                      className="w-full p-1 px-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                    />
+                                  </div>
 
-                                    <input
-                                      type="number"
-                                      value={patientForm.age || ""}
-                                      onChange={(e) =>
-                                        setPatientForm({
-                                          ...patientForm,
+                                  <div
+                                    className={
+                                      isSplitMode ? "col-span-1" : "col-span-2"
+                                    }
+                                  >
+                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">
+                                      Telefon
+                                    </label>
 
-                                          age: e.target.value,
-                                        })
-                                      }
-                                      className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700"
-                                    />
-                                  </div>
+                                    <input
+                                      type="tel"
+                                      value={patientForm.phone || ""}
+                                      placeholder="05XX XXX XX XX"
+                                      onChange={(e) => {
+                                        let input = e.target.value.replace(
+                                          /\D/g,
+                                          ""
+                                        );
+                                        if (
+                                          input.length > 0 &&
+                                          input[0] !== "0"
+                                        )
+                                          input = "0" + input;
+                                        if (input.length > 11)
+                                          input = input.substring(0, 11);
 
-                                  <div
-                                    className={
-                                      isSplitMode ? "col-span-1" : "col-span-2"
-                                    }
-                                  >
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
-                                      Telefon
-                                    </label>
+                                        let formatted = input;
+                                        if (
+                                          input.length > 3 &&
+                                          input.length <= 6
+                                        ) {
+                                          formatted =
+                                            input.slice(0, 4) +
+                                            " " +
+                                            input.slice(4);
+                                        } else if (
+                                          input.length > 6 &&
+                                          input.length <= 8
+                                        ) {
+                                          formatted =
+                                            input.slice(0, 4) +
+                                            " " +
+                                            input.slice(4, 7) +
+                                            " " +
+                                            input.slice(7);
+                                        } else if (input.length > 8) {
+                                          formatted =
+                                            input.slice(0, 4) +
+                                            " " +
+                                            input.slice(4, 7) +
+                                            " " +
+                                            input.slice(7, 9) +
+                                            " " +
+                                            input.slice(9, 11);
+                                        }
 
-                                    <input
-                                      type="tel"
-                                      value={patientForm.phone || ""}
-                                      placeholder="05XX XXX XX XX"
-                                      onChange={(e) => {
-                                        // 1. Sadece rakamları al
-                                        let input = e.target.value.replace(
-                                          /\D/g,
-                                          ""
-                                        );
+                                        setPatientForm({
+                                          ...patientForm,
+                                          phone: formatted,
+                                        });
+                                      }}
+                                      className="w-full p-1 px-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 transition-colors"
+                                    />
+                                  </div>
+                                </div>
 
-                                        // 2. Her zaman 0 ile başlamasını sağla
-                                        if (
-                                          input.length > 0 &&
-                                          input[0] !== "0"
-                                        )
-                                          input = "0" + input;
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">
+                                    Cinsiyet
+                                  </label>
 
-                                        // 3. Maksimum 11 haneye izin ver
-                                        if (input.length > 11)
-                                          input = input.substring(0, 11);
+                                  <select
+                                    value={patientForm.gender}
+                                    onChange={(e) =>
+                                      setPatientForm({
+                                        ...patientForm,
+                                        gender: e.target.value,
+                                      })
+                                    }
+                                    className="w-full p-1 px-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold outline-none dark:bg-slate-900 dark:text-white dark:border-slate-700"
+                                  >
+                                    <option>Belirtilmemiş</option>
+                                    <option>Erkek</option>
+                                    <option>Kadın</option>
+                                  </select>
+                                </div>
 
-                                        // 4. Matematiksel parça parça boşluk ekleme (Silme işleminde çökmez)
-                                        let formatted = input;
-                                        if (
-                                          input.length > 3 &&
-                                          input.length <= 6
-                                        ) {
-                                          formatted =
-                                            input.slice(0, 4) +
-                                            " " +
-                                            input.slice(4);
-                                        } else if (
-                                          input.length > 6 &&
-                                          input.length <= 8
-                                        ) {
-                                          formatted =
-                                            input.slice(0, 4) +
-                                            " " +
-                                            input.slice(4, 7) +
-                                            " " +
-                                            input.slice(7);
-                                        } else if (input.length > 8) {
-                                          formatted =
-                                            input.slice(0, 4) +
-                                            " " +
-                                            input.slice(4, 7) +
-                                            " " +
-                                            input.slice(7, 9) +
-                                            " " +
-                                            input.slice(9, 11);
-                                        }
-
-                                        setPatientForm({
-                                          ...patientForm,
-                                          phone: formatted,
-                                        });
-                                      }}
-                                      className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:text-white dark:border-slate-700 transition-colors"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
-                                    Cinsiyet
-                                  </label>
-
-                                  <select
-                                    value={patientForm.gender}
-                                    onChange={(e) =>
-                                      setPatientForm({
-                                        ...patientForm,
-
-                                        gender: e.target.value,
-                                      })
-                                    }
-                                    className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] font-bold outline-none dark:bg-slate-900 dark:text-white dark:border-slate-700"
-                                  >
-                                    <option>Belirtilmemiş</option>
-
-                                    <option>Erkek</option>
-
-                                    <option>Kadın</option>
-                                  </select>
-                                </div>
-
-                                <div>
+                                <div>
                                   <div className="flex justify-between items-center mb-0.5">
-                                    <label className="block text-[10px] font-black text-rose-500 uppercase tracking-wider">
+                                    <label className="block text-[9px] font-black text-rose-500 uppercase tracking-wider">
                                       Sistemik Hastalık / Anamnez / Alerji
                                     </label>
-                                    <label className="flex items-center gap-1.5 cursor-pointer bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800">
+                                    <label className="flex items-center gap-1 cursor-pointer bg-rose-50 dark:bg-rose-900/30 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-800">
                                       <input 
                                         type="checkbox" 
                                         checked={patientForm.isEmergency || false} 
                                         onChange={(e) => setPatientForm({...patientForm, isEmergency: e.target.checked})}
-                                        className="accent-rose-600 w-3 h-3 cursor-pointer"
+                                        className="accent-rose-600 w-2.5 h-2.5 cursor-pointer"
                                       />
-                                      <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">Acil Hasta</span>
+                                      <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400">Acil Hasta</span>
                                     </label>
                                   </div>
 
                                   <textarea
                                     rows="2"
                                     value={patientForm.anamnesis}
-                                    onChange={(e) =>
-                                      setPatientForm({
-                                        ...patientForm,
-                                        anamnesis: e.target.value,
-                                      })
-                                    }
-                                    className="w-full p-1.5 bg-rose-50 border border-rose-200 rounded-xl text-[13px] font-bold text-slate-800 resize-none outline-none focus:border-rose-400 placeholder-slate-400 dark:bg-rose-900/20 dark:text-white dark:border-rose-800/50 transition-colors"
-                                    placeholder="Özel bir not veya uyarı girebilirsiniz..."
-                                  ></textarea>
+                                    onChange={(e) =>
+                                      setPatientForm({
+                                        ...patientForm,
+                                        anamnesis: e.target.value,
+                                      })
+                                    }
+                                    className="w-full p-1.5 bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-bold text-slate-800 resize-none outline-none focus:border-rose-400 placeholder-slate-400 dark:bg-rose-900/20 dark:text-white dark:border-rose-800/50 transition-colors"
+                                    placeholder="Özel bir not veya uyarı girebilirsiniz..."
+                                  ></textarea>
 
-                                  {/* Katlanabilir Modern Anamnez Menüsü */}
-                                  <details className="group border border-rose-200 dark:border-rose-800/60 rounded-xl bg-white dark:bg-slate-800 mt-1.5 shadow-sm open:shadow-md transition-all">
-                                    <summary className="px-2.5 py-1.5 font-bold text-[11px] text-rose-600 dark:text-rose-400 cursor-pointer list-none flex justify-between items-center outline-none select-none hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors">
-                                      <span className="flex items-center gap-1">
-                                        <i className="fa-solid fa-notes-medical text-base"></i>{" "}
-                                        Literatürden Hızlı Ekle
-                                      </span>
-                                      <i className="fa-solid fa-chevron-down group-open:rotate-180 transition-transform duration-300"></i>
-                                    </summary>
+                                  {/* Katlanabilir Modern Anamnez Menüsü */}
+                                  <details className="group border border-rose-200 dark:border-rose-800/60 rounded-lg bg-white dark:bg-slate-800 mt-1 shadow-sm open:shadow-md transition-all">
+                                    <summary className="px-2 py-1 font-bold text-[10px] text-rose-600 dark:text-rose-400 cursor-pointer list-none flex justify-between items-center outline-none select-none hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors">
+                                      <span className="flex items-center gap-1">
+                                        <i className="fa-solid fa-notes-medical"></i>{" "}
+                                        Literatürden Hızlı Ekle
+                                      </span>
+                                      <i className="fa-solid fa-chevron-down group-open:rotate-180 transition-transform duration-300"></i>
+                                    </summary>
 
-                                    <div className="p-2 border-t border-rose-100 dark:border-rose-800/50 max-h-[220px] overflow-y-auto custom-scrollbar flex flex-col gap-1.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-b-xl">
-                                      {Object.entries(ANAMNESIS_CATEGORIES).map(
-                                        ([catName, options]) => (
-                                          <div key={catName}>
-                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 border-b border-slate-200 dark:border-slate-700 pb-0.5">
-                                              {catName}
-                                            </div>
-                                            <div className="flex flex-wrap gap-1">
-                                              {options.map((opt) => {
-                                                const isSelected =
-                                                  patientForm.anamnesis &&
-                                                  patientForm.anamnesis.includes(
-                                                    opt
-                                                  );
-                                                return (
-                                                  <button
-                                                    type="button"
-                                                    key={opt}
-                                                    onClick={() =>
-                                                      toggleAnamnesis(
-                                                        opt,
-                                                        "patient"
-                                                      )
-                                                    }
-                                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
-                                                      isSelected
-                                                        ? "bg-rose-600 text-white border-rose-700 shadow-sm"
-                                                        : "bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:text-rose-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-600 dark:hover:text-rose-400"
-                                                    }`}
-                                                  >
-                                                    {isSelected ? (
-                                                      <i className="fa-solid fa-check"></i>
-                                                    ) : (
-                                                      <i className="fa-solid fa-plus opacity-50"></i>
-                                                    )}
-                                                    {opt}
-                                                  </button>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        )
-                                      )}
-                                    </div>
-                                  </details>
-                                </div>
-                                {/* YENİ EKLENEN: DOSYA MASAÜSTÜ DURUMLARI */}
-                                  <div className="col-span-1 sm:col-span-3 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 mt-2">
-                                    <h4 className="font-black text-slate-800 mb-2 border-b border-slate-100 pb-2 text-[12px] uppercase tracking-wider dark:text-white dark:border-slate-700 flex items-center gap-1.5">
-                                      <i className="fa-solid fa-folder-tree text-indigo-500"></i> Dosya Masası Etiketleri
-                                    </h4>
-                                    
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                      {/* Acil Durumu */}
-                                      <div>
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Acil Takip</label>
-                                        <select
-                                          value={patientForm.folder_acil || ""}
-                                          onChange={(e) => setPatientForm({...patientForm, folder_acil: e.target.value})}
-                                          className="w-full p-1.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold outline-none focus:border-rose-500 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800 cursor-pointer"
-                                        >
-                                          <option value="">Normal (Acil Değil)</option>
-                                          <option value="Aktif Acil">🔴 Aktif Acil Durum</option>
-                                          <option value="Ağrı Takibi">🟠 Ağrı Takibi</option>
-                                          <option value="İlaç Kullanıyor">🟡 İlaç Kullanıyor</option>
-                                        </select>
-                                      </div>
+                                    <div className="p-1.5 border-t border-rose-100 dark:border-rose-800/50 max-h-[160px] overflow-y-auto custom-scrollbar flex flex-col gap-1.5 bg-slate-50/50 dark:bg-slate-900/30 rounded-b-lg">
+                                      {Object.entries(ANAMNESIS_CATEGORIES).map(
+                                        ([catName, options]) => (
+                                          <div key={catName}>
+                                            <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 border-b border-slate-200 dark:border-slate-700 pb-0.5">
+                                              {catName}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {options.map((opt) => {
+                                                const isSelected =
+                                                  patientForm.anamnesis &&
+                                                  patientForm.anamnesis.includes(
+                                                    opt
+                                                  );
+                                                return (
+                                                  <button
+                                                    type="button"
+                                                    key={opt}
+                                                    onClick={() =>
+                                                      toggleAnamnesis(
+                                                        opt,
+                                                        "patient"
+                                                      )
+                                                    }
+                                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all flex items-center gap-1 ${
+                                                      isSelected
+                                                        ? "bg-rose-600 text-white border-rose-700 shadow-sm"
+                                                        : "bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:text-rose-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-600 dark:hover:text-rose-400"
+                                                    }`}
+                                                  >
+                                                    {isSelected ? (
+                                                      <i className="fa-solid fa-check"></i>
+                                                    ) : (
+                                                      <i className="fa-solid fa-plus opacity-50"></i>
+                                                    )}
+                                                    {opt}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                  </details>
+                                </div>
+                                {/* DOSYA MASAÜSTÜ DURUMLARI (KOMPAKT) */}
+                                  <div className="col-span-1 sm:col-span-3 bg-white p-2 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700 mt-1.5">
+                                    <h4 className="font-black text-slate-800 mb-1.5 border-b border-slate-100 pb-1 text-[11px] uppercase tracking-wider dark:text-white dark:border-slate-700 flex items-center gap-1">
+                                      <i className="fa-solid fa-folder-tree text-indigo-500"></i> Dosya Masası Etiketleri
+                                    </h4>
+                                    
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                                      {/* Acil Durumu */}
+                                      <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Acil Takip</label>
+                                        <select
+                                          value={patientForm.folder_acil || ""}
+                                          onChange={(e) => setPatientForm({...patientForm, folder_acil: e.target.value})}
+                                          className="w-full p-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-md text-[10px] font-bold outline-none focus:border-rose-500 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800 cursor-pointer"
+                                        >
+                                          <option value="">Normal (Acil Değil)</option>
+                                          <option value="Aktif Acil">🔴 Aktif Acil Durum</option>
+                                          <option value="Ağrı Takibi">🟠 Ağrı Takibi</option>
+                                          <option value="İlaç Kullanıyor">🟡 İlaç Kullanıyor</option>
+                                        </select>
+                                      </div>
 
-                                      {/* Lab Durumu */}
-                                      <div>
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Laboratuvar</label>
-                                        <select
-                                          value={patientForm.folder_lab || ""}
-                                          onChange={(e) => setPatientForm({...patientForm, folder_lab: e.target.value})}
-                                          className="w-full p-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-[11px] font-bold outline-none focus:border-purple-500 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 cursor-pointer"
-                                        >
-                                          <option value="">Lab Süreci Yok</option>
-                                          <option value="Ölçü Alınacak">⏳ Ölçü Alınacak</option>
-                                          <option value="Laboratuvarda">🧪 Laboratuvarda</option>
-                                          <option value="Klinikte (Provaya Hazır)">🏢 Klinikte (Provaya Hazır)</option>
-                                        </select>
-                                      </div>
+                                      {/* Lab Durumu */}
+                                      <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Laboratuvar</label>
+                                        <select
+                                          value={patientForm.folder_lab || ""}
+                                          onChange={(e) => setPatientForm({...patientForm, folder_lab: e.target.value})}
+                                          className="w-full p-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-md text-[10px] font-bold outline-none focus:border-purple-500 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 cursor-pointer"
+                                        >
+                                          <option value="">Lab Süreci Yok</option>
+                                          <option value="Ölçü Alınacak">⏳ Ölçü Alınacak</option>
+                                          <option value="Laboratuvarda">🧪 Laboratuvarda</option>
+                                          <option value="Klinikte (Provaya Hazır)">🏢 Klinikte (Provaya Hazır)</option>
+                                        </select>
+                                      </div>
 
-                                      {/* Evrak Durumu */}
-                                      <div>
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Evrak / Belge</label>
-                                        <select
-                                          value={patientForm.folder_evrak || ""}
-                                          onChange={(e) => setPatientForm({...patientForm, folder_evrak: e.target.value})}
-                                          className="w-full p-1.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-bold outline-none focus:border-slate-500 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 cursor-pointer"
-                                        >
-                                          <option value="">Evraklar Tam</option>
-                                          <option value="Onam Formu Eksik">📄 Onam Formu Eksik</option>
-                                          <option value="Röntgen Bekliyor">🦴 Röntgen Bekliyor</option>
-                                          <option value="Kimlik/Pasaport Eksik">🪪 Kimlik/Pasaport Eksik</option>
-                                        </select>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  {/* YENİ EKLENEN BİTİŞ */}
-                              </form>
-                            </div>
-                          </div>
+                                      {/* Evrak Durumu */}
+                                      <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-0.5">Evrak / Belge</label>
+                                        <select
+                                          value={patientForm.folder_evrak || ""}
+                                          onChange={(e) => setPatientForm({...patientForm, folder_evrak: e.target.value})}
+                                          className="w-full p-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10px] font-bold outline-none focus:border-slate-500 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 cursor-pointer"
+                                        >
+                                          <option value="">Evraklar Tam</option>
+                                          <option value="Onam Formu Eksik">📄 Onam Formu Eksik</option>
+                                          <option value="Röntgen Bekliyor">🦴 Röntgen Bekliyor</option>
+                                          <option value="Kimlik/Pasaport Eksik">🪪 Kimlik/Pasaport Eksik</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                  </div>
+                              </form>
+                            </div>
+                          </div>
 
-                          <div className="flex-[2] flex flex-col gap-1.5">
-                            <div className="flex-1 bg-white p-2.5 rounded-xl border shadow-sm flex flex-col h-[240px] dark:bg-slate-800 dark:border-slate-700">
-                              <div className="flex justify-between items-center mb-1.5 border-b border-slate-100 dark:border-slate-700 pb-1.5">
-                                <h4 className="font-black text-indigo-700 text-[11px] uppercase tracking-wider flex items-center gap-1 dark:text-indigo-400">
-                                  <i className="fa-solid fa-calendar-check"></i>{" "}
-                                  Planlanan Randevular ({future.length})
-                                </h4>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    setPendingAptPatient(patientForm); // YENİ: React State'e kaydet
-                                    setIsPatientModalOpen(false);
-                                    setActiveTab("calendar");
-                                    setTimeout(() => {
-                                      showNotification(
-                                        "Takvimden uygun bir saate tıklayarak randevuyu oluşturabilirsiniz."
-                                      );
-                                    }, 300);
-                                  }}
-                                  className="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 px-1.5 py-0.5 rounded-lg font-bold transition flex items-center gap-1 shadow-sm"
-                                >
-                                  <i className="fa-solid fa-calendar-plus"></i>{" "}
-                                  Takvimden Ekle
-                                </button>
-                              </div>
+                          <div className="flex-[2] flex flex-col gap-2">
+                            <div className="flex-1 bg-white p-2 rounded-xl border shadow-sm flex flex-col h-[200px] dark:bg-slate-800 dark:border-slate-700">
+                              <div className="flex justify-between items-center mb-1 border-b border-slate-100 dark:border-slate-700 pb-1">
+                                <h4 className="font-black text-indigo-700 text-[10px] uppercase tracking-wider flex items-center gap-1 dark:text-indigo-400">
+                                  <i className="fa-solid fa-calendar-check"></i>{" "}
+                                  Planlanan Randevular ({future.length})
+                                </h4>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    setPendingAptPatient(patientForm);
+                                    setIsPatientModalOpen(false);
+                                    setActiveTab("calendar");
+                                    setTimeout(() => {
+                                      showNotification(
+                                        "Takvimden uygun bir saate tıklayarak randevuyu oluşturabilirsiniz."
+                                      );
+                                    }, 300);
+                                  }}
+                                  className="text-[9px] bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800 px-1.5 py-0.5 rounded font-bold transition flex items-center gap-1 shadow-sm"
+                                >
+                                  <i className="fa-solid fa-calendar-plus"></i>{" "}
+                                  Takvimden Ekle
+                                </button>
+                              </div>
 
-                              <div className="flex-1 overflow-y-auto pr-0.5 space-y-1.5">
-                                {future.length > 0 ? (
-                                  future.map((a, idx) => (
+                              <div className="flex-1 overflow-y-auto pr-0.5 space-y-1.5 custom-scrollbar">
+                                {future.length > 0 ? (
+                                  future.map((a, idx) => (
                                     <div
                                       key={idx}
-                                      className="bg-indigo-50/50 p-2 rounded-xl border border-indigo-100 text-[11px] dark:bg-indigo-900/30 dark:border-indigo-800/50 flex flex-col"
+                                      className="bg-indigo-50/50 p-1.5 rounded-lg border border-indigo-100 text-[10px] dark:bg-indigo-900/30 dark:border-indigo-800/50 flex flex-col"
                                     >
                                       <div className="flex justify-between items-center mb-0.5">
-                                        <span className="font-black text-indigo-900 dark:text-indigo-300">
+                                        <span className="font-black text-indigo-900 dark:text-indigo-300 text-[9px]">
                                           <i className="fa-regular fa-clock mr-1"></i>
                                           {a.dateStr} - {a.timeStr}
                                         </span>
@@ -13088,1142 +13332,1006 @@ const renderSettings = () => {
                                         {getStatusBadge(a.status)}
                                       </div>
 
-                                      <div className="font-bold text-slate-700 dark:text-slate-300 flex justify-between">
+                                      <div className="font-bold text-slate-700 dark:text-slate-300 flex justify-between text-[11px]">
                                         <span className="truncate max-w-[130px]">
                                           {renderTreatmentText(a)}
                                         </span>
 
-                                        <span className="text-indigo-600 dark:text-indigo-400">
+                                        <span className="text-indigo-600 dark:text-indigo-400 text-[9px]">
                                           Planlı İle Entegre
                                         </span>
                                       </div>
-                                      <div className="text-[10px] font-bold text-indigo-500/80 dark:text-indigo-400/80 mt-1 flex items-center gap-1">
+                                      <div className="text-[9px] font-bold text-indigo-500/80 dark:text-indigo-400/80 mt-1 flex items-center gap-1">
                                         <i className="fa-solid fa-user-doctor"></i> {globalData.systemUsers?.[a.docId]?.displayName || a.docId}
                                       </div>
                                     </div>
                                   ))
-                                ) : (
-                                  <div className="text-center text-slate-400 font-medium text-[11px] py-2">
-                                    Gelecek randevusu yok.
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                                ) : (
+                                  <div className="text-center text-slate-400 font-medium text-[10px] py-4">
+                                    Gelecek randevusu yok.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
-                            <div className="flex-1 bg-white p-2.5 rounded-xl border shadow-sm flex flex-col h-[240px] dark:bg-slate-800 dark:border-slate-700">
-                              <h4 className="font-black text-slate-600 mb-1.5 border-b pb-1.5 text-[11px] uppercase tracking-wider flex items-center gap-1 dark:text-white dark:border-slate-700">
-                                <i className="fa-solid fa-clock-rotate-left"></i>{" "}
-                                Geçmiş Randevular ({past.length})
-                              </h4>
+                            <div className="flex-1 bg-white p-2 rounded-xl border shadow-sm flex flex-col h-[200px] dark:bg-slate-800 dark:border-slate-700">
+                              <h4 className="font-black text-slate-600 mb-1 border-b pb-1 text-[10px] uppercase tracking-wider flex items-center gap-1 dark:text-white dark:border-slate-700">
+                                <i className="fa-solid fa-clock-rotate-left"></i>{" "}
+                                Geçmiş Randevular ({past.length})
+                              </h4>
 
-                              {/* YENİ: Geçmiş Randevular Zaman Tüneli (Timeline) */}
-                              <div className="flex-1 overflow-y-auto pr-1.5 relative mt-2 custom-scrollbar px-1.5">
-                                {past.length > 0 ? (
-                                  <div className="relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent dark:before:via-slate-700">
-                                    {past.map((a, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="relative flex items-center justify-start group mb-2 pl-10"
-                                      >
-                                        <div className="absolute left-0.5 flex items-center justify-center w-6 h-6 rounded-full border-4 border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 group-hover:text-white transition-colors duration-300 text-slate-500 shadow z-10">
-                                          <i
-                                            className={`fa-solid ${
-                                              a.status === "Geldi"
-                                                ? "fa-check text-emerald-500 group-hover:text-white"
-                                                : a.status === "Gelmedi"
-                                                ? "fa-xmark text-rose-500 group-hover:text-white"
-                                                : "fa-calendar-check"
-                                            } text-[9px]`}
-                                          ></i>
-                                        </div>
-                                        <div className="w-full p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 shadow-sm group-hover:shadow-md transition-shadow relative before:absolute before:top-2.5 before:right-full before:w-2.5 before:h-0.5 before:bg-slate-200 dark:before:bg-slate-700 group-hover:before:bg-indigo-300">
-                                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1.5 gap-1 border-b border-slate-100 dark:border-slate-800 pb-1.5">
-                                            <time className="font-bold text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">
-                                              {a.dateStr} • {a.timeStr}
-                                            </time>
-                                            {getStatusBadge(a.status)}
-                                          </div>
-                                          <h4 className="font-black text-slate-800 dark:text-white text-[13px] mb-0.5 mt-1">
+                              {/* Geçmiş Randevular Zaman Tüneli (Timeline) */}
+                              <div className="flex-1 overflow-y-auto pr-1 relative mt-1.5 custom-scrollbar px-1">
+                                {past.length > 0 ? (
+                                  <div className="relative before:absolute before:inset-0 before:ml-3 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent dark:before:via-slate-700">
+                                    {past.map((a, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="relative flex items-center justify-start group mb-1.5 pl-8"
+                                      >
+                                        <div className="absolute left-0 flex items-center justify-center w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 group-hover:bg-indigo-500 group-hover:text-white transition-colors duration-300 text-slate-500 shadow z-10">
+                                          <i
+                                            className={`fa-solid ${
+                                              a.status === "Geldi"
+                                                ? "fa-check text-emerald-500 group-hover:text-white"
+                                                : a.status === "Gelmedi"
+                                                ? "fa-xmark text-rose-500 group-hover:text-white"
+                                                : "fa-calendar-check"
+                                            } text-[8px]`}
+                                          ></i>
+                                        </div>
+                                        <div className="w-full p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 shadow-sm group-hover:shadow-md transition-shadow relative before:absolute before:top-2 before:right-full before:w-2 before:h-0.5 before:bg-slate-200 dark:before:bg-slate-700 group-hover:before:bg-indigo-300">
+                                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1 gap-1 border-b border-slate-100 dark:border-slate-800 pb-1">
+                                            <time className="font-bold text-[9px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1 py-0.5 rounded">
+                                              {a.dateStr} • {a.timeStr}
+                                            </time>
+                                            {getStatusBadge(a.status)}
+                                          </div>
+                                          <h4 className="font-black text-slate-800 dark:text-white text-[11px] mb-0.5 mt-0.5">
                                             {renderTreatmentText(a)}
                                           </h4>
-                                          <div className="text-[10px] font-bold text-slate-400 mt-1.5 flex items-center gap-1">
+                                          <div className="text-[9px] font-bold text-slate-400 mt-1 flex items-center gap-1">
                                             <i className="fa-solid fa-user-doctor"></i>{" "}
                                             {globalData.systemUsers?.[a.docId]?.displayName || a.docId}
                                           </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-8">
-                                    <i className="fa-solid fa-clock-rotate-left text-lg text-slate-300 dark:text-slate-600 mb-1.5"></i>
-                                    <span className="text-slate-500 dark:text-slate-400 font-bold text-[11px]">
-                                      Geçmiş randevusu bulunmuyor.
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-4">
+                                    <i className="fa-solid fa-clock-rotate-left text-base text-slate-300 dark:text-slate-600 mb-1"></i>
+                                    <span className="text-slate-500 dark:text-slate-400 font-bold text-[9px]">
+                                      Geçmiş randevu bulunmuyor.
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                      {patientModalTab === "finance" && (
-                        <div className="flex-1 overflow-y-auto p-2.5 bg-slate-50/50 flex justify-center dark:bg-slate-900/50">
-                          <div className="w-full flex flex-col lg:flex-row gap-2">
-                            <div className="flex-[3] flex flex-col gap-2">
-                              <div className="bg-white p-2.5 rounded-xl border shadow-sm flex flex-col max-h-[350px] dark:bg-slate-800 dark:border-slate-700">
-                                <h4 className="font-black text-slate-800 mb-2 border-b pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
-                                  Uygulanan/Planlanan Borç Yaratan İşlemler
-                                </h4>
+                      {patientModalTab === "finance" && (() => {
+                        // PROFESYONEL HESAP HAREKETLERİ (LEDGER) MOTORU
+                        let ledger = [];
+                        let totalTreatment = 0;
+                        let totalOriginalBilled = 0; // İndirimsiz orijinal toplam
+                        let totalDiscount = 0;
+                        let totalPaid = 0;
 
-                                <div className="overflow-y-auto flex-1 pr-1.5 space-y-1.5">
-                                  {fin.treatments.length > 0 ? (
-                                    fin.treatments.map((tx, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="flex justify-between items-center bg-slate-50 p-1.5 rounded-xl border dark:bg-slate-900 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition group"
-                                      >
-                                        <div>
-                                          <div className="font-black text-slate-800 text-[13px] dark:text-slate-200">
-                                            {tx.treatment}
-                                          </div>
+                        // 1. Tedavileri İşle (Borç ve İndirimler)
+                        if (patientForm.plannedTreatments && Array.isArray(patientForm.plannedTreatments)) {
+                            patientForm.plannedTreatments.forEach(tx => {
+                                if (!tx) return;
+                                const price = parseFloat(tx.price) || 0;
+                                const origPrice = tx.originalPrice !== undefined ? parseFloat(tx.originalPrice) : price;
+                                const discount = origPrice - price;
+                                
+                                totalTreatment += price;
+                                totalOriginalBilled += origPrice;
+                                totalDiscount += discount;
 
-                                          <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-                                            <span>
-                                              <i className="fa-regular fa-calendar mr-1"></i>
+                                ledger.push({
+                                    id: tx.id,
+                                    timestamp: new Date(tx.date).getTime(),
+                                    dateStr: new Date(tx.date).toLocaleDateString("tr-TR"),
+                                    type: 'treatment',
+                                    title: tx.treatment || "Klinik İşlem",
+                                    desc: tx.tooth === "Tüm Çene" ? "Tüm Çene" : `Diş: ${tx.tooth || "-"}`,
+                                    amount: price,
+                                    originalAmount: origPrice,
+                                    discountAmount: discount,
+                                    isDebit: true,
+                                    icon: "fa-stethoscope",
+                                    color: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400"
+                                });
+                            });
+                        }
 
-                                              {tx.dateStr}
-                                            </span>
+                        // 2. Tahsilatları İşle (Alacak/Ödeme)
+                        if (patientForm.payments && Array.isArray(patientForm.payments)) {
+                            patientForm.payments.forEach(pay => {
+                                if (!pay) return;
+                                const amt = parseFloat(pay.amount) || 0;
+                                totalPaid += amt;
+                                
+                                ledger.push({
+                                    id: pay.id,
+                                    timestamp: new Date(pay.date).getTime(),
+                                    dateStr: new Date(pay.date).toLocaleDateString("tr-TR"),
+                                    type: 'payment',
+                                    title: 'Tahsilat / Ödeme',
+                                    desc: pay.method || "Nakit",
+                                    amount: amt,
+                                    originalAmount: amt,
+                                    discountAmount: 0,
+                                    isDebit: false,
+                                    icon: "fa-money-bill-wave",
+                                    color: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                });
+                            });
+                        }
 
-                                            {tx.isPlan && (
-                                              <span className="text-indigo-500 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">
-                                                Plan Kaydı
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
+                        // 3. Kronolojik Olarak Sırala ve Yürüyen Bakiye Hesapla (Running Balance)
+                        ledger.sort((a, b) => a.timestamp - b.timestamp);
+                        
+                        let runningBalance = 0;
+                        ledger = ledger.map(item => {
+                            if (item.isDebit) runningBalance += item.amount;
+                            else runningBalance -= item.amount;
+                            return { ...item, balance: runningBalance };
+                        });
+                        
+                        const currentBalance = totalTreatment - totalPaid;
 
-                                        <div className="flex items-center gap-1.5">
-                                          {editingTxId === tx.id ? (
-                                            <div className="flex items-center gap-1">
-                                              <input
-                                                type="number"
-                                                value={editingTxPrice}
-                                                onChange={(e) =>
-                                                  setEditingTxPrice(
-                                                    e.target.value
-                                                  )
-                                                }
-                                                className="w-16 px-1.5 py-0.5 text-[13px] font-bold border rounded outline-none dark:bg-slate-800 dark:text-white"
-                                                autoFocus
-                                              />
+                        return (
+                        <div className="flex-1 overflow-y-auto p-2 bg-slate-50/50 flex flex-col gap-2 dark:bg-slate-900/50 relative custom-scrollbar">
+                          
+                          {/* ÜST ÖZET KARTLARI (KÜÇÜLTÜLDÜ) */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
+                             <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
+                               <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Toplam Tedavi</div>
+                               <div className="text-[13px] font-black text-slate-800 dark:text-white flex items-center gap-1">
+                                 {totalOriginalBilled > totalTreatment && (
+                                    <span className="text-[9px] text-slate-400 line-through decoration-rose-500 font-bold" title="İndirimsiz Orijinal Tutar">{totalOriginalBilled.toLocaleString("tr-TR")} ₺</span>
+                                 )}
+                                 {totalTreatment.toLocaleString("tr-TR")} ₺
+                               </div>
+                             </div>
+                             <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
+                               <div className="text-[9px] font-black text-amber-500 uppercase tracking-wider mb-0.5">Uygulanan İndirim</div>
+                               <div className="text-[13px] font-black text-amber-600 dark:text-amber-400">{totalDiscount.toLocaleString("tr-TR")} ₺</div>
+                             </div>
+                             <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
+                               <div className="text-[9px] font-black text-emerald-500 uppercase tracking-wider mb-0.5">Toplam Tahsilat</div>
+                               <div className="text-[13px] font-black text-emerald-600 dark:text-emerald-400">{totalPaid.toLocaleString("tr-TR")} ₺</div>
+                             </div>
+                             <div className={`p-2 rounded-xl border shadow-sm flex flex-col justify-center ${currentBalance > 0 ? "bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800" : "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"}`}>
+                               <div className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${currentBalance > 0 ? "text-rose-500" : "text-emerald-500"}`}>{currentBalance > 0 ? "Ödenecek Kalan Bakiye" : "Borç Bulunmuyor"}</div>
+                               <div className={`text-[14px] font-black ${currentBalance > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>{currentBalance.toLocaleString("tr-TR")} ₺</div>
+                             </div>
+                          </div>
 
-                                              <button
-                                                onClick={() =>
-                                                  handleUpdateTxPrice(
-                                                    tx.id,
+                          {/* İLERLEME ÇUBUĞU (KÜÇÜLTÜLDÜ) */}
+                          {totalTreatment > 0 && (
+                            <div className="px-1 shrink-0 animate-fadeIn">
+                              <div className="flex justify-between text-[9px] font-black text-slate-500 mb-1">
+                                <span>Tahsilat Oranı</span>
+                                <span className="text-emerald-600 dark:text-emerald-400">% {Math.round((totalPaid / totalTreatment) * 100)}</span>
+                              </div>
+                              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden shadow-inner flex">
+                                <div
+                                  className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
+                                  style={{ width: `${Math.min(100, (totalPaid / totalTreatment) * 100)}%` }}
+                                >
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
-                                                    editingTxPrice,
+                          {/* ANA KAPSAYICI */}
+                          <div className="flex flex-col lg:flex-row gap-2 flex-1 min-h-[300px] overflow-hidden">
+                            
+                            {/* HESAP HAREKETLERİ TABLOSU */}
+                            <div className="flex-[3] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden">
+                              <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
+                                <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                  <i className="fa-solid fa-file-invoice-dollar text-indigo-500"></i> Hesap Hareketleri
+                                </h4>
+                                <button onClick={() => window.print()} className="text-[9px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded font-bold hover:bg-slate-50 transition shadow-sm">
+                                  <i className="fa-solid fa-print mr-1"></i> Yazdır
+                                </button>
+                              </div>
+                              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                <table className="w-full text-left text-[11px]">
+                                  <thead className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-[9px] font-black text-slate-400 uppercase tracking-wider sticky top-0 z-10 shadow-sm">
+                                    <tr>
+                                      <th className="p-2 w-20 whitespace-nowrap">Tarih</th>
+                                      <th className="p-2">İşlem / Açıklama</th>
+                                      <th className="p-2 text-right whitespace-nowrap">Borç (+)</th>
+                                      <th className="p-2 text-right whitespace-nowrap">Tahsilat (-)</th>
+                                      <th className="p-2 text-right border-l border-slate-100 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Bakiye</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {ledger.length > 0 ? ledger.map((item, idx) => (
+                                      <tr key={idx} className="border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors group">
+                                        <td className="p-2 font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap align-top pt-2.5">{item.dateStr}</td>
+                                        <td className="p-2">
+                                          <div className="flex items-start gap-1.5">
+                                            <div className={`w-5 h-5 rounded flex items-center justify-center text-[9px] mt-0.5 border shadow-sm shrink-0 ${item.color}`}>
+                                              <i className={`fa-solid ${item.icon}`}></i>
+                                            </div>
+                                            <div>
+                                              <div className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">{item.title}</div>
+                                              <div className="text-[9px] font-semibold text-slate-500">{item.desc}</div>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="p-2 text-right font-black text-rose-600 dark:text-rose-400 align-middle">
+                                          {item.isDebit ? (
+                                            <div className="flex flex-col items-end justify-center">
+                                              {item.originalAmount > item.amount && (
+                                                <span className="text-[9px] text-slate-400 line-through decoration-rose-500 font-bold" title="İndirimsiz Fiyat">
+                                                  {item.originalAmount.toLocaleString("tr-TR")} ₺
+                                                </span>
+                                              )}
+                                              <span className="text-[11px]">+{item.amount.toLocaleString("tr-TR")} ₺</span>
+                                            </div>
+                                          ) : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                        </td>
+                                        <td className="p-2 text-right font-black text-emerald-600 dark:text-emerald-400 align-middle">
+                                          {!item.isDebit ? `-${item.amount.toLocaleString("tr-TR")} ₺` : <span className="text-slate-300 dark:text-slate-600">-</span>}
+                                        </td>
+                                        <td className="p-2 text-right font-black border-l border-slate-100 dark:border-slate-700 text-indigo-700 dark:text-indigo-300 bg-indigo-50/30 dark:bg-indigo-900/10 align-middle text-[11px]">
+                                          {item.balance.toLocaleString("tr-TR")} ₺
+                                        </td>
+                                      </tr>
+                                    )) : (
+                                      <tr><td colSpan="5" className="p-4 text-center text-slate-400 font-medium text-[11px] italic"><i className="fa-solid fa-receipt text-2xl block mb-1 opacity-30"></i>Hesap hareketi yok.</td></tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
 
-                                                    tx.isPlan,
+                            {/* SAĞ PANEL: HIZLI AKSİYONLAR */}
+                            <div className="flex-[1] flex flex-col gap-2 min-w-[220px] overflow-y-auto custom-scrollbar">
+                              
+                              {/* TAHSİLAT FORMU */}
+                              <form onSubmit={handleAddPayment} className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                                <h4 className="font-black text-[11px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1 border-b border-emerald-100 dark:border-emerald-800/50 pb-1.5">
+                                  <i className="fa-solid fa-cash-register"></i> Yeni Tahsilat
+                                </h4>
+                                <div className="space-y-2">
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Tutar (₺)</label>
+                                    <input type="number" required placeholder="0.00" value={paymentInput} onChange={(e) => setPaymentInput(e.target.value)} className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[13px] font-black text-emerald-600 dark:text-emerald-400 outline-none focus:border-emerald-500 shadow-inner" />
+                                    {currentBalance > 0 && (
+                                      <div className="text-right mt-1">
+                                        <button type="button" onClick={() => setPaymentInput(currentBalance)} className="text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-800 font-bold hover:bg-emerald-100 transition shadow-sm">
+                                          Kalanı Kapat ({currentBalance.toLocaleString("tr-TR")} ₺)
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Ödeme Yöntemi</label>
+                                    <div className="grid grid-cols-2 gap-1">
+                                      {["Nakit", "Kredi Kartı", "Havale", "Diğer"].map((method) => (
+                                        <button type="button" key={method} onClick={() => setPaymentMethod(method)} className={`py-1 text-[10px] font-bold rounded-md border transition-all ${paymentMethod === method ? "bg-emerald-600 text-white border-emerald-700 shadow-sm" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
+                                          {method}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <button type="submit" className="w-full py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-black text-[11px] shadow-sm transition-all flex items-center justify-center gap-1 mt-1">
+                                    Kaydet <i className="fa-solid fa-check"></i>
+                                  </button>
+                                </div>
+                              </form>
 
-                                                    tx.docId
-                                                  )
-                                                }
-                                                className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded hover:bg-emerald-100 transition"
-                                              >
-                                                <i className="fa-solid fa-check"></i>
-                                              </button>
+                              {/* İNDİRİM FORMU */}
+                              {hasPermission("finance.discount") && (
+                                <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                                  <h4 className="font-black text-[11px] text-amber-600 dark:text-amber-500 uppercase tracking-wider mb-2 flex items-center gap-1 border-b border-amber-100 dark:border-amber-800/50 pb-1.5">
+                                    <i className="fa-solid fa-percent"></i> İndirim Uygula
+                                  </h4>
+                                  <div className="space-y-2">
+                                    <div className="relative">
+                                      <i className="fa-solid fa-percent absolute left-2.5 top-1.5 text-slate-400 text-[11px]"></i>
+                                      <input type="number" min="0" max="100" placeholder="Oran (Örn: 15)" value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} className="w-full pl-7 pr-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[12px] font-black text-amber-600 dark:text-amber-500 outline-none focus:border-amber-500 shadow-inner" />
+                                    </div>
+                                    
+                                    {discountPercent > 0 && discountPercent <= 100 && (
+                                       <div className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/50 flex flex-col gap-1 shadow-sm">
+                                          <div className="flex justify-between items-center">
+                                            <span>İndirim Tutarı:</span> 
+                                            <span className="text-rose-600 dark:text-rose-400 font-black">- {((totalOriginalBilled * discountPercent) / 100).toLocaleString("tr-TR")} ₺</span>
+                                          </div>
+                                          <div className="flex justify-between items-center border-t border-emerald-200/50 dark:border-emerald-800/50 pt-1 mt-0.5">
+                                            <span>Yeni Toplam:</span> 
+                                            <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400">{((totalOriginalBilled * (100 - discountPercent)) / 100).toLocaleString("tr-TR")} ₺</span>
+                                          </div>
+                                       </div>
+                                    )}
 
-                                              <button
-                                                onClick={() =>
-                                                  setEditingTxId(null)
-                                                }
-                                                className="text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded hover:bg-slate-300 transition"
-                                              >
-                                                <i className="fa-solid fa-xmark"></i>
-                                              </button>
-                                            </div>
-                                          ) : (
-                                            <>
-                                              <div className="font-black text-indigo-600 dark:text-indigo-400 text-base">
-                                                {tx.price} ₺
-                                              </div>
+                                    <button type="button" onClick={() => {
+                                      const discount = parseFloat(discountPercent);
+                                      if (isNaN(discount) || discount < 0 || discount > 100) { showNotification("Geçerli bir yüzde girin.", "error"); return; }
+                                      showConfirm(discount === 0 ? "İndirimi sıfırlamak istediğinize emin misiniz?" : `Tüm aktif tedavi planlarına %${discount} indirim uygulanacaktır. Onaylıyor musunuz?`, () => {
+                                          try {
+                                              const multiplier = (100 - discount) / 100;
+                                              let updatedPatient = { ...patientForm };
+                                              let isPatientUpdated = false;
 
-                                              <button
-                                                onClick={() => {
-                                                  setEditingTxId(tx.id);
+                                              if (updatedPatient.plannedTreatments && Array.isArray(updatedPatient.plannedTreatments)) {
+                                                updatedPatient.plannedTreatments = updatedPatient.plannedTreatments.map(t => {
+                                                  if (!t) return t;
+                                                  const orig = t.originalPrice !== undefined ? parseFloat(t.originalPrice) : parseFloat(t.price || 0);
+                                                  return { ...t, originalPrice: orig, price: orig * multiplier };
+                                                });
+                                                isPatientUpdated = true;
+                                              }
 
-                                                  setEditingTxPrice(tx.price);
-                                                }}
-                                                className="text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition"
-                                              >
-                                                <i className="fa-solid fa-pen-to-square"></i>
-                                              </button>
-                                            </>
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <div className="text-center text-slate-400 font-medium text-[13px] py-2">
-                                      Ücret girilmiş kayıt bulunmuyor.
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                                              let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
+                                              let isAptUpdated = false;
 
-                              <form
-                                onSubmit={handleAddPayment}
-                                className="bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-inner flex flex-col gap-1.5"
-                              >
-                                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700">
-                                  <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-black">
-                                    <i className="fa-solid fa-cash-register text-base"></i>
-                                    <span className="uppercase text-[13px] tracking-wider">
-                                      Tahsilat İşlemi
-                                    </span>
-                                  </div>
-                                  {fin.debt > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setPaymentInput(fin.debt)}
-                                      className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-lg font-bold hover:bg-emerald-200 transition"
-                                    >
-                                      Kalanı Kapat ({fin.debt} ₺)
-                                    </button>
-                                  )}
-                                </div>
+                                              Object.keys(updatedAppointments).forEach(docId => {
+                                                if (updatedAppointments[docId]) {
+                                                    Object.keys(updatedAppointments[docId]).forEach(aptKey => {
+                                                      const apt = updatedAppointments[docId][aptKey];
+                                                      if (apt && apt.patientName === patientForm.name && apt.price > 0 && !apt.linkedPlanId) {
+                                                        const orig = apt.originalPrice !== undefined ? parseFloat(apt.originalPrice) : parseFloat(apt.price || 0);
+                                                        updatedAppointments[docId][aptKey].originalPrice = orig;
+                                                        updatedAppointments[docId][aptKey].price = orig * multiplier;
+                                                        isAptUpdated = true;
+                                                      }
+                                                    });
+                                                }
+                                              });
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                      Alınan Tutar
-                                    </label>
-                                    <div className="relative">
-                                      <input
-                                        type="number"
-                                        required
-                                        placeholder="0.00"
-                                        value={paymentInput}
-                                        onChange={(e) =>
-                                          setPaymentInput(e.target.value)
-                                        }
-                                        className="w-full pl-3.5 pr-9 py-1.5 border border-slate-300 dark:border-slate-600 rounded-xl text-base font-black bg-white dark:bg-slate-800 outline-none focus:border-emerald-500 text-slate-800 dark:text-white shadow-sm"
-                                      />
-                                      <i className="fa-solid fa-turkish-lira-sign absolute right-3.5 top-2.5 text-slate-400"></i>
-                                    </div>
-                                  </div>
+                                              const newData = { ...globalData };
+                                              if (isPatientUpdated) {
+                                                newData.patientsDb = { ...(newData.patientsDb || {}), [patientForm.id]: updatedPatient };
+                                                setPatientForm(updatedPatient);
+                                              }
+                                              if (isAptUpdated) { newData.appointments = updatedAppointments; }
 
-                                  <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                      Ödeme Yöntemi
-                                    </label>
-                                    <div className="flex gap-1">
-                                    {[
-                                      "Nakit",
-                                      "Kredi Kartı",
-                                      "Havale",
-                                    ].map((method) => (
-                                      <button
-                                        type="button"
-                                        key={method}
-                                        onClick={() =>
-                                          setPaymentMethod(method)
-                                        }
-                                        className={`flex-1 py-1.5 text-[11px] font-bold rounded-xl border transition-all ${
-                                          paymentMethod === method
-                                            ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                                            : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
-                                        }`}
-                                      >
-                                        {method === "Nakit" && (
-                                          <i className="fa-solid fa-money-bill-wave mr-0.5"></i>
-                                        )}
-                                        {method === "Kredi Kartı" && (
-                                          <i className="fa-solid fa-credit-card mr-0.5"></i>
-                                        )}
-                                        {method === "Havale" && (
-                                          <i className="fa-solid fa-building-columns mr-0.5"></i>
-                                        )}
-                                        {method}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  </div>
-                                </div>
-
-                                <button
-                                  type="submit"
-                                  className="w-full mt-1.5 bg-emerald-500 text-white py-2 rounded-xl font-black shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition"
-                                >
-                                  Ödemeyi Onayla ve Kaydet
-                                </button>
-                              </form>
-                            </div>
-
-                            <div className="flex-[2] flex flex-col gap-2">
-                              <div className="bg-white p-2.5 rounded-xl border shadow-sm shrink-0 dark:bg-slate-800 dark:border-slate-700">
-                                <h4 className="font-black text-slate-800 mb-2 border-b pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
-                                  Hesap Özeti
-                                </h4>
-
-                                {/* YENİ: Hesap Özeti ve İlerleme Çubuğu (Progress Bar) */}
-                                  <div className="space-y-1.5">
-                                    <div className="flex justify-between text-base items-center">
-                                      <span className="text-slate-500 font-bold dark:text-slate-400 flex items-center gap-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-800 dark:bg-white"></div>
-                                        Fatura Edilen:
-                                      </span>
-                                      <span className="font-black text-slate-800 dark:text-white flex items-center gap-1.5">
-                                        {fin.totalOriginalBilled > fin.totalBilled && (
-                                          <span className="text-[11px] text-slate-400 line-through decoration-rose-500">{fin.totalOriginalBilled.toLocaleString("tr-TR")} ₺</span>
-                                        )}
-                                        {fin.totalBilled.toLocaleString("tr-TR")} ₺
-                                      </span>
-                                    </div>
-
-                                  <div className="flex justify-between text-base items-center">
-                                    <span className="text-slate-500 font-bold dark:text-slate-400 flex items-center gap-1">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                      Yapılan Tahsilat:
-                                    </span>
-                                    <span className="font-black text-emerald-600 dark:text-emerald-400">
-                                      {fin.totalPaid.toLocaleString("tr-TR")} ₺
-                                    </span>
-                                  </div>
-
-                                  {/* İlerleme Çubuğu Grafiği */}
-                                  {fin.totalBilled > 0 && (
-                                    <div className="py-1.5">
-                                      <div className="flex justify-between text-[10px] font-black text-slate-400 mb-0.5">
-                                        <span>Tahsilat Oranı</span>
-                                        <span className="text-emerald-600">
-                                          {Math.round(
-                                            (fin.totalPaid / fin.totalBilled) *
-                                              100
-                                          )}
-                                          %
-                                        </span>
-                                      </div>
-                                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden shadow-inner">
-                                        <div
-                                          className="bg-emerald-500 h-2 rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
-                                          style={{
-                                            width: `${Math.min(
-                                              100,
-                                              (fin.totalPaid /
-                                                fin.totalBilled) *
-                                                100
-                                            )}%`,
-                                          }}
-                                        >
-                                          {/* Bar içi parıltı animasyonu */}
-                                          <div className="absolute inset-0 bg-white/30 w-full h-full skew-x-12 -ml-10 hover:animate-[shine_1s_ease-out]"></div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    )}
-
-                                    {/* YENİ: Toplu Yüzde İndirim Modülü */}
-                                    {hasPermission("finance.discount") && (
-                                      <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-700">
-                                         <div className="flex justify-between items-center mb-1.5">
-                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tüm İşlemlere Yüzde İndirim</label>
-                                         </div>
-                                         <div className="flex items-center gap-1.5">
-                                            <div className="relative flex-1">
-                                               <i className="fa-solid fa-percent absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
-                                               <input
-                                                  type="number"
-                                                  min="0"
-                                                  max="100"
-                                                  placeholder="İndirim Oranı (Örn: 10)"
-                                                  value={discountPercent}
-                                                  onChange={(e) => setDiscountPercent(e.target.value)}
-                                                  className="w-full pl-7 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[12px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white shadow-inner"
-                                               />
-                                            </div>
-                                            <button
-                                               type="button"
-                                               onClick={() => {
-                                                  const discount = parseFloat(discountPercent);
-                                                  if (isNaN(discount) || discount < 0 || discount > 100) {
-                                                     showNotification("Lütfen %0 ile %100 arasında geçerli bir oran girin.", "error");
-                                                     return;
-                                                  }
-
-                                                  showConfirm(
-                                                     discount === 0 
-                                                     ? "İndirimi sıfırlamak (orijinal fiyatlara dönmek) istediğinize emin misiniz?"
-                                                     : `Tüm işlemlere %${discount} indirim uygulamak istediğinize emin misiniz?`, 
-                                                     () => {
-                                                        const multiplier = (100 - discount) / 100;
-                                                        
-                                                        let updatedPatient = { ...patientForm };
-                                                        let isPatientUpdated = false;
-
-                                                        if (updatedPatient.plannedTreatments && updatedPatient.plannedTreatments.length > 0) {
-                                                           updatedPatient.plannedTreatments = updatedPatient.plannedTreatments.map(t => {
-                                                              const orig = t.originalPrice !== undefined ? t.originalPrice : parseFloat(t.price);
-                                                              return { ...t, originalPrice: orig, price: orig * multiplier };
-                                                           });
-                                                           isPatientUpdated = true;
-                                                        }
-
-                                                        let updatedAppointments = JSON.parse(JSON.stringify(globalData.appointments || {}));
-                                                        let isAptUpdated = false;
-
-                                                        Object.keys(updatedAppointments).forEach(docId => {
-                                                           Object.keys(updatedAppointments[docId]).forEach(aptKey => {
-                                                              const apt = updatedAppointments[docId][aptKey];
-                                                              if (apt.patientName === patientForm.name && apt.price > 0 && !apt.linkedPlanId) {
-                                                                 const orig = apt.originalPrice !== undefined ? apt.originalPrice : parseFloat(apt.price);
-                                                                 updatedAppointments[docId][aptKey].originalPrice = orig;
-                                                                 updatedAppointments[docId][aptKey].price = orig * multiplier;
-                                                                 isAptUpdated = true;
-                                                              }
-                                                           });
-                                                        });
-
-                                                        const newData = { ...globalData };
-                                                        if (isPatientUpdated) {
-                                                           newData.patientsDb = { ...newData.patientsDb, [patientForm.id]: updatedPatient };
-                                                           setPatientForm(updatedPatient);
-                                                        }
-                                                        if (isAptUpdated) {
-                                                           newData.appointments = updatedAppointments;
-                                                        }
-
-                                                        if (isPatientUpdated || isAptUpdated) {
-                                                           saveGlobalData(newData);
-                                                           showNotification(discount === 0 ? "İndirim sıfırlandı." : `%${discount} indirim uygulandı.`);
-                                                        } else {
-                                                           showNotification("İndirim uygulanacak işlem bulunamadı.", "error");
-                                                        }
-                                                        setDiscountPercent("");
-                                                     }
-                                                  );
-                                               }}
-                                               className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-sm hover:bg-indigo-700 transition"
-                                            >
-                                               Uygula
-                                            </button>
-                                         </div>
-                                         {discountPercent > 0 && discountPercent <= 100 && (
-                                            <div className="mt-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/50 flex justify-between">
-                                               <span>İndirim Tutarı: -{renderMoney((fin.totalOriginalBilled * discountPercent) / 100)} ₺</span>
-                                               <span>Yeni Toplam: {renderMoney(fin.totalOriginalBilled - (fin.totalOriginalBilled * discountPercent) / 100)} ₺</span>
-                                            </div>
-                                         )}
-                                      </div>
-                                    )}
-
-                                    <div className="flex justify-between items-center text-base sm:text-base pt-3 border-t mt-1.5 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 -mx-2.5 px-2.5 -mb-2.5 pb-3 rounded-b-2xl">
-                                      <span className="text-slate-800 font-black dark:text-white flex items-center gap-1">
-                                      <i className="fa-solid fa-scale-balanced text-slate-400 text-[13px]"></i>{" "}
-                                      Bakiye:
-                                    </span>
-
-                                    <span
-                                      className={`font-black ${
-                                        fin.debt > 0
-                                          ? "text-rose-600 bg-white px-2.5 py-1 rounded-xl border border-rose-200 shadow-sm dark:text-rose-400 dark:bg-slate-800 dark:border-rose-900/50"
-                                          : "text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shadow-sm dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400"
-                                      }`}
-                                    >
-                                      {fin.debt > 0 ? (
-                                        ""
-                                      ) : (
-                                        <i className="fa-solid fa-check mr-1"></i>
-                                      )}
-                                      {fin.debt.toLocaleString("tr-TR")} ₺
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="bg-white p-2.5 rounded-xl border shadow-sm flex-1 flex flex-col min-h-[200px] dark:bg-slate-800 dark:border-slate-700">
-                                <h4 className="font-black text-slate-800 mb-2 border-b pb-2 text-[13px] uppercase tracking-wider dark:text-white dark:border-slate-700">
-                                  Geçmiş Tahsilat Dökümü
-                                </h4>
-
-                                <div className="space-y-1.5 overflow-y-auto flex-1 pr-0.5">
-                                  {patientForm.payments &&
-                                  patientForm.payments.length > 0 ? (
-                                    patientForm.payments
-
-                                      .slice()
-
-                                      .reverse()
-
-                                      .map((pay) => (
-                                        <div
-                                          key={pay.id}
-                                          className="flex justify-between items-center text-[13px] bg-slate-50 p-2 rounded-xl border dark:bg-slate-900 dark:border-slate-700"
-                                        >
-                                          <span className="text-slate-500 font-bold dark:text-slate-400">
-                                            <i className="fa-regular fa-calendar mr-1.5"></i>
-
-                                            {new Date(pay.date).toLocaleString(
-                                              "tr-TR",
-
-                                              {
-                                                day: "2-digit",
-
-                                                month: "2-digit",
-
-                                                year: "numeric",
-
-                                                hour: "2-digit",
-
-                                                minute: "2-digit",
-                                              }
-                                            )}
-                                          </span>
-
-                                          <div className="flex flex-col items-end">
-                                            <span className="font-black text-emerald-600 text-base dark:text-emerald-400">
-                                              +{pay.amount} ₺
-                                            </span>
-                                            {pay.method && (
-                                              <span className="text-[10px] font-bold text-slate-400 mt-0.5 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded shadow-sm border border-slate-100 dark:border-slate-700">
-                                                {pay.method}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      ))
-                                  ) : (
-                                    <div className="text-center text-slate-400 font-medium text-[13px] py-2">
-                                      Ödeme kaydı bulunmuyor.
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                                              if (isPatientUpdated || isAptUpdated) {
+                                                saveGlobalData(newData).then(() => { showNotification(discount === 0 ? "İndirim sıfırlandı." : `%${discount} indirim uygulandı.`, "success"); }).catch(err => { console.error(err); showNotification("Kayıt sırasında hata oluştu.", "error"); });
+                                              } else { showNotification("İndirim uygulanacak işlem bulunamadı.", "error"); }
+                                              setDiscountPercent("");
+                                          } catch (e) { showNotification("Hesaplama hatası.", "error"); }
+                                      });
+                                    }} className="w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-black text-[11px] shadow-sm transition-all flex items-center justify-center gap-1">
+                                      İndirimi Uygula
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        );
+                      })()}
 
                       {patientModalTab === "plan" &&
-                        (() => {
-                          const userPricing =
-                            globalData.pricingDb?.[currentUser] ||
-                            (typeof globalData.pricingDb === "object" &&
-                            globalData.pricingDb["Genel Muayene"]
-                              ? globalData.pricingDb
-                              : DEFAULT_PRICING);
+                        (() => {
+                          const userPricing =
+                            globalData.pricingDb?.[currentUser] ||
+                            (typeof globalData.pricingDb === "object" &&
+                            globalData.pricingDb["Genel Muayene"]
+                              ? globalData.pricingDb
+                              : DEFAULT_PRICING);
 
-                          const groupedTreatments = {};
-                          let grandTotal = 0;
+                          const groupedTreatments = {};
+                          let grandTotal = 0;
 
-                          if (patientForm?.plannedTreatments) {
-                            patientForm.plannedTreatments.forEach((tx) => {
-                              let finalPrice = parseFloat(tx.price) || 0;
-                              if (!groupedTreatments[tx.treatment]) {
-                                groupedTreatments[tx.treatment] = {
-                                  teeth: [],
-                                  totalPrice: 0,
-                                };
-                              }
-                              if (!groupedTreatments[tx.treatment].teeth.includes(tx.tooth)) {
-                                groupedTreatments[tx.treatment].teeth.push(tx.tooth);
-                              }
-                              groupedTreatments[tx.treatment].totalPrice += finalPrice;
-                              grandTotal += finalPrice;
-                            });
-                          }
+                          if (patientForm?.plannedTreatments) {
+                            patientForm.plannedTreatments.forEach((tx) => {
+                              let finalPrice = parseFloat(tx.price) || 0;
+                              if (!groupedTreatments[tx.treatment]) {
+                                groupedTreatments[tx.treatment] = {
+                                  teeth: [],
+                                  totalPrice: 0,
+                                };
+                              }
+                              if (!groupedTreatments[tx.treatment].teeth.includes(tx.tooth)) {
+                                groupedTreatments[tx.treatment].teeth.push(tx.tooth);
+                              }
+                              groupedTreatments[tx.treatment].totalPrice += finalPrice;
+                              grandTotal += finalPrice;
+                            });
+                          }
 
-                          return (
-                            <div
-                              id="print-plan-area"
-                              className="flex-1 overflow-y-auto p-2.5 lg:p-2.5 bg-slate-50 flex flex-col gap-2 relative dark:bg-slate-900/50 print:block print:w-full print:bg-white print:p-0"
-                            >
-                              {/* YENİ DÜZELTME: SADECE iOS/iPad (Safari) İÇİN ÖZEL A4 YAZDIRMA KALIBI */}
-                              <style type="text/css" media="print">
-                                {`
-                                  @supports (-webkit-touch-callout: none) {
-                                    #print-plan-area {
-                                      position: absolute !important;
-                                      left: 0 !important;
-                                      top: 0 !important;
-                                      right: 0 !important;
-                                      width: 100% !important;
-                                      min-width: 100vw !important;
-                                      height: auto !important;
-                                      overflow: visible !important;
-                                      display: block !important;
-                                      padding: 5mm !important;
-                                      box-sizing: border-box !important;
-                                      z-index: 999999 !important;
-                                      -webkit-print-color-adjust: exact !important;
-                                      print-color-adjust: exact !important;
-                                    }
-                                  }
-                                `}
-                              </style>
+                          return (
+                            <div
+                              id="print-plan-area"
+                              className="flex-1 overflow-y-auto p-2 bg-slate-50 flex flex-col gap-1.5 relative dark:bg-slate-900/50 print:block print:w-full print:bg-white print:p-0"
+                            >
+                              {/* YENİ DÜZELTME: SADECE iOS/iPad (Safari) İÇİN ÖZEL A4 YAZDIRMA KALIBI */}
+                              <style type="text/css" media="print">
+                                {`
+                                  @supports (-webkit-touch-callout: none) {
+                                    #print-plan-area {
+                                      position: absolute !important;
+                                      left: 0 !important;
+                                      top: 0 !important;
+                                      right: 0 !important;
+                                      width: 100% !important;
+                                      min-width: 100vw !important;
+                                      height: auto !important;
+                                      overflow: visible !important;
+                                      display: block !important;
+                                      padding: 5mm !important;
+                                      box-sizing: border-box !important;
+                                      z-index: 999999 !important;
+                                      -webkit-print-color-adjust: exact !important;
+                                      print-color-adjust: exact !important;
+                                    }
+                                  }
+                                `}
+                              </style>
 
-                              {/* --- ARAÇ ÇUBUĞU (Yazdırılmaz) --- */}
-                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1.5 shrink-0">
-                                <div>
-                                  <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-1 text-base">
-                                    <i className="fa-solid fa-file-signature text-indigo-500"></i>
-                                    Tedavi Planı ve Çıktı Alma
-                                  </h3>
-                                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                    Hastaya sunulacak detaylı tedavi planını buradan yazdırabilirsiniz.
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const originalTitle = document.title;
-                                    document.title = patientForm.name;
-                                    window.print();
-                                    setTimeout(() => {
-                                      document.title = originalTitle;
-                                    }, 2000);
-                                  }}
-                                  className="bg-indigo-600 text-white px-2.5 py-2 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-1 w-full sm:w-auto justify-center"
-                                >
-                                  <i className="fa-solid fa-print"></i> Planı Yazdır
-                                </button>
-                              </div>
+                              {/* --- ARAÇ ÇUBUĞU (Yazdırılmaz) --- */}
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1 shrink-0">
+                                <div>
+                                  <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-1 text-[13px]">
+                                    <i className="fa-solid fa-file-signature text-indigo-500"></i>
+                                    Tedavi Planı ve Çıktı Alma
+                                  </h3>
+                                  <p className="text-[10px] text-slate-500 font-medium">
+                                    Hastaya sunulacak detaylı tedavi planını buradan yazdırabilirsiniz.
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const originalTitle = document.title;
+                                    document.title = patientForm.name;
+                                    window.print();
+                                    setTimeout(() => {
+                                      document.title = originalTitle;
+                                    }, 2000);
+                                  }}
+                                  className="bg-indigo-600 text-white px-2 py-1.5 rounded-lg font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-1 text-[11px] w-full sm:w-auto justify-center"
+                                >
+                                  <i className="fa-solid fa-print"></i> Planı Yazdır
+                                </button>
+                              </div>
 
-                              {/* --- YAZDIRMA KLİNİK ANTETİ (Gizli, Sadece Baskıda Görünür) --- */}
-                              <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
-                                <div className="flex justify-between items-start mb-2">
-                                  <div className="flex flex-col gap-0.5">
-                                    <h1 className="text-lg font-black uppercase tracking-wider flex items-center text-black leading-none">
-                                      <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-lg"></i>
-                                      {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK RANDEVU"}
-                                    </h1>
-                                    {/* Ayarlardan gelen Klinik Telefon Numarası (Güncellenmiş Görünüm) */}
-                                    {settings?.klinik?.telefon && (
-                                      <div className="text-[12px] font-bold text-gray-800 flex items-center gap-1 mt-0.5">
-                                        <i className="fa-solid fa-phone text-gray-500"></i> Tel: {settings.klinik.telefon}
-                                      </div>
-                                    )}
-                                    <h2 className="text-[11px] font-bold text-gray-500 mt-1">Tedavi Planı ve Bilgilendirme Formu</h2>
-                                  </div>
-                                  <div className="text-right text-[10px] font-semibold text-gray-600 mt-1">
-                                    <p>Tarih: {new Date().toLocaleDateString("tr-TR")}</p>
-                                    <p>Hekim: {currentUserProfile?.name || globalData.doctorProfiles?.[currentUser]?.name || currentUser}</p>
-                                  </div>
-                                </div>
-                                <div className="bg-gray-50 border border-gray-300 p-1.5 rounded-lg flex justify-between items-center text-[10px]">
+                              {/* --- YAZDIRMA KLİNİK ANTETİ (Gizli, Sadece Baskıda Görünür) --- */}
+                              <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex flex-col gap-0.5">
+                                    <h1 className="text-lg font-black uppercase tracking-wider flex items-center text-black leading-none">
+                                      <i className="fa-solid fa-tooth text-gray-300 mr-1.5 text-lg"></i>
+                                      {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK RANDEVU"}
+                                    </h1>
+                                    {/* Ayarlardan gelen Klinik Telefon Numarası (Güncellenmiş Görünüm) */}
+                                    {settings?.klinik?.telefon && (
+                                      <div className="text-[12px] font-bold text-gray-800 flex items-center gap-1 mt-0.5">
+                                        <i className="fa-solid fa-phone text-gray-500"></i> Tel: {settings.klinik.telefon}
+                                      </div>
+                                    )}
+                                    <h2 className="text-[11px] font-bold text-gray-500 mt-1">Tedavi Planı ve Bilgilendirme Formu</h2>
+                                  </div>
+                                  <div className="text-right text-[10px] font-semibold text-gray-600 mt-1">
+                                    <p>Tarih: {new Date().toLocaleDateString("tr-TR")}</p>
+                                    <p>Hekim: {currentUserProfile?.name || globalData.doctorProfiles?.[currentUser]?.name || currentUser}</p>
+                                  </div>
+                                </div>
+                                <div className="bg-gray-50 border border-gray-300 p-1.5 rounded-lg flex justify-between items-center text-[10px]">
                                   <div>
                                     <span className="font-black text-gray-500 uppercase text-[8px] block">Hasta Adı / Kodu</span>
                                     <span className="font-bold text-[11px] text-black">{patientForm.name} <span className="text-gray-500 ml-1">#{patientForm.patientCode || 'YENİ'}</span></span>
                                   </div>
-                                  <div>
-                                    <span className="font-black text-gray-500 uppercase text-[8px] block">İletişim / TC</span>
-                                    <span className="font-bold text-[11px] text-black">{patientForm.phone || "-"} {patientForm.tc ? ` / ${patientForm.tc}` : ""}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-black text-gray-500 uppercase text-[8px] block">Uyarı / Anamnez</span>
-                                    <span className="font-bold text-[11px] text-red-600">{patientForm.anamnesis || "Yok"}</span>
-                                  </div>
-                                </div>
-                              </div>
+                                  <div>
+                                    <span className="font-black text-gray-500 uppercase text-[8px] block">İletişim / TC</span>
+                                    <span className="font-bold text-[11px] text-black">{patientForm.phone || "-"} {patientForm.tc ? ` / ${patientForm.tc}` : ""}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-black text-gray-500 uppercase text-[8px] block">Uyarı / Anamnez</span>
+                                    <span className="font-bold text-[11px] text-red-600">{patientForm.anamnesis || "Yok"}</span>
+                                  </div>
+                                </div>
+                              </div>
 
-                              {/* --- DİŞ ŞEMASI --- */}
-                              <ProfessionalToothChart
-                                patientForm={patientForm}
-                                activePlanTreatment={activePlanTreatment}
-                                setPatientForm={setPatientForm}
-                                showNotification={showNotification}
-                                globalData={globalData}
-                                currentUser={currentUser}
-                                saveGlobalData={saveGlobalData} 
-                                dynamicPricingCategories={DYNAMIC_PRICING_CATEGORIES}
-                              />
+                              {/* --- DİŞ ŞEMASI --- */}
+                              <ProfessionalToothChart
+                                patientForm={patientForm}
+                                activePlanTreatment={activePlanTreatment}
+                                setPatientForm={setPatientForm}
+                                showNotification={showNotification}
+                                globalData={globalData}
+                                currentUser={currentUser}
+                                saveGlobalData={saveGlobalData} 
+                                dynamicPricingCategories={DYNAMIC_PRICING_CATEGORIES}
+                              />
 
-                              {/* --- YAZDIRMA İŞLEM TABLOSU (Gizli, Sadece Baskıda) --- */}
-                              <div className="hidden print-only mt-2">
-                                <h3 className="text-[11px] font-black border-b border-black pb-0.5 mb-1 uppercase tracking-wider text-black">
-                                  Planlanan Tedavi Detayları
-                                </h3>
-                                <table className="w-full text-left border-collapse" style={{ fontSize: "9px" }}>
-                                  <thead>
-                                    <tr className="bg-gray-100">
-                                      <th className="border border-gray-400 py-0.5 px-1 w-1/2 text-black font-bold">İşlem Adı</th>
-                                      <th className="border border-gray-400 py-0.5 px-1 w-1/4 text-center text-black font-bold">Uygulanacak Dişler</th>
-                                      <th className="border border-gray-400 py-0.5 px-1 w-1/4 text-right text-black font-bold">Toplam Tutar</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {Object.keys(groupedTreatments).length > 0 ? (
-                                      Object.entries(groupedTreatments).map(([txName, data]) => (
-                                        <tr key={txName}>
-                                          <td className="border border-gray-400 py-0.5 px-1 font-semibold text-black">{txName}</td>
-                                          <td className="border border-gray-400 py-0.5 px-1 font-semibold text-center text-black">{data.teeth.join(", ")}</td>
-                                          <td className="border border-gray-400 py-0.5 px-1 text-right font-bold text-black">{data.totalPrice.toLocaleString("tr-TR")} ₺</td>
-                                        </tr>
-                                      ))
-                                    ) : (
-                                      <tr><td colSpan="3" className="border border-gray-400 py-1.5 px-1 text-center italic text-gray-500">Planlanmış işlem bulunmamaktadır.</td></tr>
-                                    )}
-                                  </tbody>
-                                  <tfoot>
-                                    <tr>
-                                      <td colSpan="2" className="border border-gray-400 py-1 px-1 text-right font-black uppercase text-[10px] text-black">Genel Toplam:</td>
-                                      <td className="border border-gray-400 py-1 px-1 text-right font-black text-[11px] text-black">{grandTotal.toLocaleString("tr-TR")} ₺</td>
-                                    </tr>
-                                  </tfoot>
-                                </table>
-                              </div>
+                              {/* --- YAZDIRMA İŞLEM TABLOSU (Gizli, Sadece Baskıda) --- */}
+                              <div className="hidden print-only mt-2">
+                                <h3 className="text-[11px] font-black border-b border-black pb-0.5 mb-1 uppercase tracking-wider text-black">
+                                  Planlanan Tedavi Detayları
+                                </h3>
+                                <table className="w-full text-left border-collapse" style={{ fontSize: "9px" }}>
+                                  <thead>
+                                    <tr className="bg-gray-100">
+                                      <th className="border border-gray-400 py-0.5 px-1 w-1/2 text-black font-bold">İşlem Adı</th>
+                                      <th className="border border-gray-400 py-0.5 px-1 w-1/4 text-center text-black font-bold">Uygulanacak Dişler</th>
+                                      <th className="border border-gray-400 py-0.5 px-1 w-1/4 text-right text-black font-bold">Toplam Tutar</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {Object.keys(groupedTreatments).length > 0 ? (
+                                      Object.entries(groupedTreatments).map(([txName, data]) => (
+                                        <tr key={txName}>
+                                          <td className="border border-gray-400 py-0.5 px-1 font-semibold text-black">{txName}</td>
+                                          <td className="border border-gray-400 py-0.5 px-1 font-semibold text-center text-black">{data.teeth.join(", ")}</td>
+                                          <td className="border border-gray-400 py-0.5 px-1 text-right font-bold text-black">{data.totalPrice.toLocaleString("tr-TR")} ₺</td>
+                                        </tr>
+                                      ))
+                                    ) : (
+                                      <tr><td colSpan="3" className="border border-gray-400 py-1.5 px-1 text-center italic text-gray-500">Planlanmış işlem bulunmamaktadır.</td></tr>
+                                    )}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr>
+                                      <td colSpan="2" className="border border-gray-400 py-1 px-1 text-right font-black uppercase text-[10px] text-black">Genel Toplam:</td>
+                                      <td className="border border-gray-400 py-1 px-1 text-right font-black text-[11px] text-black">{grandTotal.toLocaleString("tr-TR")} ₺</td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
 
-                              {/* --- İŞLEM SEÇİM MENÜSÜ --- */}
-                              <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print shrink-0">
-                                <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 gap-1.5">
-                                  <h3 className="text-[13px] font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1">
-                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-5 h-5 rounded-md flex items-center justify-center text-[11px]">1</span>
-                                    İşlem Türü Seçin
-                                  </h3>
-                                  {activePlanTreatment && (
-                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-sm items-center gap-1">
-                                      <i className="fa-solid fa-check-circle"></i> Seçili İşlem: {activePlanTreatment}
-                                    </div>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={handleWholeJawTreatment}
-                                    className="text-[11px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2.5 py-1.5 rounded-xl font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition border border-indigo-100 dark:border-indigo-800 flex items-center gap-1 shadow-sm"
-                                  >
-                                    <i className="fa-solid fa-teeth-open"></i> Tüm Çeneye Uygula
-                                  </button>
-                                </div>
+                              {/* --- İŞLEM SEÇİM MENÜSÜ --- */}
+                              <div className="bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col no-print shrink-0">
+                                <div className="flex flex-wrap sm:flex-nowrap justify-between items-center mb-1.5 border-b border-slate-100 dark:border-slate-700 pb-1.5 gap-1">
+                                  <h3 className="text-[11px] font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1">
+                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-4 h-4 rounded-md flex items-center justify-center text-[10px]">1</span>
+                                    İşlem Türü Seçin
+                                  </h3>
+                                  {activePlanTreatment && (
+                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm items-center gap-1">
+                                      <i className="fa-solid fa-check-circle"></i> Seçili İşlem: {activePlanTreatment}
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={handleWholeJawTreatment}
+                                    className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition border border-indigo-100 dark:border-indigo-800 flex items-center gap-1 shadow-sm"
+                                  >
+                                    <i className="fa-solid fa-teeth-open"></i> Tüm Çeneye Uygula
+                                  </button>
+                                </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar p-0.5">
-                                  {Object.entries(DYNAMIC_PRICING_CATEGORIES || {}).map(([catName, data]) => (
-                                    <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-1.5 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
-                                      <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2 flex items-center gap-1 ${data.color}`}>
-                                        <i className={`fa-solid ${data.icon}`}></i> {catName}
-                                      </h4>
-                                      <div className="flex flex-col gap-1 flex-1">
-                                        {data.items.map((tx) => {
-                                          // YENİ: ZIRHLI PATRON FİYAT OKUYUCU (Asistanın ekranına kliniğin güncel fiyatlarını basar)
-                                          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
-                                          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
-                                          const safePricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
-                                          
-                                          const txPrice = safePricing[tx] !== undefined ? parseFloat(safePricing[tx]) : 0;
-                                          const isSelected = activePlanTreatment === tx;
-                                          
-                                          return (
-                                            <button
-                                              key={tx}
-                                              type="button"
-                                              onClick={(e) => { e.preventDefault(); setActivePlanTreatment(tx); }}
-                                              className={`text-left px-2.5 py-2 rounded-lg text-[11px] font-bold transition-all flex justify-between items-center w-full ${
-                                                isSelected ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 border border-slate-200 dark:border-slate-700"
-                                              }`}
-                                            >
-                                              <span className="truncate pr-1.5">{tx}</span>
-                                              <span className={`shrink-0 ${isSelected ? "text-indigo-200" : "text-emerald-600 dark:text-emerald-400"}`}>{txPrice} ₺</span>
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-1 max-h-[180px] overflow-y-auto custom-scrollbar p-0.5">
+                                  {Object.entries(DYNAMIC_PRICING_CATEGORIES || {}).map(([catName, data]) => (
+                                    <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-1.5 border border-slate-100 dark:border-slate-800 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
+                                      <h4 className={`text-[10px] font-black uppercase tracking-wider mb-1.5 flex items-center gap-1 ${data.color}`}>
+                                        <i className={`fa-solid ${data.icon}`}></i> {catName}
+                                      </h4>
+                                      <div className="flex flex-col gap-1 flex-1">
+                                        {data.items.map((tx) => {
+                                          // YENİ: ZIRHLI PATRON FİYAT OKUYUCU (Asistanın ekranına kliniğin güncel fiyatlarını basar)
+                                          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                                          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
+                                          const safePricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+                                          
+                                          const txPrice = safePricing[tx] !== undefined ? parseFloat(safePricing[tx]) : 0;
+                                          const isSelected = activePlanTreatment === tx;
+                                          
+                                          return (
+                                            <button
+                                              key={tx}
+                                              type="button"
+                                              onClick={(e) => { e.preventDefault(); setActivePlanTreatment(tx); }}
+                                              className={`text-left px-2 py-1.5 rounded-md text-[10px] font-bold transition-all flex justify-between items-center w-full ${
+                                                isSelected ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 border border-slate-200 dark:border-slate-700"
+                                              }`}
+                                            >
+                                              <span className="truncate pr-1.5">{tx}</span>
+                                              <span className={`shrink-0 ${isSelected ? "text-indigo-200" : "text-emerald-600 dark:text-emerald-400"}`}>{txPrice} ₺</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
 
-                              {/* --- PLANLANAN TEDAVİ DETAYLARI TABLOSU --- */}
-                              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col shrink-0 no-print">
-                                <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
-                                  <h4 className="font-black text-[13px] uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-5 h-5 rounded-md flex items-center justify-center text-[11px]">2</span>
-                                    Planlanan Tedavi Tablosu
-                                  </h4>
-                                  <div className="text-[11px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2.5 py-1 rounded-lg shadow-sm">
-                                    Toplam: {patientForm.plannedTreatments?.reduce((sum, tx) => sum + (parseFloat(tx.price) || 0), 0).toLocaleString("tr-TR")} ₺
-                                  </div>
-                                </div>
+                              {/* --- PLANLANAN TEDAVİ DETAYLARI TABLOSU --- */}
+                              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col shrink-0 no-print">
+                                <div className="p-1.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                                  <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                    <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 w-4 h-4 rounded-md flex items-center justify-center text-[10px]">2</span>
+                                    Planlanan Tedavi Tablosu
+                                  </h4>
+                                  <div className="text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded-md shadow-sm">
+                                    Toplam: {patientForm.plannedTreatments?.reduce((sum, tx) => sum + (parseFloat(tx.price) || 0), 0).toLocaleString("tr-TR")} ₺
+                                  </div>
+                                </div>
 
-                                <div className="overflow-x-auto w-full max-h-[260px] overflow-y-auto custom-scrollbar">
-                                  <table className="w-full text-left text-[13px]">
-                                    <thead className="text-[10px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700 sticky top-0 z-10">
-                                      <tr>
-                                        <th className="px-2.5 py-1.5">Tarih</th>
-                                        <th className="px-2.5 py-1.5">Diş/Bölge</th>
-                                        <th className="px-2.5 py-1.5">İşlem Türü</th>
-                                        <th className="px-2.5 py-1.5 text-right">Ücret</th>
-                                        <th className="px-2.5 py-1.5 text-center">Sil</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(patientForm.plannedTreatments || []).length > 0 ? (
-                                        patientForm.plannedTreatments.map((tx) => (
-                                          <tr key={tx.id} className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
-                                            <td className="px-2.5 py-1.5 font-bold text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap">
-                                              {new Date(tx.date).toLocaleDateString("tr-TR")}
-                                            </td>
-                                            <td className="px-2.5 py-1.5 whitespace-nowrap">
-                                              <span className="font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-md text-[11px] border border-indigo-100 dark:border-indigo-800/50">
-                                                {tx.tooth === "Tüm Çene" ? "Tüm Çene" : `Diş ${tx.tooth}`}
-                                              </span>
-                                            </td>
-                                            <td className="px-2.5 py-1.5 font-bold text-slate-700 dark:text-slate-300">
-                                              {tx.treatment}
-                                            </td>
-                                            <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
-                                              {editingTxId === tx.id ? (
-                                                <div className="flex items-center justify-end gap-1">
-                                                  <input
-                                                    type="number"
-                                                    value={editingTxPrice}
-                                                    onChange={(e) => setEditingTxPrice(e.target.value)}
-                                                    className="w-16 p-1 border border-slate-300 rounded-lg text-right text-[11px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-600 dark:text-white"
-                                                    autoFocus
-                                                  />
-                                                  <button onClick={() => handleUpdateTxPrice(tx.id, editingTxPrice, true, tx.docId)} className="bg-emerald-500 text-white w-6 h-6 rounded-lg flex items-center justify-center hover:bg-emerald-600 shadow-sm">
-                                                    <i className="fa-solid fa-check text-[9px]"></i>
-                                                  </button>
-                                                </div>
-                                              ) : (
-                                              <div className="font-black text-slate-800 dark:text-white flex items-center justify-end gap-1.5">
-                                                {tx.originalPrice !== undefined && tx.originalPrice > tx.price && (
-                                                  <span className="text-[10px] text-slate-400 line-through decoration-rose-500" title="İndirimsiz Fiyat">
-                                                    {parseFloat(tx.originalPrice).toLocaleString("tr-TR")} ₺
-                                                  </span>
-                                                )}
-                                                <span>{parseFloat(tx.price).toLocaleString("tr-TR")} ₺</span>
-                                                {hasPermission("finance.discount") && (
-                                                  <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
-                                                    <i className="fa-solid fa-pen text-[11px]"></i>
-                                                  </button>
-                                                )}
-                                              </div>
-                                            )}
-                                            </td>
-                                            <td className="px-2.5 py-1.5 text-center flex justify-center items-center gap-1.5">
-                                              {tx.isCompleted ? (
-                                                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-2 py-0.5 rounded text-[10px] font-black flex items-center gap-1">
-                                                  <i className="fa-solid fa-check"></i> Bitti
-                                                </span>
-                                              ) : (
-                                                <button
-                                                  onClick={() => {
-                                                    showConfirm(`"${tx.treatment}" işlemini tamamlandı olarak işaretlemek istiyor musunuz? İşlem cirosu hekime yansıyacaktır.`, () => {
-                                                      const updatedPlanned = patientForm.plannedTreatments.map(t => 
-                                                         t.id === tx.id ? { ...t, isCompleted: true, completedAt: Date.now(), completedBy: currentUser } : t
-                                                      );
-                                                      
-                                                      const updatedPatient = { ...patientForm, plannedTreatments: updatedPlanned };
-                                                      setPatientForm(updatedPatient);
-                                                      
-                                                      saveGlobalData({
-                                                         ...globalData,
-                                                         patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient }
-                                                      }).then(() => showNotification("İşlem tamamlandı olarak işaretlendi.", "success"));
-                                                    });
-                                                  }}
-                                                  className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:bg-slate-800 dark:border-emerald-900/30 transition-all flex items-center justify-center shadow-sm"
-                                                  title="Tamamla ve Ciroya Ekle"
-                                                >
-                                                  <i className="fa-solid fa-check text-[11px]"></i>
-                                                </button>
-                                              )}
-                                              
-                                              {/* EKSİK OLAN PARANTEZ KAPATMASI BURAYA EKLENDİ */}
-                                              {!tx.isCompleted && (
-                                                <button
-                                                  onClick={() => {
-                                                    showConfirm("Silmek istediğinize emin misiniz?", () => {
-                                                      const updatedTxs = patientForm.plannedTreatments.filter((t) => t.id !== tx.id);
-                                                      const updatedPatient = { ...patientForm, plannedTreatments: updatedTxs };
-                                                      setPatientForm(updatedPatient);
-                                                      saveGlobalData({ ...globalData, patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient } });
-                                                      showNotification("İşlem silindi.", "error");
-                                                    });
-                                                  }}
-                                                  className="w-7 h-7 rounded-xl bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center shadow-sm"
-                                                  title="Sil"
-                                                >
-                                                  <i className="fa-solid fa-trash-can text-[11px]"></i>
-                                                </button>
-                                              )}
-                                            </td>
-                                          </tr>
-                                        ))
-                                      ) : (
-                                        <tr>
-                                          <td colSpan="5" className="text-center py-8 text-slate-400 text-[13px] font-medium">
-                                            <i className="fa-solid fa-tooth text-lg mb-2 block opacity-50"></i>
-                                            Henüz planlanmış bir işlem bulunmuyor.
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
+                                <div className="overflow-x-auto w-full max-h-[200px] overflow-y-auto custom-scrollbar">
+                                  <table className="w-full text-left text-[11px]">
+                                    <thead className="text-[9px] text-slate-400 uppercase font-black bg-white dark:bg-slate-800 border-b dark:border-slate-700 sticky top-0 z-10">
+                                      <tr>
+                                        <th className="px-2 py-1">Tarih</th>
+                                        <th className="px-2 py-1">Diş/Bölge</th>
+                                        <th className="px-2 py-1">İşlem Türü</th>
+                                        <th className="px-2 py-1 text-right">Ücret</th>
+                                        <th className="px-2 py-1 text-center">Sil</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(patientForm.plannedTreatments || []).length > 0 ? (
+                                        patientForm.plannedTreatments.map((tx) => (
+                                          <tr key={tx.id} className="border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group">
+                                            <td className="px-2 py-1 font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap text-[10px]">
+                                              {new Date(tx.date).toLocaleDateString("tr-TR")}
+                                            </td>
+                                            <td className="px-2 py-1 whitespace-nowrap">
+                                              <span className="font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded text-[10px] border border-indigo-100 dark:border-indigo-800/50">
+                                                {tx.tooth === "Tüm Çene" ? "Tüm Çene" : `Diş ${tx.tooth}`}
+                                              </span>
+                                            </td>
+                                            <td className="px-2 py-1 font-bold text-slate-700 dark:text-slate-300 text-[10px]">
+                                              {tx.treatment}
+                                            </td>
+                                            <td className="px-2 py-1 text-right whitespace-nowrap">
+                                              {editingTxId === tx.id ? (
+                                                <div className="flex items-center justify-end gap-1">
+                                                  <input
+                                                    type="number"
+                                                    value={editingTxPrice}
+                                                    onChange={(e) => setEditingTxPrice(e.target.value)}
+                                                    className="w-14 p-1 border border-slate-300 rounded text-right text-[10px] font-bold outline-none focus:border-indigo-500 dark:bg-slate-900 dark:border-slate-600 dark:text-white"
+                                                    autoFocus
+                                                  />
+                                                  <button onClick={() => handleUpdateTxPrice(tx.id, editingTxPrice, true, tx.docId)} className="bg-emerald-500 text-white w-5 h-5 rounded flex items-center justify-center hover:bg-emerald-600 shadow-sm">
+                                                    <i className="fa-solid fa-check text-[9px]"></i>
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                              <div className="font-black text-slate-800 dark:text-white flex items-center justify-end gap-1">
+                                                {tx.originalPrice !== undefined && tx.originalPrice > tx.price && (
+                                                  <span className="text-[9px] text-slate-400 line-through decoration-rose-500" title="İndirimsiz Fiyat">
+                                                    {parseFloat(tx.originalPrice).toLocaleString("tr-TR")} ₺
+                                                  </span>
+                                                )}
+                                                <span className="text-[11px]">{parseFloat(tx.price).toLocaleString("tr-TR")} ₺</span>
+                                                {hasPermission("finance.discount") && (
+                                                  <button onClick={() => { setEditingTxId(tx.id); setEditingTxPrice(tx.price); }} className="text-slate-300 hover:text-indigo-500 dark:text-slate-600 dark:hover:text-indigo-400 transition-colors" title="Ücreti Düzenle">
+                                                    <i className="fa-solid fa-pen text-[9px]"></i>
+                                                  </button>
+                                                )}
+                                              </div>
+                                              )}
+                                            </td>
+                                            <td className="px-2 py-1 text-center flex justify-center items-center gap-1">
+                                              {tx.isCompleted ? (
+                                                <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 px-1.5 py-0.5 rounded text-[9px] font-black flex items-center gap-0.5">
+                                                  <i className="fa-solid fa-check"></i> Bitti
+                                                </span>
+                                              ) : (
+                                                <button
+                                                  onClick={() => {
+                                                    showConfirm(`"${tx.treatment}" işlemini tamamlandı olarak işaretlemek istiyor musunuz? İşlem cirosu hekime yansıyacaktır.`, () => {
+                                                      const updatedPlanned = patientForm.plannedTreatments.map(t => 
+                                                         t.id === tx.id ? { ...t, isCompleted: true, completedAt: Date.now(), completedBy: currentUser } : t
+                                                      );
+                                                      
+                                                      const updatedPatient = { ...patientForm, plannedTreatments: updatedPlanned };
+                                                      setPatientForm(updatedPatient);
+                                                      
+                                                      saveGlobalData({
+                                                         ...globalData,
+                                                         patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient }
+                                                      }).then(() => showNotification("İşlem tamamlandı olarak işaretlendi.", "success"));
+                                                    });
+                                                  }}
+                                                  className="w-5 h-5 rounded bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:bg-slate-800 dark:border-emerald-900/30 transition-all flex items-center justify-center shadow-sm"
+                                                  title="Tamamla ve Ciroya Ekle"
+                                                >
+                                                  <i className="fa-solid fa-check text-[9px]"></i>
+                                                </button>
+                                              )}
+                                              
+                                              {/* EKSİK OLAN PARANTEZ KAPATMASI BURAYA EKLENDİ */}
+                                              {!tx.isCompleted && (
+                                                <button
+                                                  onClick={() => {
+                                                    showConfirm("Silmek istediğinize emin misiniz?", () => {
+                                                      const updatedTxs = patientForm.plannedTreatments.filter((t) => t.id !== tx.id);
+                                                      const updatedPatient = { ...patientForm, plannedTreatments: updatedTxs };
+                                                      setPatientForm(updatedPatient);
+                                                      saveGlobalData({ ...globalData, patientsDb: { ...globalData.patientsDb, [patientForm.id]: updatedPatient } });
+                                                      showNotification("İşlem silindi.", "error");
+                                                    });
+                                                  }}
+                                                  className="w-5 h-5 rounded bg-white border border-rose-100 text-rose-400 hover:bg-rose-500 hover:text-white dark:bg-slate-800 dark:border-rose-900/30 dark:hover:bg-rose-600 transition-all flex items-center justify-center shadow-sm"
+                                                  title="Sil"
+                                                >
+                                                  <i className="fa-solid fa-trash-can text-[9px]"></i>
+                                                </button>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <td colSpan="5" className="text-center py-6 text-slate-400 text-[11px] font-medium">
+                                            <i className="fa-solid fa-tooth text-[14px] mb-1 block opacity-50"></i>
+                                            Henüz planlanmış bir işlem bulunmuyor.
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
 
-                            </div>
-                          );
-                        })()}
+                            </div>
+                          );
+                        })()}
 {/* --- 7. KLİNİK GEÇMİŞ (EPİKRİZ) EKRANI --- */}
                       {patientModalTab === "history" && (
-                        <div className="flex-1 overflow-y-auto p-2.5 lg:p-2.5 bg-slate-50 flex flex-col gap-2 relative dark:bg-slate-900/50">
-                          
-                          {/* YENİ: A4 Tam Uyumlu Yazdırma Alanı (Sadece Yazdırmada Çıkar) */}
-                          <div className="hidden print:block print-only-block w-full text-black bg-white" style={{ fontFamily: "Arial, sans-serif" }}>
-                            {/* Klinik & Hasta Başlığı */}
-                            <div className="border-b-2 border-slate-900 pb-3 mb-4">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h1 className="text-xl font-black uppercase tracking-wide text-black">
-                                    {settings?.klinik?.ad || "KLİNİK YÖNETİM"}
-                                  </h1>
-                                  <h2 className="text-xs font-bold text-slate-700 tracking-wider uppercase mt-0.5">
-                                    HASTA EPİKRİZ VE KLİNİK GEÇMİŞ RAPORU
-                                  </h2>
-                                </div>
-                                <div className="text-right text-[10px] font-semibold text-slate-600">
-                                  <div><b>Rapor Tarihi:</b> {new Date().toLocaleDateString("tr-TR")}</div>
-                                  <div><b>Hekim:</b> {globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
-                                </div>
-                              </div>
+                        <div className="flex-1 overflow-y-auto p-2 lg:p-2 bg-slate-50 flex flex-col gap-1.5 relative dark:bg-slate-900/50">
+                          
+                          {/* YENİ: A4 Tam Uyumlu Yazdırma Alanı (Sadece Yazdırmada Çıkar) */}
+                          <div className="hidden print:block print-only-block w-full text-black bg-white" style={{ fontFamily: "Arial, sans-serif" }}>
+                            {/* Klinik & Hasta Başlığı */}
+                            <div className="border-b-2 border-slate-900 pb-3 mb-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <h1 className="text-xl font-black uppercase tracking-wide text-black">
+                                    {settings?.klinik?.ad || "KLİNİK YÖNETİM"}
+                                  </h1>
+                                  <h2 className="text-[10px] font-bold text-slate-700 tracking-wider uppercase mt-0.5">
+                                    HASTA EPİKRİZ VE KLİNİK GEÇMİŞ RAPORU
+                                  </h2>
+                                </div>
+                                <div className="text-right text-[9px] font-semibold text-slate-600">
+                                  <div><b>Rapor Tarihi:</b> {new Date().toLocaleDateString("tr-TR")}</div>
+                                  <div><b>Hekim:</b> {globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
+                                </div>
+                              </div>
 
-                              {/* Hasta Bilgi Kartı */}
-                              <div className="mt-3 p-2.5 bg-slate-100 border border-slate-300 rounded grid grid-cols-3 gap-2 text-[11px]">
-                                <div>
-                                  <span className="text-[9px] font-black uppercase text-slate-500 block">Hasta Adı Soyadı</span>
-                                  <span className="font-bold text-black text-[13px]">{patientForm.name}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] font-black uppercase text-slate-500 block">T.C. / Pasaport / Tel</span>
-                                  <span className="font-bold text-black">{patientForm.tc || "TC Yok"} • {patientForm.phone || "-"}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] font-black uppercase text-slate-500 block">Anamnez / Sistemik Durum</span>
-                                  <span className="font-bold text-rose-700">{patientForm.anamnesis || "Kayıtlı risk yok"}</span>
-                                </div>
-                              </div>
-                            </div>
+                              {/* Hasta Bilgi Kartı */}
+                              <div className="mt-3 p-2 bg-slate-100 border border-slate-300 rounded grid grid-cols-3 gap-2 text-[10px]">
+                                <div>
+                                  <span className="text-[8px] font-black uppercase text-slate-500 block">Hasta Adı Soyadı</span>
+                                  <span className="font-bold text-black text-[11px]">{patientForm.name}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] font-black uppercase text-slate-500 block">T.C. / Pasaport / Tel</span>
+                                  <span className="font-bold text-black">{patientForm.tc || "TC Yok"} • {patientForm.phone || "-"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[8px] font-black uppercase text-slate-500 block">Anamnez / Sistemik Durum</span>
+                                  <span className="font-bold text-rose-700">{patientForm.anamnesis || "Kayıtlı risk yok"}</span>
+                                </div>
+                              </div>
+                            </div>
 
-                            {/* Epikriz Tablosu */}
-                            <table className="w-full text-left border-collapse border border-slate-400 text-[10px]">
-                              <thead>
-                                <tr className="bg-slate-200 text-black font-black uppercase">
-                                  <th className="border border-slate-400 p-1.5 w-24">Tarih / Saat</th>
-                                  <th className="border border-slate-400 p-1.5 w-28">Hekim</th>
-                                  <th className="border border-slate-400 p-1.5 w-24">Ziyaret Türü</th>
-                                  <th className="border border-slate-400 p-1.5">Uygulanan Tedavi, Tanı ve Klinik Notlar</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(patientForm.clinicalHistory || []).length > 0 ? (
-                                  patientForm.clinicalHistory.map((h, idx) => (
-                                    <tr key={h.id || idx} className="border-b border-slate-300">
-                                      <td className="border border-slate-300 p-1.5 font-bold align-top whitespace-nowrap">
-                                        {h.date}<br />
-                                        <span className="text-slate-600 font-normal">{h.time}</span>
-                                      </td>
-                                      <td className="border border-slate-300 p-1.5 font-semibold align-top">
-                                        {globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}
-                                      </td>
-                                      <td className="border border-slate-300 p-1.5 font-semibold align-top">
-                                        {h.visitType || "Tedavi"}
-                                      </td>
-                                      <td className="border border-slate-300 p-1.5 align-top">
-                                        <div className="font-black text-black text-[11px]">
-                                          {h.treatment} {h.selectedTeeth?.length > 0 && `(Diş: ${Array.isArray(h.selectedTeeth) ? h.selectedTeeth.join(", ") : h.selectedTeeth})`}
-                                        </div>
-                                        {h.complaint && (
-                                          <div className="mt-1 text-slate-700"><b>Şikayet:</b> {h.complaint}</div>
-                                        )}
-                                        {h.diagnosis && (
-                                          <div className="mt-0.5 text-slate-700"><b>Bulgu & Tanı:</b> {h.diagnosis}</div>
-                                        )}
-                                        {h.procedureNotes && (
-                                          <div className="mt-0.5 text-slate-700"><b>Prosedür Notu:</b> {h.procedureNotes}</div>
-                                        )}
-                                        {h.anesthesia && (
-                                          <div className="mt-0.5 text-slate-700"><b>Materyal/Anestezi:</b> {h.anesthesia}</div>
-                                        )}
-                                        {h.prescription && (
-                                          <div className="mt-0.5 text-slate-700"><b>Reçete / Öneri:</b> {h.prescription}</div>
-                                        )}
-                                        {h.nextAppointmentDate && (
-                                          <div className="mt-0.5 text-indigo-900 font-bold"><b>Sonraki Kontrol:</b> {h.nextAppointmentDate}</div>
-                                        )}
-                                      </td>
-                                    </tr>
-                                  ))
-                                ) : (
-                                  <tr>
-                                    <td colSpan="4" className="border border-slate-300 p-3 text-center italic text-slate-500">
-                                      Kayıtlı klinik geçmiş bulunamadı.
-                                    </td>
-                                  </tr>
-                                )}
-                              </tbody>
-                            </table>
+                            {/* Epikriz Tablosu */}
+                            <table className="w-full text-left border-collapse border border-slate-400 text-[9px]">
+                              <thead>
+                                <tr className="bg-slate-200 text-black font-black uppercase">
+                                  <th className="border border-slate-400 p-1 w-20">Tarih / Saat</th>
+                                  <th className="border border-slate-400 p-1 w-24">Hekim</th>
+                                  <th className="border border-slate-400 p-1 w-20">Ziyaret Türü</th>
+                                  <th className="border border-slate-400 p-1">Uygulanan Tedavi, Tanı ve Klinik Notlar</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(patientForm.clinicalHistory || []).length > 0 ? (
+                                  patientForm.clinicalHistory.map((h, idx) => (
+                                    <tr key={h.id || idx} className="border-b border-slate-300">
+                                      <td className="border border-slate-300 p-1 font-bold align-top whitespace-nowrap">
+                                        {h.date}<br />
+                                        <span className="text-slate-600 font-normal">{h.time}</span>
+                                      </td>
+                                      <td className="border border-slate-300 p-1 font-semibold align-top">
+                                        {globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}
+                                      </td>
+                                      <td className="border border-slate-300 p-1 font-semibold align-top">
+                                        {h.visitType || "Tedavi"}
+                                      </td>
+                                      <td className="border border-slate-300 p-1 align-top">
+                                        <div className="font-black text-black text-[10px]">
+                                          {h.treatment} {h.selectedTeeth?.length > 0 && `(Diş: ${Array.isArray(h.selectedTeeth) ? h.selectedTeeth.join(", ") : h.selectedTeeth})`}
+                                        </div>
+                                        {h.complaint && (
+                                          <div className="mt-0.5 text-slate-700"><b>Şikayet:</b> {h.complaint}</div>
+                                        )}
+                                        {h.diagnosis && (
+                                          <div className="mt-0.5 text-slate-700"><b>Bulgu & Tanı:</b> {h.diagnosis}</div>
+                                        )}
+                                        {h.procedureNotes && (
+                                          <div className="mt-0.5 text-slate-700"><b>Prosedür Notu:</b> {h.procedureNotes}</div>
+                                        )}
+                                        {h.anesthesia && (
+                                          <div className="mt-0.5 text-slate-700"><b>Materyal/Anestezi:</b> {h.anesthesia}</div>
+                                        )}
+                                        {h.prescription && (
+                                          <div className="mt-0.5 text-slate-700"><b>Reçete / Öneri:</b> {h.prescription}</div>
+                                        )}
+                                        {h.nextAppointmentDate && (
+                                          <div className="mt-0.5 text-indigo-900 font-bold"><b>Sonraki Kontrol:</b> {h.nextAppointmentDate}</div>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan="4" className="border border-slate-300 p-2 text-center italic text-slate-500">
+                                      Kayıtlı klinik geçmiş bulunamadı.
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
 
-                            {/* Alt Kaşe & İmza Alanı */}
-                            <div className="mt-8 pt-4 border-t border-slate-300 flex justify-between items-end text-[11px]">
-                              <div>
-                                <span className="text-[9px] text-slate-500 uppercase block">Not:</span>
-                                <span>Bu belge klinik randevu ve takip sistemi üzerinden otomatik üretilmiştir.</span>
-                              </div>
-                              <div className="text-center min-w-[160px]">
-                                <div className="font-bold text-black">{globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
-                                <div className="text-[10px] text-slate-600">{globalData.doctorProfiles?.[currentUser]?.title || "Diş Hekimi"}</div>
-                                <div className="mt-6 border-b border-black w-32 mx-auto"></div>
-                                <div className="text-[9px] text-slate-500 mt-1">İmza / Kaşe</div>
-                              </div>
-                            </div>
-                          </div>
+                            {/* Alt Kaşe & İmza Alanı */}
+                            <div className="mt-6 pt-3 border-t border-slate-300 flex justify-between items-end text-[9px]">
+                              <div>
+                                <span className="text-[8px] text-slate-500 uppercase block">Not:</span>
+                                <span>Bu belge klinik randevu ve takip sistemi üzerinden otomatik üretilmiştir.</span>
+                              </div>
+                              <div className="text-center min-w-[140px]">
+                                <div className="font-bold text-black">{globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
+                                <div className="text-[9px] text-slate-600">{globalData.doctorProfiles?.[currentUser]?.title || "Diş Hekimi"}</div>
+                                <div className="mt-5 border-b border-black w-28 mx-auto"></div>
+                                <div className="text-[8px] text-slate-500 mt-1">İmza / Kaşe</div>
+                              </div>
+                            </div>
+                          </div>
 
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1.5 shrink-0">
-                            <div>
-                              <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-1 text-base">
-                                <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i>
-                                Klinik Geçmiş (Epikriz)
-                              </h3>
-                            </div>
-                            <div className="flex gap-1 w-full sm:w-auto">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const originalTitle = document.title;
-                                  document.title = `${patientForm.name} - Epikriz Raporu`;
-                                  window.print();
-                                  setTimeout(() => document.title = originalTitle, 2000);
-                                }}
-                                className="flex-1 sm:flex-none bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 px-2.5 py-2 rounded-xl font-bold shadow-sm hover:bg-slate-200 transition-all flex items-center gap-1 justify-center"
-                              >
-                                <i className="fa-solid fa-print"></i> Yazdır
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setIsAddHistoryModalOpen(true)}
-                                className="flex-1 sm:flex-none bg-indigo-600 text-white px-2.5 py-2 rounded-xl font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-1 justify-center"
-                              >
-                                <i className="fa-solid fa-plus"></i> Yeni Kayıt
-                              </button>
-                            </div>
-                          </div>
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm no-print gap-1 shrink-0">
+                            <div>
+                              <h3 className="font-black text-slate-800 dark:text-white flex items-center gap-1 text-[13px]">
+                                <i className="fa-solid fa-clock-rotate-left text-indigo-500"></i>
+                                Klinik Geçmiş (Epikriz)
+                              </h3>
+                            </div>
+                            <div className="flex gap-1 w-full sm:w-auto">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const originalTitle = document.title;
+                                  document.title = `${patientForm.name} - Epikriz Raporu`;
+                                  window.print();
+                                  setTimeout(() => document.title = originalTitle, 2000);
+                                }}
+                                className="flex-1 sm:flex-none bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 px-2 py-1.5 rounded-lg font-bold shadow-sm hover:bg-slate-200 transition-all flex items-center gap-1 justify-center text-[11px]"
+                              >
+                                <i className="fa-solid fa-print"></i> Yazdır
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsAddHistoryModalOpen(true)}
+                                className="flex-1 sm:flex-none bg-indigo-600 text-white px-2 py-1.5 rounded-lg font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-1 justify-center text-[11px]"
+                              >
+                                <i className="fa-solid fa-plus"></i> Yeni Kayıt
+                              </button>
+                            </div>
+                          </div>
 
-                          {/* Filtre ve Arama Alanı */}
-                          <div className="flex gap-1 flex-wrap no-print">
-                            <div className="relative flex-1 min-w-[160px]">
-                              <i className="fa-solid fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
-                              <input
-                                type="text"
-                                placeholder="İşlem, Diş, Tanı ara..."
-                                value={historySearchQuery}
-                                onChange={(e) => setHistorySearchQuery(e.target.value)}
-                                className="w-full pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
-                              />
-                            </div>
-                            <select
-                              value={historyFilterDoc}
-                              onChange={(e) => setHistoryFilterDoc(e.target.value)}
-                              className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none shadow-sm dark:text-white"
-                            >
-                              <option value="all">Tüm Hekimler</option>
-                              {allDoctors.map(doc => (
-                                <option key={doc} value={doc}>{globalData.systemUsers?.[doc]?.displayName || doc}</option>
-                              ))}
-                            </select>
-                          </div>
+                          {/* Filtre ve Arama Alanı */}
+                          <div className="flex gap-1 flex-wrap no-print">
+                            <div className="relative flex-1 min-w-[140px]">
+                              <i className="fa-solid fa-search absolute left-2.5 top-1.5 text-slate-400 text-[10px]"></i>
+                              <input
+                                type="text"
+                                placeholder="İşlem, Diş, Tanı ara..."
+                                value={historySearchQuery}
+                                onChange={(e) => setHistorySearchQuery(e.target.value)}
+                                className="w-full pl-7 pr-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
+                              />
+                            </div>
+                            <select
+                              value={historyFilterDoc}
+                              onChange={(e) => setHistoryFilterDoc(e.target.value)}
+                              className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none shadow-sm dark:text-white"
+                            >
+                              <option value="all">Tüm Hekimler</option>
+                              {allDoctors.map(doc => (
+                                <option key={doc} value={doc}>{globalData.systemUsers?.[doc]?.displayName || doc}</option>
+                              ))}
+                            </select>
+                          </div>
 
-                          {/* Timeline Görünümü */}
-                          <div className="flex-1 overflow-y-auto no-print pr-1.5 relative mt-1.5 custom-scrollbar">
-                            {(() => {
-                              let historyData = [...(patientForm.clinicalHistory || [])]; // Kopyasını alıyoruz ki state doğrudan mutasyona uğramasın
-                              
-                              // YENİ DÜZELTME: Hekim geçmişe dönük manuel kayıt eklerse (örn: 1 ay öncesi), 
-                              // en üste değil, doğru tarihli aralığa girmesini sağlayan Akıllı Kronolojik Sıralama
-                              historyData.sort((a, b) => {
-                                const parseDate = (dStr, tStr) => {
-                                  if (!dStr) return 0;
-                                  let day = 0, month = 0, year = 0;
-                                  if (dStr.includes(".")) [day, month, year] = dStr.split(".");
-                                  else if (dStr.includes("/")) [day, month, year] = dStr.split("/");
-                                  else if (dStr.includes("-")) [year, month, day] = dStr.split("-");
-                                  const [hr, min] = (tStr || "00:00").split(":");
-                                  return new Date(year, month - 1, day, hr, min).getTime();
-                                };
-                                return parseDate(b.date, b.time) - parseDate(a.date, a.time); // En yeni tarih en üstte
-                              });
+                          {/* Timeline Görünümü */}
+                          <div className="flex-1 overflow-y-auto no-print pr-1 relative mt-1 custom-scrollbar">
+                            {(() => {
+                              let historyData = [...(patientForm.clinicalHistory || [])]; 
+                              
+                              historyData.sort((a, b) => {
+                                const parseDate = (dStr, tStr) => {
+                                  if (!dStr) return 0;
+                                  let day = 0, month = 0, year = 0;
+                                  if (dStr.includes(".")) [day, month, year] = dStr.split(".");
+                                  else if (dStr.includes("/")) [day, month, year] = dStr.split("/");
+                                  else if (dStr.includes("-")) [year, month, day] = dStr.split("-");
+                                  const [hr, min] = (tStr || "00:00").split(":");
+                                  return new Date(year, month - 1, day, hr, min).getTime();
+                                };
+                                return parseDate(b.date, b.time) - parseDate(a.date, a.time); 
+                              });
 
-                              if (historyFilterDoc !== "all") historyData = historyData.filter(h => h.doctorId === historyFilterDoc);
-                              if (historySearchQuery) {
-                                const q = historySearchQuery.toLowerCase();
-                                historyData = historyData.filter(h => 
-                                  (h.treatment && h.treatment.toLowerCase().includes(q)) || 
-                                  (h.diagnosis && h.diagnosis.toLowerCase().includes(q)) ||
-                                  (h.selectedTeeth && h.selectedTeeth.some(t => t.includes(q))) ||
-                                  (h.complaint && h.complaint.toLowerCase().includes(q))
-                                );
-                              }
+                              if (historyFilterDoc !== "all") historyData = historyData.filter(h => h.doctorId === historyFilterDoc);
+                              if (historySearchQuery) {
+                                const q = historySearchQuery.toLowerCase();
+                                historyData = historyData.filter(h => 
+                                  (h.treatment && h.treatment.toLowerCase().includes(q)) || 
+                                  (h.diagnosis && h.diagnosis.toLowerCase().includes(q)) ||
+                                  (h.selectedTeeth && h.selectedTeeth.some(t => t.includes(q))) ||
+                                  (h.complaint && h.complaint.toLowerCase().includes(q))
+                                );
+                              }
 
-                              if (historyData.length === 0) return (
-                                <div className="text-center py-8 text-slate-400 text-[13px] font-medium bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700">
-                                  <i className="fa-solid fa-notes-medical text-lg mb-2 text-slate-300 dark:text-slate-600 block"></i>
-                                  Kayıtlı klinik geçmiş bulunmuyor.
-                                </div>
-                              );
+                              if (historyData.length === 0) return (
+                                <div className="text-center py-6 text-slate-400 text-[11px] font-medium bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700">
+                                  <i className="fa-solid fa-notes-medical text-base mb-1 text-slate-300 dark:text-slate-600 block"></i>
+                                  Kayıtlı klinik geçmiş bulunmuyor.
+                                </div>
+                              );
 
-                              return (
-                                <div className="relative before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-500 before:via-purple-500 before:to-transparent">
-                                  {historyData.map((h, index) => (
-                                    <div key={h.id || index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active mb-2">
-                                      <div className="flex items-center justify-center w-8 h-7 rounded-full border-4 border-slate-50 dark:border-slate-900 bg-indigo-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 absolute left-0 md:left-1/2 -translate-x-0 cursor-pointer hover:scale-110 transition-transform"
-                                           onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
-                                        <i className="fa-solid fa-stethoscope text-[11px]"></i>
-                                      </div>
-                                      <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-2rem)] ml-auto md:ml-0 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-0.5"
-                                           onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
-                                        <div className="flex justify-between items-center mb-1.5">
-                                          <span className="font-black text-indigo-600 dark:text-indigo-400 text-[11px] bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded-md">
-                                            {h.date} • {h.time}
-                                          </span>
-                                          <span className="text-[10px] font-bold text-slate-500 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded-md">
-                                            {h.visitType}
-                                          </span>
-                                        </div>
-                                        <h4 className="font-black text-[13px] text-slate-800 dark:text-white mb-1.5">{h.treatment}</h4>
-                                        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex flex-col gap-0.5">
-                                          <div className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300">
-                                            <i className="fa-solid fa-user-doctor w-3 text-center"></i> {globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}
-                                          </div>
-                                          {h.selectedTeeth?.length > 0 && (
-                                            <div className="flex items-center gap-1">
-                                              <i className="fa-solid fa-tooth w-3 text-center"></i> Dişler: {h.selectedTeeth.join(" • ")}
-                                            </div>
-                                          )}
-                                          {h.diagnosis && (
-                                            <div className="flex items-start gap-1 mt-0.5 bg-slate-50 dark:bg-slate-900 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
-                                              <i className="fa-solid fa-notes-medical w-3 text-center text-rose-400 mt-0.5"></i> <span className="line-clamp-2 italic">{h.diagnosis}</span>
-                                            </div>
-                                          )}
-                                        </div>
-                                        
-                                        {/* YENİ: DÜZENLE BUTONU İBARESİ */}
-                                        <div className="mt-2 text-right">
-                                            <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 dark:text-indigo-300 px-2 py-1 rounded border border-indigo-100 dark:border-indigo-800/50 hover:bg-indigo-100 transition">
-                                                <i className="fa-solid fa-pen mr-1"></i> Düzenle
-                                            </span>
-                                        </div>
-                                        
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      )}
+                              return (
+                                <div className="relative before:absolute before:inset-0 before:ml-3 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-500 before:via-purple-500 before:to-transparent">
+                                  {historyData.map((h, index) => (
+                                    <div key={h.id || index} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active mb-1.5">
+                                      <div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-slate-50 dark:border-slate-900 bg-indigo-500 text-white shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 absolute left-0 md:left-1/2 -translate-x-0 cursor-pointer hover:scale-110 transition-transform"
+                                           onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
+                                        <i className="fa-solid fa-stethoscope text-[9px]"></i>
+                                      </div>
+                                      <div className="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] ml-auto md:ml-0 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm hover:shadow-md cursor-pointer transition-all hover:-translate-y-0.5"
+                                           onClick={() => { setSelectedHistoryRecord(h); setIsHistoryDetailModalOpen(true); }}>
+                                        <div className="flex justify-between items-center mb-1">
+                                          <span className="font-black text-indigo-600 dark:text-indigo-400 text-[9px] bg-indigo-50 dark:bg-indigo-900/30 px-1 py-0.5 rounded">
+                                            {h.date} • {h.time}
+                                          </span>
+                                          <span className="text-[8px] font-bold text-slate-500 border border-slate-200 dark:border-slate-600 px-1 py-0.5 rounded">
+                                            {h.visitType}
+                                          </span>
+                                        </div>
+                                        <h4 className="font-black text-[11px] text-slate-800 dark:text-white mb-1">{h.treatment}</h4>
+                                        <div className="text-[9px] text-slate-500 dark:text-slate-400 flex flex-col gap-0.5">
+                                          <div className="flex items-center gap-1 font-bold text-slate-600 dark:text-slate-300">
+                                            <i className="fa-solid fa-user-doctor w-3 text-center"></i> {globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}
+                                          </div>
+                                          {h.selectedTeeth?.length > 0 && (
+                                            <div className="flex items-center gap-1">
+                                              <i className="fa-solid fa-tooth w-3 text-center"></i> Dişler: {h.selectedTeeth.join(" • ")}
+                                            </div>
+                                          )}
+                                          {h.diagnosis && (
+                                            <div className="flex items-start gap-1 mt-0.5 bg-slate-50 dark:bg-slate-900 p-1 rounded border border-slate-100 dark:border-slate-700">
+                                              <i className="fa-solid fa-notes-medical w-3 text-center text-rose-400 mt-0.5"></i> <span className="line-clamp-2 italic">{h.diagnosis}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        {/* YENİ: DÜZENLE BUTONU İBARESİ */}
+                                        <div className="mt-1.5 text-right">
+                                            <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 dark:text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-100 dark:border-indigo-800/50 hover:bg-indigo-100 transition">
+                                                <i className="fa-solid fa-pen mr-1"></i> Düzenle
+                                            </span>
+                                        </div>
+                                        
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Modal: Yeni Klinik Kayıt (Epikriz) Ekleme */}
                       {isAddHistoryModalOpen && (
