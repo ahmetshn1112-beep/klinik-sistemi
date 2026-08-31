@@ -10056,9 +10056,18 @@ const renderSettings = () => {
               )}
 
               {/* MODAL: BELGE (TDB) ÖNİZLEME VE YAZDIRMA */}
-              {documentPreview && (
-                <div className="fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 print:static print:bg-white print:p-0 print:block">
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col relative shadow-2xl print:max-h-none print:overflow-visible print:shadow-none print:w-full print:rounded-none">
+              {documentPreview && (
+                <div id="document-print-area" className="fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 print:absolute print:inset-0 print:bg-white print:p-0 print:block">
+                  <style type="text/css" media="print">
+                    {`
+                      html, body, #root, .h-screen, .overflow-hidden { height: auto !important; overflow: visible !important; position: static !important; }
+                      body * { visibility: hidden; }
+                      #document-print-area, #document-print-area * { visibility: visible; }
+                      #document-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+                      .no-print { display: none !important; }
+                    `}
+                  </style>
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col relative shadow-2xl print:max-h-none print:overflow-visible print:shadow-none print:w-full print:rounded-none">
                     
                     {/* Üst Menü (Sadece Ekranda Görünür, Yazdırmada Gizlenir) */}
                     <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3.5 flex justify-between items-center z-10 no-print rounded-t-2xl">
@@ -13755,13 +13764,25 @@ const renderSettings = () => {
                               <style type="text/css" media="print">
                                 {`
                                   @supports (-webkit-touch-callout: none) {
+                                    html, body, #root, .h-screen, .overflow-hidden {
+                                      height: auto !important;
+                                      min-height: auto !important;
+                                      max-height: none !important;
+                                      overflow: visible !important;
+                                      display: block !important;
+                                      position: static !important;
+                                    }
+                                    body * {
+                                      visibility: hidden;
+                                    }
+                                    #print-plan-area, #print-plan-area * {
+                                      visibility: visible;
+                                    }
                                     #print-plan-area {
                                       position: absolute !important;
                                       left: 0 !important;
                                       top: 0 !important;
-                                      right: 0 !important;
                                       width: 100% !important;
-                                      min-width: 100vw !important;
                                       height: auto !important;
                                       overflow: visible !important;
                                       display: block !important;
@@ -13771,6 +13792,7 @@ const renderSettings = () => {
                                       -webkit-print-color-adjust: exact !important;
                                       print-color-adjust: exact !important;
                                     }
+                                    .no-print { display: none !important; }
                                   }
                                 `}
                               </style>
