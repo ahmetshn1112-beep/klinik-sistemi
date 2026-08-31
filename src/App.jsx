@@ -10060,10 +10060,11 @@ const renderSettings = () => {
                 <div id="document-print-area" className="fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 print:absolute print:inset-0 print:bg-white print:p-0 print:block">
                   <style type="text/css" media="print">
                     {`
-                      html, body, #root, .h-screen, .overflow-hidden { height: auto !important; overflow: visible !important; position: static !important; }
+                      html, body, #root, .h-screen, .overflow-hidden { height: auto !important; min-height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; position: static !important; }
                       body * { visibility: hidden; }
                       #document-print-area, #document-print-area * { visibility: visible; }
-                      #document-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+                      #document-print-area { position: absolute !important; left: 0 !important; top: 0 !important; right: auto !important; bottom: auto !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; display: block !important; }
+                      #document-print-area > div { position: static !important; width: 100% !important; max-width: 100% !important; max-height: none !important; height: auto !important; overflow: visible !important; display: block !important; box-shadow: none !important; }
                       .no-print { display: none !important; }
                     `}
                   </style>
@@ -13772,25 +13773,23 @@ const renderSettings = () => {
                                       display: block !important;
                                       position: static !important;
                                     }
-                                    body * {
-                                      visibility: hidden;
-                                    }
-                                    #print-plan-area, #print-plan-area * {
-                                      visibility: visible;
-                                    }
+                                    body * { visibility: hidden; }
+                                    #print-plan-area, #print-plan-area * { visibility: visible; }
                                     #print-plan-area {
                                       position: absolute !important;
                                       left: 0 !important;
                                       top: 0 !important;
+                                      right: 0 !important;
                                       width: 100% !important;
+                                      max-width: 100% !important;
                                       height: auto !important;
                                       overflow: visible !important;
                                       display: block !important;
-                                      padding: 5mm !important;
+                                      padding: 0 !important;
+                                      margin: 0 !important;
                                       box-sizing: border-box !important;
                                       z-index: 999999 !important;
-                                      -webkit-print-color-adjust: exact !important;
-                                      print-color-adjust: exact !important;
+                                      -webkit-text-size-adjust: 100% !important;
                                     }
                                     .no-print { display: none !important; }
                                   }
