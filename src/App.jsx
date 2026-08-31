@@ -10060,15 +10060,44 @@ const renderSettings = () => {
                 <div id="document-print-area" className="fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 print:absolute print:inset-0 print:bg-white print:p-0 print:block">
                   <style type="text/css" media="print">
                     {`
-                      html, body, #root, .h-screen, .overflow-hidden { height: auto !important; min-height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; position: static !important; }
+                      @page { margin: 10mm; }
+                      html, body, #root, .h-screen, .overflow-hidden, .overflow-y-auto { 
+                        height: auto !important; 
+                        min-height: 100% !important; 
+                        max-height: none !important; 
+                        overflow: visible !important; 
+                        display: block !important; 
+                        position: static !important; 
+                      }
                       body * { visibility: hidden; }
                       #document-print-area, #document-print-area * { visibility: visible; }
-                      #document-print-area { position: absolute !important; left: 0 !important; top: 0 !important; right: auto !important; bottom: auto !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; display: block !important; }
-                      #document-print-area > div { position: static !important; width: 100% !important; max-width: 100% !important; max-height: none !important; height: auto !important; overflow: visible !important; display: block !important; box-shadow: none !important; }
+                      #document-print-area { 
+                        position: absolute !important; 
+                        left: 0 !important; 
+                        top: 0 !important; 
+                        width: 100% !important; 
+                        height: auto !important; 
+                        margin: 0 !important; 
+                        padding: 0 !important; 
+                        overflow: visible !important; 
+                        display: block !important; 
+                        background-color: white !important;
+                      }
+                      #document-print-content { 
+                        position: static !important; 
+                        width: 100% !important; 
+                        max-width: 100% !important; 
+                        max-height: none !important; 
+                        height: auto !important; 
+                        overflow: visible !important; 
+                        display: block !important; 
+                        box-shadow: none !important; 
+                        border: none !important;
+                      }
                       .no-print { display: none !important; }
                     `}
                   </style>
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col relative shadow-2xl print:max-h-none print:overflow-visible print:shadow-none print:w-full print:rounded-none">
+                  <div id="document-print-content" className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col relative shadow-2xl print:max-h-none print:overflow-visible print:shadow-none print:w-full print:rounded-none">
                     
                     {/* Üst Menü (Sadece Ekranda Görünür, Yazdırmada Gizlenir) */}
                     <div className="sticky top-0 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3.5 flex justify-between items-center z-10 no-print rounded-t-2xl">
