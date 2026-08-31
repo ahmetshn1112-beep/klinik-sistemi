@@ -1496,13 +1496,16 @@ const useFirebase = () => {
 
         const [isSyncing, setIsSyncing] = useState(true);
 
-        const [notification, setNotification] = useState(null);
+        const [notifications, setNotifications] = useState([]);
 
-        const showNotification = (message, type = "success") => {
-          setNotification({ message, type });
+        const showNotification = (message, type = "success") => {
+          const id = Date.now();
+          setNotifications(prev => [...prev, { id, message, type }]);
 
-          setTimeout(() => setNotification(null), 3000);
-        };
+          setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id));
+          }, 4000); // 4 saniye ekranda kalıp uçar
+        };
         // ---------------------------------------------------------
 
         const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -2141,150 +2144,101 @@ const useFirebase = () => {
         const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
 const [newTreatmentForm, setNewTreatmentForm] = useState({ name: "", category: "Teşhis ve Radyoloji", price: "" });
 
-        // --- GERÇEK TDB BELGELERİ ---
-        const TDB_DOCUMENTS = [
-          { 
-            id: 1, 
-            title: "TDB Standart Aydınlatılmış Onam Formu", 
-            icon: "fa-file-signature", 
-            color: "text-rose-500", 
-            bg: "bg-rose-50 dark:bg-rose-900/20", 
-            content: `TÜRK DİŞHEKİMLERİ BİRLİĞİ (TDB) VE İSTANBUL DİŞHEKİMLERİ ODASI (İDO) 
-STANDART AYDINLATILMIŞ ONAM FORMU
+        // --- GERÇEK TDB BELGELERİ VE MODERN POST-OP (İŞLEM SONRASI) FORMLARI ---
+        const TDB_DOCUMENTS = [
+          { 
+            id: 1, type: "onam",
+            title: "TDB Standart Aydınlatılmış Onam Formu", 
+            icon: "fa-file-signature", color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-900/20", 
+            content: `TÜRK DİŞHEKİMLERİ BİRLİĞİ (TDB) VE İSTANBUL DİŞHEKİMLERİ ODASI (İDO)\nSTANDART AYDINLATILMIŞ ONAM FORMU\n\nBu belge, 1219 sayılı Tababet ve Şuabatı San’atlarının Tarzı İcrasına Dair Kanun ve Hasta Hakları Yönetmeliği gereğince, uygulanacak tıbbi müdahale, alternatifleri, riskleri ve müdahale edilmemesi durumunda oluşabilecek sonuçlar hakkında hastayı bilgilendirmek ve rızasını almak amacıyla hazırlanmıştır.\n\n1. HASTALIĞIN TANIMI VE PLANLANAN TEDAVİ:\nKlinik hekimleri tarafından yapılan klinik ve radyolojik muayeneler sonucunda, ağız ve diş sağlığım ile ilgili mevcut durumum tarafıma anlaşılır bir dilde açıklanmıştır. Uygulanması planlanan tedavinin (dolgu, kanal tedavisi, diş çekimi, protez, cerrahi işlem vb.) aşamaları, süresi ve kullanılacak materyaller hakkında detaylı bilgi verilmiştir.\n\n2. ALTERNATİF TEDAVİ SEÇENEKLERİ:\nPlanlanan tedaviye alternatif olarak uygulanabilecek diğer tedavi yöntemleri, bu yöntemlerin avantaj ve dezavantajları ile maliyetleri tarafıma anlatılmıştır. Mevcut koşullarda en uygun seçeneğin hekimim tarafından önerilen tedavi olduğuna karar verdim.\n\n3. TEDAVİNİN RİSKLERİ VE OLASI KOMPLİKASYONLAR:\nHer tıbbi müdahalede olduğu gibi, diş hekimliği uygulamalarında da bazı riskler bulunmaktadır. Tarafıma anlatılan ve anladığım başlıca riskler şunlardır:\n- Lokal anesteziye bağlı alerjik reaksiyonlar, geçici veya kalıcı sinir uyuşuklukları (parestezi).\n- Tedavi sırasında veya sonrasında kanama, şişlik (ödem), ağrı ve enfeksiyon gelişimi.\n- Diş çekimi veya cerrahi işlemler sırasında komşu dişlerin, restorasyonların veya çevre dokuların zarar görmesi.\n- Kanal tedavisi veya diş çekimi sırasında kök kırılması, kanal aleti kırılması veya sinüs boşluğuna açılma.\n- Çene ekleminde (TMJ) hassasiyet, ağrı veya geçici ağız açmada kısıtlılık (trismus).\n\n4. TEDAVİNİN REDDEDİLMESİ DURUMUNDA KARŞILAŞILABİLECEK SONUÇLAR:\nÖnerilen tedaviyi kabul etmemem durumunda; mevcut ağrı ve enfeksiyonun şiddetlenebileceği, dişin tamamen kaybedilebileceği, komşu dişlerin ve çevre dokuların zarar görebileceği, kist veya tümör gibi daha ciddi genel sağlık sorunlarının ortaya çıkabileceği konusunda uyarıldım.\n\n5. HASTANIN BEYANI VE RIZASI:\nYukarıda yer alan maddeleri tamamen okudum ve anladım. Klinik hekimleri tarafından bana durumumla ilgili yeterli zaman ayrıldı ve sorduğum tüm sorulara tatmin edici cevaplar aldım. Uygulanacak tedavinin başarısı için tıp biliminin doğası gereği kesin bir garanti verilemeyeceğini biliyorum. Beklenmeyen durumlarda, hekimimin sağlığım için gerekli göreceği ek tıbbi müdahaleleri yapmasına da izin veriyorum.\n\nKendi özgür irademle, hiçbir baskı altında kalmadan, planlanan tıbbi/cerrahi müdahalenin ve gerekli lokal anestezi işlemlerinin yapılmasına ONAY VERİYORUM.`
+          },
+          { 
+            id: 2, type: "onam",
+            title: "KVKK Aydınlatma ve Açık Rıza Metni", 
+            icon: "fa-shield-halved", color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-900/20", 
+            content: `6698 SAYILI KİŞİSEL VERİLERİN KORUNMASI KANUNU (KVKK) KAPSAMINDA\nHASTA AYDINLATMA VE AÇIK RIZA METNİ\n\nSayın Hastamız / Hasta Yakınımız,\nBu aydınlatma metni, veri sorumlusu sıfatıyla kliniğimiz tarafından, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun (KVKK) 10. maddesi ve Aydınlatma Yükümlülüğünün Yerine Getirilmesinde Uyulacak Usul ve Esaslar Hakkında Tebliğ uyarınca hazırlanmıştır.\n\n1. İŞLENEN KİŞİSEL VERİLERİNİZ VE İŞLENME AMAÇLARI:\nKliniğimize başvurmanız dolayısıyla elde edilen;\n- Kimlik Verileriniz (Ad, soyad, T.C. kimlik numarası, pasaport numarası, doğum yeri ve tarihi, cinsiyet),\n- İletişim Verileriniz (Adres, telefon numarası, e-posta adresi),\n- Sağlık Verileriniz (Röntgen görüntüleri, laboratuvar sonuçları, test sonuçları, muayene verileri, randevu bilgileri, reçete bilgileri, daha önce geçirilmiş hastalıklar, kronik hastalıklar, alerjiler ve diğer tüm tıbbi kayıtlar),\n- Finansal Verileriniz (Fatura bilgileri, ödeme ve kredi kartı bilgileri)\n\nYukarıda belirtilen kişisel ve özel nitelikli kişisel verileriniz; tıbbi teşhis, tedavi ve bakım hizmetlerinin yürütülmesi, randevu planlamasının yapılması, yasal yükümlülüklerin yerine getirilmesi (Sağlık Bakanlığı, İTS, SGK vb. bildirimler) ve sağlık hizmetlerinin finansmanının sağlanması amaçlarıyla işlenmektedir.\n\n2. KİŞİSEL VERİLERİN AKTARILMASI:\nKişisel verileriniz, KVKK'nın 8. ve 9. maddelerinde belirtilen şartlar dahilinde; ilgili mevzuat hükümlerinin izin verdiği kurum ve kuruluşlara (Sağlık Bakanlığı, İl Sağlık Müdürlükleri, SGK, Emniyet Genel Müdürlüğü ve adli makamlar), protetik ve ortodontik laboratuvarlara, yasal savunma hakkımızı kullanabilmek adına hukuki danışmanlarımıza aktarılabilecektir. Verileriniz kesinlikle ticari amaçla 3. şahıslara satılmaz veya devredilmez.\n\n3. İLGİLİ KİŞİNİN (HASTANIN) HAKLARI:\nKVKK'nın 11. maddesi uyarınca kliniğimize başvurarak;\n- Kişisel verilerinizin işlenip işlenmediğini öğrenme,\n- İşlenmişse buna ilişkin bilgi talep etme,\n- İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,\n- Eksik veya yanlış işlenmişse düzeltilmesini isteme,\n- Kanunda öngörülen şartlar çerçevesinde silinmesini veya yok edilmesini talep etme haklarına sahipsiniz.\n\n4. HASTA BEYANI VE AÇIK RIZA:\nYukarıda yer alan aydınlatma metnini tamamen okudum, anladım. Kişisel ve sağlık verilerimin, yukarıda belirtilen amaçlar ve sınırlar çerçevesinde işlenmesine, kaydedilmesine, muhafaza edilmesine ve ilgili yasal mercilere/laboratuvarlara aktarılmasına özgür irademle AÇIK RIZA gösteriyorum.`
+          },
+          { 
+            id: 3, type: "onam",
+            title: "TDB İmplant Cerrahi Onam Formu", 
+            icon: "fa-tooth", color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20", 
+            content: `İMPLANT CERRAHİSİ BİLGİLENDİRME VE AYDINLATILMIŞ ONAM FORMU (TDB UYUMLU)\n\nBu belge, çene kemiğine yerleştirilecek olan dental implant (yapay diş kökü) operasyonu ve sonrasındaki protez işlemleri için hazırlanmıştır. Lütfen dikkatlice okuyunuz.\n\n1. İŞLEMİN TANIMI:\nEksik olan diş veya dişlerinizin telafisi için, lokal anestezi altında çene kemiğinize titanyum veya titanyum alaşımlı dental implantların yerleştirilmesi planlanmaktadır. Operasyon sonrasında implantın kemikle kaynaşması (osseointegrasyon) için ortalama 2 ile 6 ay arasında bir iyileşme süresi beklenecektir. Bu süre sonunda implant üzerine protez (kron, köprü veya hareketli protez) yapılacaktır.\n\n2. İMPLANT CERRAHİSİ RİSKLERİ VE KOMPLİKASYONLARI:\nBu cerrahi işlemin genel anestezi ve cerrahi risklerinin yanı sıra kendine özgü riskleri de vardır:\n- Operasyon sırasında ve sonrasında kanama, yüzde ve diş etlerinde şişlik (ödem), morarma (ekimoz) görülebilir.\n- Alt çeneye yapılacak müdahalelerde, mandibular sinirin (nervus alveolaris inferior) etkilenmesine bağlı olarak alt dudakta, çenede veya dilde geçici ya da çok nadir durumlarda kalıcı uyuşukluk (parestezi/anestezi) gelişebilir.\n- Üst çene arka bölgelerde implant yerleştirilirken sinüs boşluğuna girilebilir (sinüs perforasyonu) veya implant sinüs içine kaçabilir. Bu durum ek cerrahi müdahaleler gerektirebilir.\n- Ameliyat sırasında komşu dişlerin kökleri zarar görebilir.\n- İyileşme döneminde veya sonrasında enfeksiyon gelişebilir. Kötü ağız hijyeni, aşırı sigara kullanımı veya sistemik hastalıklar (diyabet vb.) enfeksiyon ve implant kaybı (kemiğin implantı reddetmesi) riskini ciddi oranda artırır.\n\n3. EK CERRAHİ İŞLEMLER (GREFTLEME / SİNÜS LİFTİNG):\nÇene kemiğinin miktar veya kalite olarak yetersiz olduğu durumlarda, implant yerleştirebilmek için kemik tozu (greft) veya membran kullanımı ile kemik artırma işlemleri gerekebilir. Bu işlemler önceden planlanabileceği gibi, operasyon esnasında da hekim tarafından gerekli görülebilir. Bu cerrahi ek işlemler ayrıca faturalandırılabilir.\n\n4. BAŞARI GARANTİSİ VE HASTANIN SORUMLULUKLARI:\nTıbbi prosedürlerde olduğu gibi implant cerrahisinde de %100 başarı garantisi verilmesi tıbben ve hukuken mümkün değildir. İmplantın ömrü; genel sağlık durumum, ağız bakımım, sigara tüketimim ve düzenli hekim kontrollerime bağlıdır. Hekimimin verdiği ilaçları düzenli kullanacağımı ve tavsiyelerine harfiyen uyacağımı kabul ediyorum.\n\n5. HASTA ONAYI:\nBana uygulanacak implant cerrahisi hakkında tüm detaylar anlatıldı. Olası riskleri, alternatif tedavileri (hareketli protezler, köprüler) ve implantın başarısız olma ihtimalini anladım. Ek bir cerrahi işlem gerektiğinde kliniğe ve hekimime tam yetki veriyorum. Kendi rızamla bu cerrahi operasyonun yapılmasına ONAY VERİYORUM.`
+          },
+          { 
+            id: 4, type: "onam",
+            title: "Ortodontik Tedavi Sözleşmesi", 
+            icon: "fa-teeth-open", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-900/20", 
+            content: `ORTODONTİ TEDAVİSİ BİLGİLENDİRME VE ONAM FORMU\n\n1. TEDAVİ SÜRECİ VE SÜRESİ:\nTedavinin tahmini süresi belirtilmiş olup, hastanın biyolojik kemik yanıtlarına, büyüme gelişim potansiyeline ve randevu devamsızlıklarına bağlı olarak bu sürenin uzayabileceğini veya kısalabileceğini kabul ediyorum.\n\n2. HASTA UYUMU VE SORUMLULUKLAR:\n- Tedavi süresince asitli, yapışkan ve sert yiyeceklerin (sakız, lokum, fındık, asitli içecekler vb.) tüketilmemesi gerektiği anlatılmıştır.\n- Braketlerin veya apareylerin hastanın kullanım hatası sonucu kırılması/kopması durumunda ek malzeme ve işçilik ücreti yansıtılabileceği tarafıma bildirilmiştir.\n- Ağız hijyeninin yetersiz olduğu durumlarda dişlerde çürükler veya kalıcı beyaz lekeler (dekalsifikasyon) oluşabileceği bilgisi verilmiştir.\n\n3. KONTROL RANDEVULARI:\nRandevularıma zamanında geleceğimi, gelemeyeceğim durumlarda kliniğe önceden bilgi vereceğimi taahhüt ederim. Devamsızlık durumunda tedavinin uzayacağını kabul ediyorum. Yukarıdaki şartları okudum ve ortodontik tedaviye başlanmasına onay veriyorum.`
+          },
+          { 
+            id: 5, type: "postop",
+            title: "DİŞ ÇEKİMİ VE CERRAHİ SONRASI ÖNERİLER", 
+            icon: "fa-notes-medical", color: "text-red-600", bg: "bg-red-50 dark:bg-red-900/20", 
+            content: `
+              <p class="text-[14px] print:text-[12px] mb-4">Sayın Hastamız, işleminiz başarıyla tamamlanmıştır. Cerrahi işlem sonrasında iyileşmenizin hızlı ve sorunsuz olması için aşağıdaki kurallara <b>DİKKAT</b> etmeniz büyük önem taşımaktadır:</p>
+              <ul class="list-disc pl-6 space-y-4 text-[14px] print:text-[12px] text-slate-800">
+                <li>İşlem bölgesine konulan pamuğu (tamponu) <b class="font-black text-black text-[15px] print:text-[13px]">30-45 dakika boyunca sıkıca ısırın.</b> Süre dolduğunda tükürerek atın. Kanama durduysa yerine <b>YENİ PAMUK KOYMAYIN.</b></li>
+                <li>İlk 24 saat boyunca <b class="font-black text-black text-[15px] print:text-[13px]">KESİNLİKLE TÜKÜRMEYİN, ağzınızı çalkalamayın ve yara yerini emmeyin.</b> Tükürüğünüzü mutlaka yutun. Aksi takdirde kan pıhtısı kopar ve yara yerinde günlerce sürecek çok şiddetli ağrılar başlar.</li>
+                <li>Uyuşukluğunuz tamamen geçene kadar (yaklaşık 2-3 saat) <b class="font-black text-black text-[15px] print:text-[13px]">HİÇBİR ŞEY YEMEYİN VE İÇMEYİN.</b> Farkında olmadan dudağınızı, dilinizi veya yanağınızı ısırıp parçalayabilirsiniz.</li>
+                <li>İlk 24 saat sıcak, acı, asitli ve taneli (pirinç, susam vb.) yiyeceklerden uzak durun. Ilık, yumuşak ve püre tarzı gıdalar tüketin. Vakum etkisi yaratacağı için <b class="font-black text-black text-[15px] print:text-[13px]">KESİNLİKLE PİPET KULLANMAYIN.</b></li>
+                <li>İşlemden sonraki en az 48 saat boyunca <b class="font-black text-black text-[15px] print:text-[13px]">ASLA SİGARA VE ALKOL İÇMEYİN.</b> Sigara dumanı yaranın iyileşmesini tamamen durdurur ve iltihaba yol açar.</li>
+                <li>Çekim yapılan gün o bölgeye fırça değdirmeyin, ancak diğer dişlerinizi normal şekilde fırçalayın.</li>
+              </ul>
+              <div class="mt-6 font-bold text-center italic text-slate-600">Sağlıklı günler dileriz.</div>
+            `
+          },
+          { 
+            id: 6, type: "postop",
+            title: "İMPLANT OPERASYONU SONRASI ÖNERİLER", 
+            icon: "fa-notes-medical", color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", 
+            content: `
+              <p class="text-[14px] print:text-[12px] mb-4">Sayın Hastamız, implant operasyonunuz başarıyla tamamlanmıştır. İmplantın çene kemiğinize sorunsuz kaynaması için aşağıdaki kurallara <b>TİTİZLİKLE UYMANIZ</b> gerekmektedir:</p>
+              <ul class="list-disc pl-6 space-y-4 text-[14px] print:text-[12px] text-slate-800">
+                <li>Yüzünüzde şişlik ve morarma olmaması için ilk 24 saat boyunca operasyon bölgesine dışarıdan <b class="font-black text-black text-[15px] print:text-[13px]">MUTLAKA BUZ KOMPRESİ UYGULAYIN</b> (10 dakika yüzünüzde tutup, 10 dakika dinlendirerek). Buzu direkt cilde değdirmeyin.</li>
+                <li>Reçete edilen antibiyotik, gargara ve ağrı kesicileri <b class="font-black text-black text-[15px] print:text-[13px]">SAATİNDE VE EKSİKSİZ KULLANIN.</b> Ağrınız olmasa bile antibiyotiği kutusu bitene kadar asla yarım bırakmayın.</li>
+                <li>İyileşme süreci boyunca çiğneme işlemini <b class="font-black text-black text-[15px] print:text-[13px]">KESİNLİKLE DİĞER TARAFLA YAPIN.</b> İmplant bölgesine mekanik hiçbir baskı gelmemelidir.</li>
+                <li>İmplantın kemiğe tutunabilmesi için dikişler alınana kadar <b class="font-black text-black text-[15px] print:text-[13px]">KESİNLİKLE SİGARA İÇMEYİN.</b> Sigara, implantın vücut tarafından reddedilip düşmesinin (başarısızlığın) en büyük sebebidir.</li>
+                <li>Dikişli bölgeye dilinizle, parmağınızla veya diş fırçasıyla <b class="font-black text-black text-[15px] print:text-[13px]">ASLA DOKUNMAYIN.</b> Kemiğin üzerinin kapalı kalması çok önemlidir.</li>
+                <li>Aksi söylenmedikçe dikişlerinizin alınması ve kontrol için <b class="font-black text-black text-[15px] print:text-[13px]">7 İLA 10 GÜN SONRA MUTLAKA KLİNİĞİMİZE GELİN.</b></li>
+              </ul>
+              <div class="mt-6 font-bold text-center italic text-slate-600">Sağlıklı günler dileriz.</div>
+            `
+          },
+          { 
+            id: 7, type: "postop",
+            title: "KANAL TEDAVİSİ SONRASI ÖNERİLER", 
+            icon: "fa-notes-medical", color: "text-rose-600", bg: "bg-rose-50 dark:bg-rose-900/20", 
+            content: `
+              <p class="text-[14px] print:text-[12px] mb-4">Sayın Hastamız, kanal tedavisi seansınız tamamlanmıştır. Dişinizin iyileşme sürecinde sorun yaşamamak için aşağıdaki uyarıları dikkate alın:</p>
+              <ul class="list-disc pl-6 space-y-4 text-[14px] print:text-[12px] text-slate-800">
+                <li>Uyuşukluğunuz tamamen geçene kadar <b class="font-black text-black text-[15px] print:text-[13px]">HİÇBİR ŞEY YEMEYİN VE İÇMEYİN.</b> Çiğneme sırasında hissiz olan dokuyu ısırarak ciddi şekilde yaralayabilirsiniz.</li>
+                <li>Tedavi sonrası ilk 1 hafta boyunca dişte, özellikle üzerine basıldığında (çiğneme esnasında) <b class="font-black text-black text-[15px] print:text-[13px]">AĞRI VEYA HASSASİYET OLMASI SON DERECE NORMALDİR.</b> Kök ucundaki dokular iyileşmektedir, endişe etmeyin ve hekiminizin önerdiği ilacı kullanın.</li>
+                <li>Dişinize kalıcı dolgusu veya kaplaması yapılana kadar, o bölgeyle <b class="font-black text-black text-[15px] print:text-[13px]">SERT VE YAPIŞKAN ŞEYLER ÇİĞNEMEKTEN KESİNLİKLE KAÇININ.</b> Kanal tedavili diş cansızlaştığı için kırılgandır, dişiniz kırılırsa çekilmesi gerekebilir.</li>
+                <li>Geçici dolgu konulduysa üstünden hafifçe aşınması normaldir. Ancak <b class="font-black text-black text-[15px] print:text-[13px]">DOLGU TAMAMEN DÜŞERSE</b> kanalların enfekte olmaması için vakit kaybetmeden bizi arayın.</li>
+                <li>Ağrı kesiciye rağmen ağrı dayanılmaz olursa veya yüzünüzde <b class="font-black text-black text-[15px] print:text-[13px]">GÖZLE GÖRÜLÜR BİR ŞİŞLİK</b> oluşursa hemen kliniğimize ulaşın.</li>
+              </ul>
+              <div class="mt-6 font-bold text-center italic text-slate-600">Sağlıklı günler dileriz.</div>
+            `
+          },
+          { 
+            id: 8, type: "postop",
+            title: "DOLGU (RESTORASYON) SONRASI ÖNERİLER", 
+            icon: "fa-notes-medical", color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20", 
+            content: `
+              <p class="text-[14px] print:text-[12px] mb-4">Sayın Hastamız, dolgu işleminiz tamamlanmıştır. Dişinizin sağlığı için aşağıdaki konulara dikkat etmenizi rica ederiz:</p>
+              <ul class="list-disc pl-6 space-y-4 text-[14px] print:text-[12px] text-slate-800">
+                <li>Anestezi (uyuşukluk) yapıldıysa, hissizlik tamamen geçene kadar <b class="font-black text-black text-[15px] print:text-[13px]">KESİNLİKLE YEMEK YEMEYİN.</b> Dudağınızı veya dilinizi fark etmeden ısırabilirsiniz.</li>
+                <li>Derin çürüklerin temizlenmesi sebebiyle ilk birkaç gün sıcak ve soğuğa karşı <b class="font-black text-black text-[15px] print:text-[13px]">HAFİF BİR HASSASİYET HİSSETMENİZ NORMALDİR.</b></li>
+                <li>Uyuşukluk geçtikten sonra dişlerinizi kapatırken yeni yapılan dolguda <b class="font-black text-black text-[15px] print:text-[13px]">YÜKSEKLİK VEYA ERKEN TEMAS HİSSEDERSENİZ</b> mutlaka kliniğimize gelin. Yüksek dolgu zamanla ağrı yapar ve kırılabilir. Törpülenmesi 1 dakikalık acısız bir işlemdir.</li>
+                <li>Estetik (ışınlı kompozit) dolgular klinikte anında sertleşir, klinikten çıkınca yemek yiyebilirsiniz. Ancak ilk günlerde <b class="font-black text-black text-[15px] print:text-[13px]">AŞIRI SERT GIDALARI (fındık, fıstık, buz vb.)</b> doğrudan dolgunuzla kırmamaya özen gösterin.</li>
+                <li>Dişlerinizi günde 2 kez fırçalamayı ve arayüz ipi kullanmayı ihmal etmeyin.</li>
+              </ul>
+              <div class="mt-6 font-bold text-center italic text-slate-600">Sağlıklı günler dileriz.</div>
+            `
+          }
+        ];
 
-Bu belge, 1219 sayılı Tababet ve Şuabatı San’atlarının Tarzı İcrasına Dair Kanun ve Hasta Hakları Yönetmeliği gereğince, uygulanacak tıbbi müdahale, alternatifleri, riskleri ve müdahale edilmemesi durumunda oluşabilecek sonuçlar hakkında hastayı bilgilendirmek ve rızasını almak amacıyla hazırlanmıştır.
-
-1. HASTALIĞIN TANIMI VE PLANLANAN TEDAVİ:
-Klinik hekimleri tarafından yapılan klinik ve radyolojik muayeneler sonucunda, ağız ve diş sağlığım ile ilgili mevcut durumum tarafıma anlaşılır bir dilde açıklanmıştır. Uygulanması planlanan tedavinin (dolgu, kanal tedavisi, diş çekimi, protez, cerrahi işlem vb.) aşamaları, süresi ve kullanılacak materyaller hakkında detaylı bilgi verilmiştir.
-
-2. ALTERNATİF TEDAVİ SEÇENEKLERİ:
-Planlanan tedaviye alternatif olarak uygulanabilecek diğer tedavi yöntemleri, bu yöntemlerin avantaj ve dezavantajları ile maliyetleri tarafıma anlatılmıştır. Mevcut koşullarda en uygun seçeneğin hekimim tarafından önerilen tedavi olduğuna karar verdim.
-
-3. TEDAVİNİN RİSKLERİ VE OLASI KOMPLİKASYONLAR:
-Her tıbbi müdahalede olduğu gibi, diş hekimliği uygulamalarında da bazı riskler bulunmaktadır. Tarafıma anlatılan ve anladığım başlıca riskler şunlardır:
-- Lokal anesteziye bağlı alerjik reaksiyonlar, geçici veya kalıcı sinir uyuşuklukları (parestezi).
-- Tedavi sırasında veya sonrasında kanama, şişlik (ödem), ağrı ve enfeksiyon gelişimi.
-- Diş çekimi veya cerrahi işlemler sırasında komşu dişlerin, restorasyonların veya çevre dokuların zarar görmesi.
-- Kanal tedavisi veya diş çekimi sırasında kök kırılması, kanal aleti kırılması veya sinüs boşluğuna açılma.
-- Çene ekleminde (TMJ) hassasiyet, ağrı veya geçici ağız açmada kısıtlılık (trismus).
-
-4. TEDAVİNİN REDDEDİLMESİ DURUMUNDA KARŞILAŞILABİLECEK SONUÇLAR:
-Önerilen tedaviyi kabul etmemem durumunda; mevcut ağrı ve enfeksiyonun şiddetlenebileceği, dişin tamamen kaybedilebileceği, komşu dişlerin ve çevre dokuların zarar görebileceği, kist veya tümör gibi daha ciddi genel sağlık sorunlarının ortaya çıkabileceği konusunda uyarıldım.
-
-5. HASTANIN BEYANI VE RIZASI:
-Yukarıda yer alan maddeleri tamamen okudum ve anladım. Klinik hekimleri tarafından bana durumumla ilgili yeterli zaman ayrıldı ve sorduğum tüm sorulara tatmin edici cevaplar aldım. Uygulanacak tedavinin başarısı için tıp biliminin doğası gereği kesin bir garanti verilemeyeceğini biliyorum. Beklenmeyen durumlarda, hekimimin sağlığım için gerekli göreceği ek tıbbi müdahaleleri yapmasına da izin veriyorum.
-
-Kendi özgür irademle, hiçbir baskı altında kalmadan, planlanan tıbbi/cerrahi müdahalenin ve gerekli lokal anestezi işlemlerinin yapılmasına ONAY VERİYORUM.
-
-
-HASTA / KANUNİ TEMSİLCİSİ (18 Yaşından Küçükler İçin)
-Adı Soyadı: ....................................................
-T.C. Kimlik No: ..............................................
-Tarih: ...../...../202...
-İmza: .....................................................`
-          },
-          { 
-            id: 2, 
-            title: "KVKK Aydınlatma ve Açık Rıza Metni", 
-            icon: "fa-shield-halved", 
-            color: "text-indigo-500", 
-            bg: "bg-indigo-50 dark:bg-indigo-900/20", 
-            content: `6698 SAYILI KİŞİSEL VERİLERİN KORUNMASI KANUNU (KVKK) KAPSAMINDA 
-HASTA AYDINLATMA VE AÇIK RIZA METNİ
-
-Sayın Hastamız / Hasta Yakınımız,
-Bu aydınlatma metni, veri sorumlusu sıfatıyla kliniğimiz tarafından, 6698 sayılı Kişisel Verilerin Korunması Kanunu'nun (KVKK) 10. maddesi ve Aydınlatma Yükümlülüğünün Yerine Getirilmesinde Uyulacak Usul ve Esaslar Hakkında Tebliğ uyarınca hazırlanmıştır.
-
-1. İŞLENEN KİŞİSEL VERİLERİNİZ VE İŞLENME AMAÇLARI:
-Kliniğimize başvurmanız dolayısıyla elde edilen;
-- Kimlik Verileriniz (Ad, soyad, T.C. kimlik numarası, pasaport numarası, doğum yeri ve tarihi, cinsiyet),
-- İletişim Verileriniz (Adres, telefon numarası, e-posta adresi),
-- Sağlık Verileriniz (Röntgen görüntüleri, laboratuvar sonuçları, test sonuçları, muayene verileri, randevu bilgileri, reçete bilgileri, daha önce geçirilmiş hastalıklar, kronik hastalıklar, alerjiler ve diğer tüm tıbbi kayıtlar),
-- Finansal Verileriniz (Fatura bilgileri, ödeme ve kredi kartı bilgileri)
-
-Yukarıda belirtilen kişisel ve özel nitelikli kişisel verileriniz; tıbbi teşhis, tedavi ve bakım hizmetlerinin yürütülmesi, randevu planlamasının yapılması, yasal yükümlülüklerin yerine getirilmesi (Sağlık Bakanlığı, İTS, SGK vb. bildirimler) ve sağlık hizmetlerinin finansmanının sağlanması amaçlarıyla işlenmektedir.
-
-2. KİŞİSEL VERİLERİN AKTARILMASI:
-Kişisel verileriniz, KVKK'nın 8. ve 9. maddelerinde belirtilen şartlar dahilinde; ilgili mevzuat hükümlerinin izin verdiği kurum ve kuruluşlara (Sağlık Bakanlığı, İl Sağlık Müdürlükleri, SGK, Emniyet Genel Müdürlüğü ve adli makamlar), protetik ve ortodontik laboratuvarlara, yasal savunma hakkımızı kullanabilmek adına hukuki danışmanlarımıza aktarılabilecektir. Verileriniz kesinlikle ticari amaçla 3. şahıslara satılmaz veya devredilmez.
-
-3. İLGİLİ KİŞİNİN (HASTANIN) HAKLARI:
-KVKK'nın 11. maddesi uyarınca kliniğimize başvurarak;
-- Kişisel verilerinizin işlenip işlenmediğini öğrenme,
-- İşlenmişse buna ilişkin bilgi talep etme,
-- İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,
-- Eksik veya yanlış işlenmişse düzeltilmesini isteme,
-- Kanunda öngörülen şartlar çerçevesinde silinmesini veya yok edilmesini talep etme haklarına sahipsiniz.
-
-4. HASTA BEYANI VE AÇIK RIZA:
-Yukarıda yer alan aydınlatma metnini tamamen okudum, anladım. Kişisel ve sağlık verilerimin, yukarıda belirtilen amaçlar ve sınırlar çerçevesinde işlenmesine, kaydedilmesine, muhafaza edilmesine ve ilgili yasal mercilere/laboratuvarlara aktarılmasına özgür irademle AÇIK RIZA gösteriyorum.
-
-HASTA / KANUNİ TEMSİLCİSİ
-Adı Soyadı: ....................................................
-Tarih: ...../...../202...
-İmza: .....................................................`
-          },
-          { 
-            id: 3, 
-            title: "TDB İmplant Cerrahi Onam Formu", 
-            icon: "fa-tooth", 
-            color: "text-emerald-500", 
-            bg: "bg-emerald-50 dark:bg-emerald-900/20", 
-            content: `İMPLANT CERRAHİSİ BİLGİLENDİRME VE AYDINLATILMIŞ ONAM FORMU (TDB UYUMLU)
-
-Bu belge, çene kemiğine yerleştirilecek olan dental implant (yapay diş kökü) operasyonu ve sonrasındaki protez işlemleri için hazırlanmıştır. Lütfen dikkatlice okuyunuz.
-
-1. İŞLEMİN TANIMI:
-Eksik olan diş veya dişlerinizin telafisi için, lokal anestezi altında çene kemiğinize titanyum veya titanyum alaşımlı dental implantların yerleştirilmesi planlanmaktadır. Operasyon sonrasında implantın kemikle kaynaşması (osseointegrasyon) için ortalama 2 ile 6 ay arasında bir iyileşme süresi beklenecektir. Bu süre sonunda implant üzerine protez (kron, köprü veya hareketli protez) yapılacaktır.
-
-2. İMPLANT CERRAHİSİ RİSKLERİ VE KOMPLİKASYONLARI:
-Bu cerrahi işlemin genel anestezi ve cerrahi risklerinin yanı sıra kendine özgü riskleri de vardır:
-- Operasyon sırasında ve sonrasında kanama, yüzde ve diş etlerinde şişlik (ödem), morarma (ekimoz) görülebilir.
-- Alt çeneye yapılacak müdahalelerde, mandibular sinirin (nervus alveolaris inferior) etkilenmesine bağlı olarak alt dudakta, çenede veya dilde geçici ya da çok nadir durumlarda kalıcı uyuşukluk (parestezi/anestezi) gelişebilir.
-- Üst çene arka bölgelerde implant yerleştirilirken sinüs boşluğuna girilebilir (sinüs perforasyonu) veya implant sinüs içine kaçabilir. Bu durum ek cerrahi müdahaleler gerektirebilir.
-- Ameliyat sırasında komşu dişlerin kökleri zarar görebilir.
-- İyileşme döneminde veya sonrasında enfeksiyon gelişebilir. Kötü ağız hijyeni, aşırı sigara kullanımı veya sistemik hastalıklar (diyabet vb.) enfeksiyon ve implant kaybı (kemiğin implantı reddetmesi) riskini ciddi oranda artırır.
-
-3. EK CERRAHİ İŞLEMLER (GREFTLEME / SİNÜS LİFTİNG):
-Çene kemiğinin miktar veya kalite olarak yetersiz olduğu durumlarda, implant yerleştirebilmek için kemik tozu (greft) veya membran kullanımı ile kemik artırma işlemleri gerekebilir. Bu işlemler önceden planlanabileceği gibi, operasyon esnasında da hekim tarafından gerekli görülebilir. Bu cerrahi ek işlemler ayrıca faturalandırılabilir.
-
-4. BAŞARI GARANTİSİ VE HASTANIN SORUMLULUKLARI:
-Tıbbi prosedürlerde olduğu gibi implant cerrahisinde de %100 başarı garantisi verilmesi tıbben ve hukuken mümkün değildir. İmplantın ömrü; genel sağlık durumum, ağız bakımım, sigara tüketimim ve düzenli hekim kontrollerime bağlıdır. Hekimimin verdiği ilaçları düzenli kullanacağımı ve tavsiyelerine harfiyen uyacağımı kabul ediyorum.
-
-5. HASTA ONAYI:
-Bana uygulanacak implant cerrahisi hakkında tüm detaylar anlatıldı. Olası riskleri, alternatif tedavileri (hareketli protezler, köprüler) ve implantın başarısız olma ihtimalini anladım. Ek bir cerrahi işlem gerektiğinde kliniğe ve hekimime tam yetki veriyorum. Kendi rızamla bu cerrahi operasyonun yapılmasına ONAY VERİYORUM.
-
-HASTA / KANUNİ TEMSİLCİSİ
-Adı Soyadı: ....................................................
-Tarih: ...../...../202...
-İmza: ....................................................`
-          },
-          { 
-            id: 4, 
-            title: "Ortodontik Tedavi Sözleşmesi", 
-            icon: "fa-teeth-open", 
-            color: "text-amber-500", 
-            bg: "bg-amber-50 dark:bg-amber-900/20", 
-            content: `ORTODONTİ TEDAVİSİ BİLGİLENDİRME VE ONAM FORMU
-
-1. TEDAVİ SÜRECİ VE SÜRESİ:
-Tedavinin tahmini süresi belirtilmiş olup, hastanın biyolojik kemik yanıtlarına, büyüme gelişim potansiyeline ve randevu devamsızlıklarına bağlı olarak bu sürenin uzayabileceğini veya kısalabileceğini kabul ediyorum.
-
-2. HASTA UYUMU VE SORUMLULUKLAR:
-- Tedavi süresince asitli, yapışkan ve sert yiyeceklerin (sakız, lokum, fındık, asitli içecekler vb.) tüketilmemesi gerektiği anlatılmıştır.
-- Braketlerin veya apareylerin hastanın kullanım hatası sonucu kırılması/kopması durumunda ek malzeme ve işçilik ücreti yansıtılabileceği tarafıma bildirilmiştir.
-- Ağız hijyeninin yetersiz olduğu durumlarda dişlerde çürükler veya kalıcı beyaz lekeler (dekalsifikasyon) oluşabileceği bilgisi verilmiştir.
-
-3. KONTROL RANDEVULARI:
-Randevularıma zamanında geleceğimi, gelemeyeceğim durumlarda kliniğe önceden bilgi vereceğimi taahhüt ederim. Devamsızlık durumunda tedavinin uzayacağını kabul ediyorum. Yukarıdaki şartları okudum ve ortodontik tedaviye başlanmasına onay veriyorum.
-
-HASTA / VELİSİ
-Adı Soyadı: ....................................................
-Tarih: ...../...../202...
-İmza: ....................................................`
-          }
-        ];
-
-        // --- TAKVİM ARALIĞINI DİNAMİK YAPAN MOTOR ---
+        // --- TAKVİM ARALIĞINI DİNAMİK YAPAN MOTOR ---
         const TIME_SLOTS = useMemo(() => {
      const interval = parseInt(settings?.randevu?.slotAraligi || "15", 10);
      const startStr = settings?.calisma?.baslama || "09:00";
@@ -2395,63 +2349,141 @@ Tarih: ...../...../202...
         }, [settings?.gorunum?.tema]);
 
         // 2. KLİNİK RENGİ VE EKRAN YOĞUNLUĞU MOTORU (Sihirli Enjeksiyon)
-        useEffect(() => {
-           if (!settings?.gorunum) return;
+        useEffect(() => {
+           // Anlık önizleme için settingsDraft'ı da hesaba katıyoruz (Kaydetmeden önce canlı gösterir)
+           const aktifAyarlar = settingsDraft || settings;
+           if (!aktifAyarlar?.gorunum) return;
 
-           // A. Arayüz Yoğunluğu (Root Font Size ile tüm sistemi orantılı büyütüp küçültür)
-           if (settings.gorunum.yogunluk === 'kompakt') {
-              document.documentElement.style.fontSize = "14px";
-           } else if (settings.gorunum.yogunluk === 'genis') {
-              document.documentElement.style.fontSize = "17px";
-           } else {
-              document.documentElement.style.fontSize = "16px";
-           }
+           // A. Arayüz Yoğunluğu (Root Font Size ile tüm sistemi orantılı büyütüp küçültür)
+           if (aktifAyarlar.gorunum.yogunluk === 'kompakt') {
+              document.documentElement.style.fontSize = "14px";
+           } else if (aktifAyarlar.gorunum.yogunluk === 'genis') {
+              document.documentElement.style.fontSize = "17px";
+           } else {
+              document.documentElement.style.fontSize = "16px";
+           }
 
-           // B. Klinik Marka Rengi Sihirbazı (İndigo sınıflarını dinamik olarak ezer)
-           const colorMap = {
-             emerald: { 50: '#ecfdf5', 100: '#d1fae5', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 900: '#064e3b' },
-             rose: { 50: '#fff1f2', 100: '#ffe4e6', 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 900: '#881337' },
-             sky: { 50: '#f0f9ff', 100: '#e0f2fe', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' },
-             slate: { 50: '#f8fafc', 100: '#f1f5f9', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 900: '#0f172a' }
-           };
-           
-           const currentR = settings.gorunum.renk;
-           const styleId = "dynamic-theme-override";
-           let styleEl = document.getElementById(styleId);
-           
-           if (!currentR || currentR === 'indigo' || !colorMap[currentR]) {
-              if (styleEl) styleEl.remove();
-              return;
-           }
+           // B. Klinik Marka Rengi Sihirbazı (İndigo sınıflarını dinamik olarak ezer)
+           const colorMap = {
+             emerald: { 50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b' },
+             rose: { 50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3', 300: '#fda4af', 400: '#fb7185', 500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337' },
+             sky: { 50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc', 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 800: '#075985', 900: '#0c4a6e' },
+             slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' }
+           };
+           
+           const currentR = aktifAyarlar.gorunum.renk;
+           const styleId = "dynamic-theme-override";
+           let styleEl = document.getElementById(styleId);
+           
+           if (!currentR || currentR === 'indigo' || !colorMap[currentR]) {
+              if (styleEl) styleEl.remove();
+              return;
+           }
 
-           if (!styleEl) {
-              styleEl = document.createElement("style");
-              styleEl.id = styleId;
-              document.head.appendChild(styleEl);
-           }
-           
-           const c = colorMap[currentR];
-           // Sistemin damarlarına yeni rengi enjekte et:
-           styleEl.innerHTML = `
-             .bg-indigo-50 { background-color: ${c[50]} !important; }
-             .bg-indigo-100 { background-color: ${c[100]} !important; }
-             .bg-indigo-500 { background-color: ${c[500]} !important; }
-             .bg-indigo-600 { background-color: ${c[600]} !important; }
-             .hover\\:bg-indigo-700:hover { background-color: ${c[700]} !important; }
-             .text-indigo-400 { color: ${c[400]} !important; }
-             .text-indigo-500 { color: ${c[500]} !important; }
-             .text-indigo-600 { color: ${c[600]} !important; }
-             .text-indigo-700 { color: ${c[700]} !important; }
-             .border-indigo-200 { border-color: ${c[100]} !important; }
-             .border-indigo-500 { border-color: ${c[500]} !important; }
-             .border-indigo-600 { border-color: ${c[600]} !important; }
-             .focus\\:border-indigo-500:focus { border-color: ${c[500]} !important; }
-             .ring-indigo-500 { --tw-ring-color: ${c[500]} !important; }
-             .dark\\:bg-indigo-900\\/20 { background-color: ${c[900]}33 !important; }
-             .dark\\:bg-indigo-900\\/30 { background-color: ${c[900]}4D !important; }
-             .dark\\:text-indigo-400 { color: ${c[400]} !important; }
-           `;
-        }, [settings?.gorunum?.renk, settings?.gorunum?.yogunluk]);
+           if (!styleEl) {
+              styleEl = document.createElement("style");
+              styleEl.id = styleId;
+              document.head.appendChild(styleEl);
+           }
+           
+           const c = colorMap[currentR];
+           // Kapsamlı eziş motoru: Sistemin kullandığı tüm indigo varyasyonlarını ezer
+           styleEl.innerHTML = `
+             .bg-indigo-50 { background-color: ${c[50]} !important; }
+             .bg-indigo-100 { background-color: ${c[100]} !important; }
+             .bg-indigo-200 { background-color: ${c[200]} !important; }
+             .bg-indigo-300 { background-color: ${c[300]} !important; }
+             .bg-indigo-400 { background-color: ${c[400]} !important; }
+             .bg-indigo-500 { background-color: ${c[500]} !important; }
+             .bg-indigo-600 { background-color: ${c[600]} !important; }
+             .bg-indigo-700 { background-color: ${c[700]} !important; }
+             .bg-indigo-800 { background-color: ${c[800]} !important; }
+             .bg-indigo-900 { background-color: ${c[900]} !important; }
+             
+             .hover\\:bg-indigo-50:hover { background-color: ${c[50]} !important; }
+             .hover\\:bg-indigo-100:hover { background-color: ${c[100]} !important; }
+             .hover\\:bg-indigo-200:hover { background-color: ${c[200]} !important; }
+             .hover\\:bg-indigo-500:hover { background-color: ${c[500]} !important; }
+             .hover\\:bg-indigo-600:hover { background-color: ${c[600]} !important; }
+             .hover\\:bg-indigo-700:hover { background-color: ${c[700]} !important; }
+             
+             .text-indigo-50 { color: ${c[50]} !important; }
+             .text-indigo-100 { color: ${c[100]} !important; }
+             .text-indigo-200 { color: ${c[200]} !important; }
+             .text-indigo-300 { color: ${c[300]} !important; }
+             .text-indigo-400 { color: ${c[400]} !important; }
+             .text-indigo-500 { color: ${c[500]} !important; }
+             .text-indigo-600 { color: ${c[600]} !important; }
+             .text-indigo-700 { color: ${c[700]} !important; }
+             .text-indigo-800 { color: ${c[800]} !important; }
+             .text-indigo-900 { color: ${c[900]} !important; }
+             
+             .hover\\:text-indigo-400:hover { color: ${c[400]} !important; }
+             .hover\\:text-indigo-500:hover { color: ${c[500]} !important; }
+             .hover\\:text-indigo-600:hover { color: ${c[600]} !important; }
+             .hover\\:text-indigo-700:hover { color: ${c[700]} !important; }
+             .hover\\:text-indigo-800:hover { color: ${c[800]} !important; }
+             
+             .border-indigo-100 { border-color: ${c[100]} !important; }
+             .border-indigo-200 { border-color: ${c[200]} !important; }
+             .border-indigo-300 { border-color: ${c[300]} !important; }
+             .border-indigo-400 { border-color: ${c[400]} !important; }
+             .border-indigo-500 { border-color: ${c[500]} !important; }
+             .border-indigo-600 { border-color: ${c[600]} !important; }
+             .border-indigo-700 { border-color: ${c[700]} !important; }
+             .border-indigo-800 { border-color: ${c[800]} !important; }
+             
+             .hover\\:border-indigo-300:hover { border-color: ${c[300]} !important; }
+             .hover\\:border-indigo-400:hover { border-color: ${c[400]} !important; }
+             .hover\\:border-indigo-500:hover { border-color: ${c[500]} !important; }
+             .hover\\:border-indigo-600:hover { border-color: ${c[600]} !important; }
+             .hover\\:border-indigo-700:hover { border-color: ${c[700]} !important; }
+             
+             .ring-indigo-100 { --tw-ring-color: ${c[100]} !important; }
+             .ring-indigo-500 { --tw-ring-color: ${c[500]} !important; }
+             .focus\\:ring-indigo-500\\/10:focus { --tw-ring-color: ${c[500]}1A !important; }
+             .focus\\:ring-indigo-500\\/20:focus { --tw-ring-color: ${c[500]}33 !important; }
+             .focus\\:border-indigo-500:focus { border-color: ${c[500]} !important; }
+             
+             .from-indigo-500 { --tw-gradient-from: ${c[500]} var(--tw-gradient-from-position) !important; }
+             .from-indigo-600 { --tw-gradient-from: ${c[600]} var(--tw-gradient-from-position) !important; }
+             .to-indigo-600 { --tw-gradient-to: ${c[600]} var(--tw-gradient-to-position) !important; }
+             .to-purple-500 { --tw-gradient-to: ${c[700]} var(--tw-gradient-to-position) !important; }
+             .to-purple-600 { --tw-gradient-to: ${c[800]} var(--tw-gradient-to-position) !important; }
+             .to-purple-700 { --tw-gradient-to: ${c[900]} var(--tw-gradient-to-position) !important; }
+             .hover\\:from-indigo-700:hover { --tw-gradient-from: ${c[700]} var(--tw-gradient-from-position) !important; }
+             .hover\\:to-purple-700:hover { --tw-gradient-to: ${c[900]} var(--tw-gradient-to-position) !important; }
+             
+             .shadow-indigo-500\\/25 { --tw-shadow-color: ${c[500]}40 !important; --tw-shadow: var(--tw-shadow-colored) !important; }
+             .shadow-indigo-500\\/30 { --tw-shadow-color: ${c[500]}4D !important; --tw-shadow: var(--tw-shadow-colored) !important; }
+             .hover\\:shadow-indigo-500\\/50:hover { --tw-shadow-color: ${c[500]}80 !important; --tw-shadow: var(--tw-shadow-colored) !important; }
+             
+             .dark\\:bg-indigo-900\\/10 { background-color: ${c[900]}1A !important; }
+             .dark\\:bg-indigo-900\\/20 { background-color: ${c[900]}33 !important; }
+             .dark\\:bg-indigo-900\\/30 { background-color: ${c[900]}4D !important; }
+             .dark\\:bg-indigo-900\\/40 { background-color: ${c[900]}66 !important; }
+             .dark\\:bg-indigo-900\\/50 { background-color: ${c[900]}80 !important; }
+             
+             .dark\\:hover\\:bg-indigo-900\\/30:hover { background-color: ${c[900]}4D !important; }
+             .dark\\:hover\\:bg-indigo-900\\/50:hover { background-color: ${c[900]}80 !important; }
+             
+             .dark\\:text-indigo-200 { color: ${c[200]} !important; }
+             .dark\\:text-indigo-300 { color: ${c[300]} !important; }
+             .dark\\:text-indigo-400 { color: ${c[400]} !important; }
+             .dark\\:text-indigo-500 { color: ${c[500]} !important; }
+             .dark\\:hover\\:text-indigo-300:hover { color: ${c[300]} !important; }
+             .dark\\:hover\\:text-indigo-400:hover { color: ${c[400]} !important; }
+             
+             .dark\\:border-indigo-500 { border-color: ${c[500]} !important; }
+             .dark\\:border-indigo-600 { border-color: ${c[600]} !important; }
+             .dark\\:border-indigo-700 { border-color: ${c[700]} !important; }
+             .dark\\:border-indigo-800 { border-color: ${c[800]} !important; }
+             .dark\\:border-indigo-800\\/50 { border-color: ${c[800]}80 !important; }
+             .dark\\:hover\\:border-indigo-500:hover { border-color: ${c[500]} !important; }
+             .dark\\:hover\\:border-indigo-600:hover { border-color: ${c[600]} !important; }
+             .dark\\:hover\\:border-indigo-700:hover { border-color: ${c[700]} !important; }
+           `;
+        }, [settings?.gorunum?.renk, settings?.gorunum?.yogunluk, settingsDraft?.gorunum?.renk, settingsDraft?.gorunum?.yogunluk]);
 
         const handleSettingChange = (kategori, key, value) => {
           setSettingsDraft(prev => {
@@ -4607,321 +4639,232 @@ Tarih: ...../...../202...
         }
 
         if (!currentUser)
-          return (
-            <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] flex flex-col items-center justify-center p-2 relative overflow-hidden">
-              {/* YENİ: Modern Arka Plan Ambiyans Işıkları */}
-              <div className="absolute top-[-15%] left-[-10%] w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none"></div>
-              <div className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[120px] pointer-events-none"></div>
+          return (
+            <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
+              {/* HAREKETLİ AURORA ARKA PLAN (Premium Işık Efekti) */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-40 dark:opacity-30 pointer-events-none animate-slow-spin">
+                <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-indigo-400 rounded-full blur-[100px] mix-blend-multiply"></div>
+                <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-400 rounded-full blur-[100px] mix-blend-multiply"></div>
+                <div className="absolute top-1/4 right-1/4 w-[300px] h-[300px] bg-emerald-400 rounded-full blur-[100px] mix-blend-multiply"></div>
+              </div>
 
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] w-full max-w-md p-2 sm:p-6 border border-white/60 dark:border-slate-700/50 animate-pop relative z-10">
-                <div className="text-center mb-2">
-                  <div className="w-14 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl flex items-center justify-center text-lg mx-auto mb-2 shadow-lg shadow-indigo-500/30">
-                    <i className="fa-solid fa-tooth"></i>
-                  </div>
+              {/* BUZLU CAM (GLASSMORPHISM) KART */}
+              <div className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] border border-white/50 dark:border-white/10 w-full max-w-sm p-8 animate-pop relative z-10 flex flex-col items-center">
+                
+                {/* 3D Görünümlü Yüzen İkon */}
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-[0_10px_20px_rgba(99,102,241,0.4)] transform hover:scale-110 hover:-translate-y-1 transition-all duration-300">
+                  <i className="fa-solid fa-tooth"></i>
+                </div>
 
-                  <h1 className="text-base font-black text-slate-800 dark:text-white tracking-tight">
-                    Klinik Sistemi
-                  </h1>
+                <div className="text-center mb-8 w-full">
+                  <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-white dark:to-slate-300 tracking-tight mb-1">
+                    Klinik Sistemi
+                  </h1>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-widest">
+                    {authMode === "login"
+                      ? "GÜVENLİ GİRİŞ"
+                      : authMode === "register"
+                      ? "YENİ HESAP OLUŞTUR"
+                      : "ŞİFRE SIFIRLAMA"}
+                  </p>
+                </div>
 
-                  <p className="text-slate-500 dark:text-slate-400 text-[13px] mt-1 font-semibold">
-                    {authMode === "login"
-                      ? "Güvenli Hekim Giriş Paneli"
-                      : authMode === "register"
-                      ? "Yeni Hekim Hesabı Oluştur"
-                      : "Şifre Sıfırlama Sihirbazı"}
-                  </p>
-                </div>
+                {authError && (
+                  <div className="w-full mb-4 p-3 bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-xl font-bold text-center border border-rose-500/20 flex items-center justify-center gap-2 animate-pop">
+                    <i className="fa-solid fa-triangle-exclamation"></i> {authError}
+                  </div>
+                )}
 
-                {authError && (
-                  <div className="mb-2 p-2.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-[13px] rounded-xl font-bold text-center border border-rose-100 dark:border-rose-800/50 flex items-center justify-center gap-1.5 animate-pop">
-                    <i className="fa-solid fa-triangle-exclamation text-base"></i>{" "}
-                    {authError}
-                  </div>
-                )}
+                {/* GİRİŞ FORMU */}
+                {authMode === "login" && (
+                  <form onSubmit={handleAuthSubmit} className="space-y-4 w-full">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i className="fa-regular fa-user text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={authForm.username}
+                        onChange={(e) => setAuthForm({ ...authForm, username: e.target.value })}
+                        onFocus={() => setShowSavedUsers(true)}
+                        onBlur={() => setTimeout(() => setShowSavedUsers(false), 200)} 
+                        className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400 shadow-sm"
+                        placeholder="Kullanıcı Adınız"
+                        autoComplete="off"
+                      />
+                      
+                      {/* Kayıtlı Kullanıcılar Dropdown */}
+                      {showSavedUsers && (() => {
+                         const filteredUsers = savedUsernames.filter(u => u.toLowerCase().includes(authForm.username.toLowerCase()));
+                         if (filteredUsers.length === 0) return null;
+                         return (
+                          <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 rounded-2xl shadow-xl z-50 max-h-40 overflow-y-auto custom-scrollbar p-1 animate-pop">
+                            {filteredUsers.map((uname, idx) => (
+                              <div key={idx} className="flex justify-between items-center px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-xl cursor-pointer transition-colors group/item"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setAuthForm({ ...authForm, username: uname });
+                                  setShowSavedUsers(false);
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 flex items-center justify-center text-[10px]"><i className="fa-solid fa-user"></i></div>
+                                  <span className="font-bold text-[12px] text-slate-700 dark:text-slate-200 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400">{uname}</span>
+                                </div>
+                                <button onMouseDown={(e) => {
+                                  e.preventDefault(); e.stopPropagation();
+                                  const newSaved = savedUsernames.filter(u => u !== uname);
+                                  setSavedUsernames(newSaved);
+                                  localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
+                                }} className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all opacity-0 group-hover/item:opacity-100">
+                                  <i className="fa-solid fa-xmark text-[11px]"></i>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                         );
+                      })()}
+                    </div>
 
-                {authMode === "login" && (
-                  <form onSubmit={handleAuthSubmit} className="space-y-2">
-                    <div className="relative group">
-                      <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10"></i>
-                      <input
-                        type="text"
-                        required
-                        value={authForm.username}
-                        onChange={(e) => setAuthForm({ ...authForm, username: e.target.value })}
-                        onFocus={() => setShowSavedUsers(true)}
-                        onBlur={() => setShowSavedUsers(false)} 
-                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm relative z-0"
-                        placeholder="Kullanıcı Adınız"
-                        autoComplete="off"
-                      />
-                      
-                      {/* AKILLI VE ZARİF KAYITLI KULLANICILAR MENÜSÜ */}
-                      {showSavedUsers && (() => {
-                         // YENİ: Akıllı Filtre (Klavyeden harf girdikçe listeyi anında daraltır)
-                         const filteredUsers = savedUsernames.filter(u => u.toLowerCase().includes(authForm.username.toLowerCase()));
-                         if (filteredUsers.length === 0) return null;
-                         
-                         return (
-                          <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto custom-scrollbar p-1 animate-pop">
-                            {filteredUsers.map((uname, idx) => (
-                              <div key={idx} className="flex justify-between items-center px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer transition-colors group/item">
-                                <div 
-                                  className="flex-1 flex items-center gap-2"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault(); // Input'tan focus'un çıkmasını engeller
-                                    setAuthForm({ ...authForm, username: uname });
-                                    setShowSavedUsers(false);
-                                  }}
-                                >
-                                  <i className="fa-regular fa-circle-user text-slate-300 dark:text-slate-500 group-hover/item:text-indigo-400 transition-colors"></i>
-                                  <span className="font-bold text-[11px] text-slate-600 dark:text-slate-300 group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400 transition-colors">
-                                    {uname}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const newSaved = savedUsernames.filter(u => u !== uname);
-                                    setSavedUsernames(newSaved);
-                                    localStorage.setItem("klinikSavedUsers", JSON.stringify(newSaved));
-                                  }}
-                                  className="w-6 h-6 flex items-center justify-center rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all opacity-50 group-hover/item:opacity-100"
-                                  title="Bu hesabı listeden sil"
-                                >
-                                  <i className="fa-solid fa-xmark text-[11px]"></i>
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                         );
-                      })()}
-                    </div>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i className="fa-solid fa-lock text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      </div>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={authForm.password}
+                        onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+                        className="w-full pl-11 pr-10 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400 shadow-sm"
+                        placeholder="Şifreniz"
+                      />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-500 transition-colors">
+                        <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                      </button>
+                    </div>
 
-                    <div className="relative group">
-                      <i className="fa-solid fa-lock absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        required
-                        value={authForm.password}
-                        onChange={(e) =>
-                          setAuthForm({ ...authForm, password: e.target.value })
-                        }
-                        className="w-full pl-10 pr-10 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
-                        placeholder="Şifreniz"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-indigo-500 transition-colors"
-                      >
-                        <i
-                          className={`fa-solid ${
-                            showPassword ? "fa-eye-slash" : "fa-eye"
-                          }`}
-                        ></i>
-                      </button>
-                    </div>
+                    <div className="flex justify-end pt-1">
+                      <button type="button" onClick={() => { setAuthMode("forgot"); setAuthError(""); }} className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors opacity-80 hover:opacity-100">
+                        Şifremi Unuttum
+                      </button>
+                    </div>
 
-                    <div className="flex justify-end mt-0.5 mb-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode("forgot");
-                          setAuthError("");
-                        }}
-                        className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-                      >
-                        Şifremi Unuttum?
-                      </button>
-                    </div>
+                    <button type="submit" className="w-full mt-6 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white font-black rounded-2xl shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_10px_20px_-5px_rgba(79,70,229,0.5)] hover:bg-slate-800 dark:hover:bg-indigo-500 hover:-translate-y-1 transition-all flex justify-center items-center gap-2">
+                      Sisteme Giriş Yap <i className="fa-solid fa-arrow-right"></i>
+                    </button>
 
-                    <button
-                      type="submit"
-                      className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-1.5"
-                    >
-                      Sisteme Giriş Yap{" "}
-                      <i className="fa-solid fa-arrow-right"></i>
-                    </button>
+                    <div className="text-center mt-6 pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold mr-1">
+                        Yeni klinik mi açtınız?
+                      </span>
+                      <button type="button" onClick={() => { setAuthMode("register"); setAuthError(""); }} className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">
+                        Hesap Oluştur
+                      </button>
+                    </div>
+                  </form>
+                )}
 
-                    <div className="text-center mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
-                        Sistemde henüz kaydınız yok mu?{" "}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode("register");
-                          setAuthError("");
-                        }}
-                        className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 hover:underline"
-                      >
-                        Yeni Hesap Oluştur
-                      </button>
-                    </div>
-                  </form>
-                )}
+                {/* KAYIT FORMU */}
+                {authMode === "register" && (
+                  <form onSubmit={handleRegisterSubmit} className="space-y-4 w-full">
+                    {/* ... (Eski kayıt formunuzun aynısı kalabilir, class'ları bg-white/50 border-slate-200 rounded-2xl vb. yaparak modernleştirebilirsiniz) */}
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i className="fa-regular fa-id-card text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      </div>
+                      <input
+                        type="text" required value={registerForm.name}
+                        onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                        className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400"
+                        placeholder="Adınız Soyadınız"
+                      />
+                    </div>
 
-                {authMode === "register" && (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-2">
-                    <div className="relative group">
-                      <i className="fa-solid fa-id-card absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                      <input
-                        type="text"
-                        required
-                        value={registerForm.name}
-                        onChange={(e) =>
-                          setRegisterForm({
-                            ...registerForm,
-                            name: e.target.value,
-                          })
-                        }
-                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
-                        placeholder="Adınız Soyadınız"
-                      />
-                    </div>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i className="fa-regular fa-user text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      </div>
+                      <input
+                        type="text" required value={registerForm.username}
+                        onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value.replace(/\s+/g, '').toLowerCase() })}
+                        className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400"
+                        placeholder="Kullanıcı Adı (Boşluksuz)"
+                      />
+                    </div>
 
-                    {/* 1. KULLANICI ADI ALANI VE UYARISI */}
-                    <div>
-                      <div className="relative group">
-                        <i className="fa-solid fa-user absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                        <input
-                          type="text"
-                          required
-                          value={registerForm.username}
-                          onChange={(e) =>
-                            setRegisterForm({
-                              ...registerForm,
-                              username: e.target.value.replace(/\s+/g, '').toLowerCase(),
-                            })
-                          }
-                          className={`w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border-2 rounded-xl outline-none text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm ${
-                            registerForm.username.length >= 3 
-                              ? (checkUsernameAvailability(registerForm.username) 
-                                  ? "border-emerald-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20" 
-                                  : "border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 text-rose-600")
-                              : "border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                          }`}
-                          placeholder="Kullanıcı Adı Belirleyin"
-                        />
-                      </div>
-                      
-                      {/* Uyarı yazısı artık tam olarak kullanıcı adının altında! */}
-                      {registerForm.username.length >= 3 && (
-                        <div className={`text-[10px] font-bold mt-1.5 flex items-center gap-1 animate-fadeIn ${checkUsernameAvailability(registerForm.username) ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                          <i className={`fa-solid ${checkUsernameAvailability(registerForm.username) ? "fa-check-circle" : "fa-circle-xmark"}`}></i>
-                          {checkUsernameAvailability(registerForm.username) ? "Bu kullanıcı adı kullanılabilir." : "Bu kullanıcı adı maalesef alınmış!"}
-                        </div>
-                      )}
-                    </div>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i className="fa-regular fa-envelope text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      </div>
+                      <input
+                        type="email" required value={registerForm.email}
+                        onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                        className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400"
+                        placeholder="E-Posta Adresi"
+                      />
+                    </div>
 
-                    {/* 2. E-POSTA ALANI (Ayrı ve Boyutları Düzeltilmiş Blok) */}
-                    <div className="relative group">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                        <i className="fa-solid fa-envelope text-[13px]"></i>
-                      </span>
-                      <input 
-                        type="email" 
-                        required 
-                        placeholder="E-Posta Adresiniz" 
-                        value={registerForm.email} 
-                        onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} 
-                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:text-white transition-all shadow-sm" 
-                      />
-                    </div>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i className="fa-solid fa-lock text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      </div>
+                      <input
+                        type={showPassword ? "text" : "password"} required value={registerForm.password}
+                        onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                        className="w-full pl-11 pr-10 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400"
+                        placeholder="Şifre Belirle"
+                      />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-500 transition-colors">
+                        <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                      </button>
+                    </div>
 
-                    <div className="relative group">
-                      <i className="fa-solid fa-lock absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        required
-                        value={registerForm.password}
-                        onChange={(e) =>
-                          setRegisterForm({
-                            ...registerForm,
-                            password: e.target.value,
-                          })
-                        }
-                        className="w-full pl-10 pr-10 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
-                        placeholder="Şifre Belirleyin"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-2.5 text-slate-400 hover:text-indigo-500 transition-colors"
-                      >
-                        <i
-                          className={`fa-solid ${
-                            showPassword ? "fa-eye-slash" : "fa-eye"
-                          }`}
-                        ></i>
-                      </button>
-                    </div>
+                    <button type="submit" className="w-full mt-4 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl shadow-[0_10px_20px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_10px_20px_-5px_rgba(16,185,129,0.6)] hover:-translate-y-1 transition-all flex justify-center items-center gap-2">
+                      Kaydı Tamamla <i className="fa-solid fa-check"></i>
+                    </button>
 
-                    <button
-                      type="submit"
-                      className="w-full mt-2 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-1.5"
-                    >
-                      Kaydı Tamamla <i className="fa-solid fa-check"></i>
-                    </button>
+                    <div className="text-center mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
+                      <button type="button" onClick={() => setAuthMode("login")} className="text-xs font-black text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors flex items-center justify-center gap-2 w-full">
+                        <i className="fa-solid fa-arrow-left"></i> Giriş Ekranına Dön
+                      </button>
+                    </div>
+                  </form>
+                )}
 
-                    <div className="text-center mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-                      <button
-                        type="button"
-                        onClick={() => setAuthMode("login")}
-                        className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1.5 w-full"
-                      >
-                        <i className="fa-solid fa-arrow-left"></i> Giriş
-                        Ekranına Dön
-                      </button>
-                    </div>
-                  </form>
-                )}
+                {/* ŞİFRE SIFIRLAMA FORMU */}
+                {authMode === "forgot" && (
+                  <form onSubmit={handleForgotSubmit} className="space-y-4 w-full">
+                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 text-center mb-4">
+                      Sisteme kayıtlı e-posta adresinizi girin. Şifrenizi sıfırlamanız için bir bağlantı göndereceğiz.
+                    </p>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i className="fa-regular fa-envelope text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
+                      </div>
+                      <input
+                        type="email" required value={forgotForm.email || ""}
+                        onChange={(e) => setForgotForm({ email: e.target.value })}
+                        className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400 shadow-sm"
+                        placeholder="Kayıtlı E-Posta Adresi"
+                      />
+                    </div>
 
-                {authMode === "forgot" && (
-                  <form onSubmit={handleForgotSubmit} className="space-y-3">
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 text-center mb-1 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
-                      Hesabınıza kayıtlı e-posta adresini girin. Yeni şifre belirlemeniz için güvenli bir bağlantı göndereceğiz.
-                    </div>
+                    <button type="submit" className="w-full mt-4 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white font-black rounded-2xl shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)] hover:shadow-xl hover:-translate-y-1 transition-all flex justify-center items-center gap-2">
+                      Sıfırlama Bağlantısı Gönder <i className="fa-regular fa-paper-plane"></i>
+                    </button>
 
-                    <div className="relative group">
-                      <i className="fa-solid fa-envelope absolute left-3.5 top-2.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
-                      <input
-                        type="email"
-                        required
-                        value={forgotForm.email || ""}
-                        onChange={(e) =>
-                          setForgotForm({
-                            email: e.target.value,
-                          })
-                        }
-                        className="w-full pl-10 pr-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-[13px] font-bold text-slate-700 dark:text-slate-200 transition-all shadow-sm"
-                        placeholder="Kayıtlı E-Posta Adresiniz"
-                      />
-                    </div>
+                    <div className="text-center mt-4 pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
+                      <button type="button" onClick={() => setAuthMode("login")} className="text-xs font-black text-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors flex items-center justify-center gap-2 w-full">
+                        <i className="fa-solid fa-arrow-left"></i> Vazgeç ve Geri Dön
+                      </button>
+                    </div>
+                  </form>
+                )}
 
-                    <button
-                      type="submit"
-                      className="w-full mt-3 py-2 bg-slate-800 dark:bg-indigo-600 text-white font-black rounded-xl shadow-lg hover:-translate-y-0.5 hover:bg-slate-900 transition-all flex justify-center items-center gap-1.5"
-                    >
-                      Sıfırlama Linki Gönder <i className="fa-regular fa-paper-plane"></i>
-                    </button>
-
-                    <div className="text-center mt-2 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-                      <button
-                        type="button"
-                        onClick={() => { setAuthMode("login"); setAuthError(""); }}
-                        className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center justify-center gap-1.5 w-full"
-                      >
-                        <i className="fa-solid fa-arrow-left"></i> İptal Et ve Geri Dön
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            </div>
-          );
+              </div>
+            </div>
+          );
 
         // Tüm sistemde (Takvim, Hastalar, Finans) görünecek hekimlerin ana listesi
         // getVisibleDoctors() fonksiyonundan yetkilere göre dinamik çekilir.
@@ -6872,7 +6815,7 @@ if (isDayClosed) isPastSlot = true;
                       return (
                         <tr
                           key={p.id}
-                          className="bg-white dark:bg-slate-800/80 shadow-sm border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group rounded-xl overflow-hidden relative"
+                          className="stagger-item bg-white dark:bg-slate-800/80 shadow-sm border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-[0_8px_30px_-12px_rgba(99,102,241,0.4)] hover:-translate-y-1 hover:scale-[1.01] transition-all duration-300 cursor-pointer group rounded-xl overflow-hidden relative z-0 hover:z-10"
                           onClick={() => {
                             setPatientForm(p);
                             setPatientModalTab("info");
@@ -6887,12 +6830,12 @@ if (isDayClosed) isPastSlot = true;
                           </td>
                           <td className="px-2.5 py-1.5 font-black text-slate-800 dark:text-slate-100">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
-                                <i className="fa-regular fa-user"></i>
+                              <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-800/50 group-hover:bg-indigo-500 group-hover:text-white group-hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] group-hover:-translate-y-1 transition-all duration-300">
+                                <i className="fa-regular fa-user group-hover:scale-110 transition-transform duration-300"></i>
                               </div>
 
                               <div>
-                                <div className="flex items-center">
+                                <div className="flex items-center group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">
                                   {p.name}
                                   {p.isEmergency && (
                                     <span className="animate-pulse bg-rose-500 text-white px-1.5 py-0.5 rounded text-[9px] font-black ml-1.5 shadow-sm">
@@ -7005,24 +6948,27 @@ if (isDayClosed) isPastSlot = true;
                     })}
 
                     {patientsList.length === 0 && (
-                      <tr>
-                        <td colSpan="5">
-                          <div className="flex flex-col items-center justify-center py-12 px-3 text-center">
-                            <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2">
-                              <i className="fa-solid fa-hospital-user text-xl text-slate-300 dark:text-slate-600"></i>
-                            </div>
-                            <h4 className="text-slate-500 dark:text-slate-400 text-base font-black mb-0.5">
-                              Kayıt Bulunamadı
-                            </h4>
-                            <p className="text-slate-400 dark:text-slate-500 text-[13px] font-medium max-w-sm">
-                              Arama kriterlerinize uyan bir hasta dosyası
-                              bulunmuyor. Yeni bir hasta kaydı
-                              oluşturabilirsiniz.
-                            </p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
+                      <tr>
+                        <td colSpan="5">
+                          <div className="flex flex-col items-center justify-center py-16 px-3 text-center animate-pop">
+                            <div className="relative mb-4">
+                              <div className="absolute inset-0 bg-indigo-500/20 dark:bg-indigo-500/30 blur-2xl rounded-full animate-pulse"></div>
+                              <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-lg relative z-10">
+                                <i className="fa-solid fa-hospital-user text-2xl text-indigo-400 dark:text-indigo-500"></i>
+                              </div>
+                            </div>
+                            <h4 className="text-slate-700 dark:text-white text-base font-black mb-1">
+                              Kayıt Bulunamadı
+                            </h4>
+                            <p className="text-slate-500 dark:text-slate-400 text-[13px] font-medium max-w-sm leading-relaxed">
+                              Arama kriterlerinize uyan bir hasta dosyası
+                              bulunmuyor. Yeni bir hasta kaydı
+                              oluşturabilirsiniz.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -10014,18 +9960,27 @@ const renderSettings = () => {
             </div> {/* Bu div "İçerik Alanı"nın (flex-1 bg-white...) ana kapanışıdır */}
 
             {/* SABİT KAYDETME ÇUBUĞU (DEĞİŞİKLİK VARSA ÇIKAR) */}
-              {settingsDraft && JSON.stringify(settings) !== JSON.stringify(settingsDraft) && (
-                <div className="fixed bottom-24 sm:bottom-8 left-0 right-0 mx-auto w-[92%] sm:w-max bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-5 py-3.5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-row items-center justify-between gap-4 animate-[modalPop_0.3s_ease-out_forwards] z-[9999] border border-white/10">
-                   <div className="flex items-center gap-2 hidden sm:flex">
-                     <i className="fa-solid fa-circle-exclamation text-amber-400 text-lg"></i>
-                     <span className="font-bold text-[13px]">Kaydedilmemiş değişiklikleriniz var</span>
-                   </div>
-                   <div className="flex gap-2 w-full sm:w-auto">
-                     <button onClick={revertSettings} className="flex-1 sm:flex-none px-4 py-2 rounded-xl text-[12px] font-bold bg-white/10 hover:bg-white/20 dark:bg-black/5 dark:hover:bg-black/10 transition-colors"><i className="fa-solid fa-rotate-left mr-1"></i> İptal</button>
-                     <button onClick={saveSettings} className="flex-1 sm:flex-none px-6 py-2 rounded-xl text-[12px] font-black bg-indigo-500 hover:bg-indigo-400 dark:bg-indigo-600 shadow-lg transition-colors">Kaydet <i className="fa-solid fa-check ml-1"></i></button>
-                   </div>
-                </div>
-              )}
+              {settingsDraft && JSON.stringify(settings) !== JSON.stringify(settingsDraft) && (
+                <div className="fixed bottom-24 sm:bottom-8 left-0 right-0 mx-auto w-[92%] sm:w-max bg-slate-900/95 dark:bg-white/95 backdrop-blur-xl text-white dark:text-slate-900 px-4 sm:px-5 py-3.5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] flex flex-row items-center justify-between gap-4 z-[9999] border border-white/10 dark:border-slate-300/50 animate-pop">
+                   <div className="flex items-center gap-3 hidden sm:flex">
+                     <div className="w-9 h-9 rounded-full bg-amber-500/20 text-amber-400 dark:bg-amber-100 dark:text-amber-500 flex items-center justify-center animate-pulse border border-amber-500/30">
+                       <i className="fa-solid fa-code-compare text-base"></i>
+                     </div>
+                     <div className="flex flex-col">
+                       <span className="font-black text-[13px] tracking-wide">Kaydedilmemiş Değişiklikler</span>
+                       <span className="font-semibold text-[10px] opacity-70">Sistemden çıkmadan önce ayarlarınızı kaydedin.</span>
+                     </div>
+                   </div>
+                   <div className="flex gap-2 w-full sm:w-auto">
+                     <button onClick={revertSettings} className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[12px] font-bold bg-white/10 hover:bg-white/20 dark:bg-slate-100 dark:hover:bg-slate-200 transition-colors flex items-center justify-center gap-1.5">
+                       <i className="fa-solid fa-rotate-left opacity-70"></i> İptal
+                     </button>
+                     <button onClick={saveSettings} className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[12px] font-black bg-indigo-500 hover:bg-indigo-400 text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 flex items-center justify-center gap-1.5">
+                       Kaydet <i className="fa-solid fa-check"></i>
+                     </button>
+                   </div>
+                </div>
+              )}
               {/* MODAL: YENİ TEDAVİ EKLE */}
               {isAddTreatmentModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[200] p-2" onClick={() => setIsAddTreatmentModalOpen(false)}>
@@ -10130,37 +10085,51 @@ const renderSettings = () => {
                       </div>
                     </div>
 
-                    {/* A4 Resmi Evrak Alanı */}
-                    <div className="p-8 sm:p-12 bg-white text-black print:p-0 print:m-0 w-full flex flex-col print:justify-between" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                    {/* A4 Resmi Evrak / Post-Op Alanı */}
+                    <div 
+                      className={`p-8 sm:p-12 bg-white text-black print:p-0 print:m-0 w-full flex flex-col ${documentPreview.type === "onam" ? "print:justify-between" : ""}`} 
+                      style={{ fontFamily: documentPreview.type === "onam" ? "'Times New Roman', Times, serif" : "system-ui, -apple-system, sans-serif" }}
+                    >
                       <div>
-                        {/* Klinik Anteti */}
-                        <div className="border-b-2 border-black pb-4 mb-6 print:pb-2 print:mb-3 text-center">
-                          <h1 className="text-2xl print:text-[18px] font-black uppercase tracking-wider mb-1 flex items-center justify-center gap-2 text-black">
-                            <i className="fa-solid fa-tooth text-gray-400 no-print"></i>
+                        {/* Klinik Anteti (Tip'e göre değişen tasarım) */}
+                        <div className={`border-b-2 pb-4 mb-6 print:pb-2 print:mb-4 ${documentPreview.type === "postop" ? "border-indigo-600 text-left" : "border-black text-center"}`}>
+                          <h1 className={`text-2xl print:text-[18px] font-black uppercase tracking-wider mb-1 flex items-center gap-2 text-black ${documentPreview.type === "postop" ? "justify-start text-indigo-700" : "justify-center"}`}>
+                            <i className={`fa-solid fa-tooth ${documentPreview.type === "postop" ? "text-indigo-500" : "text-gray-400"} no-print`}></i>
                             {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK YÖNETİM SİSTEMİ"}
                           </h1>
-                          <p className="text-xs print:text-[10px] font-bold text-gray-700 uppercase tracking-widest">{documentPreview.title}</p>
+                          <p className={`text-xs print:text-[11px] font-bold uppercase tracking-widest ${documentPreview.type === "postop" ? "text-slate-500" : "text-gray-700"}`}>
+                            {documentPreview.title}
+                          </p>
                         </div>
 
-                        {/* Hukuki Metin İçeriği */}
-                        <div className="whitespace-pre-wrap text-[13px] print:text-[10.5px] leading-relaxed print:leading-normal text-justify text-black">
-                          {documentPreview.content}
-                        </div>
+                        {/* Dinamik Metin İçeriği */}
+                        {documentPreview.type === "onam" ? (
+                          <div className="whitespace-pre-wrap text-[13px] print:text-[10.5px] leading-relaxed print:leading-normal text-justify text-black">
+                            {documentPreview.content}
+                          </div>
+                        ) : (
+                          <div 
+                            className="text-[14px] print:text-[12.5px] leading-relaxed print:leading-relaxed text-slate-800"
+                            dangerouslySetInnerHTML={{ __html: documentPreview.content }}
+                          ></div>
+                        )}
                       </div>
 
-                      {/* Alt İmza Alanı */}
-                      <div className="mt-12 pt-6 print:mt-4 print:pt-3 border-t border-gray-400 grid grid-cols-2 gap-8 text-[11px] print:text-[9px] break-inside-avoid">
-                        <div>
-                          <div className="font-bold uppercase text-gray-700">Klinik / Hekim Kaşe & İmza</div>
-                          <div className="mt-1 font-semibold">{globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
-                          <div className="mt-10 print:mt-6 border-b border-black w-40 print:w-32"></div>
+                      {/* Alt İmza Alanı (SADECE ONAM FORMLARINDA GÖRÜNÜR) */}
+                      {documentPreview.type === "onam" && (
+                        <div className="mt-12 pt-6 print:mt-4 print:pt-3 border-t border-gray-400 grid grid-cols-2 gap-8 text-[11px] print:text-[9px] break-inside-avoid">
+                          <div>
+                            <div className="font-bold uppercase text-gray-700">Klinik / Hekim Kaşe & İmza</div>
+                            <div className="mt-1 font-semibold">{globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
+                            <div className="mt-10 print:mt-6 border-b border-black w-40 print:w-32"></div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold uppercase text-gray-700">Hasta / Vasi Onay İmzası</div>
+                            <div className="mt-1 font-semibold">Okudum, anladım, kabul ediyorum.</div>
+                            <div className="mt-10 print:mt-6 border-b border-black w-40 print:w-32 ml-auto"></div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-bold uppercase text-gray-700">Hasta / Vasi Onay İmzası</div>
-                          <div className="mt-1 font-semibold">Okudum, anladım, kabul ediyorum.</div>
-                          <div className="mt-10 print:mt-6 border-b border-black w-40 print:w-32 ml-auto"></div>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -10350,6 +10319,65 @@ const renderSettings = () => {
 
             return "Tüm Zamanlar";
           };
+// YENİ: PREMIUM SPARKLINE (MİNİ GRAFİK) MOTORU
+          const getTrendData = (historyArr) => {
+            if (!historyArr || historyArr.length === 0) return [0, 0, 0, 0, 0];
+            const sorted = [...historyArr].sort((a, b) => a.date - b.date);
+            const grouped = {};
+            sorted.forEach(item => {
+                const dStr = new Date(item.date).toLocaleDateString("tr-TR");
+                grouped[dStr] = (grouped[dStr] || 0) + item.amount;
+            });
+            const values = Object.values(grouped).slice(-10); // Son 10 hareketi al
+            while(values.length < 5) values.unshift(0); // Grafik estetiği için boşlukları sıfırla doldur
+            return values;
+          };
+
+          const getTrendStats = (values) => {
+            const last = values[values.length - 1] || 0;
+            const prev = values[values.length - 2] || 1;
+            const diff = last - prev;
+            const percent = prev === 1 && last > 0 ? 100 : Math.round((Math.abs(diff) / prev) * 100);
+            return { isUp: diff >= 0, percent: Math.min(percent, 999) }; // %999 ile sınırlar (Arayüz taşmasın diye)
+          };
+
+          const renderSparkline = (data, colorType) => {
+            if (!data || data.length === 0) return null;
+            const width = 200, height = 40;
+            const min = Math.min(...data), max = Math.max(...data);
+            const range = (max - min) || 1;
+            
+            const points = data.map((val, i) => {
+                const x = (i / (data.length - 1)) * width;
+                const y = height - ((val - min) / range) * height;
+                return `${x},${y}`;
+            });
+            
+            const pathD = `M ${points.join(' L ')}`;
+            const areaD = `${pathD} L ${width},${height} L 0,${height} Z`;
+
+            const colors = {
+                emerald: { stroke: "#10b981", fill: "rgba(16,185,129,0.15)" },
+                rose: { stroke: "#f43f5e", fill: "rgba(244,63,94,0.15)" },
+                indigo: { stroke: "#6366f1", fill: "rgba(99,102,241,0.15)" }
+            };
+            const theme = colors[colorType] || colors.indigo;
+
+            return (
+                <svg width="100%" height="100%" viewBox={`0 -5 ${width} ${height + 10}`} preserveAspectRatio="none" className="drop-shadow-sm">
+                    <path d={areaD} fill={theme.fill} />
+                    <path d={pathD} fill="none" stroke={theme.stroke} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            );
+          };
+
+          const revData = getTrendData(revenueHistory);
+          const revStats = getTrendStats(revData);
+          const colData = getTrendData(paymentHistory);
+          const colStats = getTrendStats(colData);
+          const debtData = getTrendData(revenueHistory.filter(r => r.amount > 0)); // Bakiye trendi için asıl kayıtları baz al
+          const debtStats = getTrendStats(debtData);
+          // -------------------------------------------------------------------
 
           return (
             <div
@@ -10905,8 +10933,62 @@ const renderSettings = () => {
         );
 
         return (
-          <div className="h-screen w-full flex bg-slate-50 dark:bg-[#0f172a] overflow-hidden text-slate-800 dark:text-slate-200 relative transition-colors duration-300">
-            {/* YENİ: SAĞ TIK / UZUN BASMA MENÜSÜ ARAYÜZÜ */}
+          <div className="h-screen w-full flex bg-slate-50 dark:bg-[#0f172a] overflow-hidden text-slate-800 dark:text-slate-200 relative transition-colors duration-300">
+            
+            {/* --- PREMIUM ARAYÜZ CSS KODLARI BURAYA EKLENDİ --- */}
+            <style>{`
+              /* Zarif Scrollbar */
+              .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+              .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+              .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 10px; transition: all 0.3s; }
+              .custom-scrollbar:hover::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.6); }
+
+              /* Şelale Liste Efekti (Stagger) */
+              @keyframes slideUpFade {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+              }
+              .stagger-item { opacity: 0; animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+              .stagger-item:nth-child(1) { animation-delay: 0.05s; }
+              .stagger-item:nth-child(2) { animation-delay: 0.10s; }
+              .stagger-item:nth-child(3) { animation-delay: 0.15s; }
+              .stagger-item:nth-child(4) { animation-delay: 0.20s; }
+              .stagger-item:nth-child(5) { animation-delay: 0.25s; }
+
+              /* Yumuşak Modal Açılışı */
+              @keyframes softPop {
+                0% { opacity: 0; transform: translateY(15px) scale(0.98); }
+                100% { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              .animate-pop { animation: softPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+              /* Premium Randevu Kartı (apt-card) Hover Efekti */
+              .apt-card {
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+              }
+              .apt-card:hover {
+                transform: translateY(-4px) scale(1.02) !important;
+                box-shadow: 0 12px 25px -8px rgba(0, 0, 0, 0.15) !important;
+                z-index: 50 !important;
+              }
+              .apt-card:hover i {
+                transform: scale(1.2) translateY(-2px);
+                transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+              }
+              /* Dark mod uyumluluğu için */
+              .dark .apt-card:hover {
+                box-shadow: 0 12px 25px -8px rgba(0, 0, 0, 0.5) !important;
+              }
+
+              /* Arka Plan Ambiyans Işığı Dönüş Animasyonu */
+              @keyframes slowSpin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+              .animate-slow-spin { animation: slowSpin 20s linear infinite; }
+            `}</style>
+            {/* ------------------------------------------------ */}
+
+            {/* YENİ: SAĞ TIK / UZUN BASMA MENÜSÜ ARAYÜZÜ */}
             {contextMenu && contextMenu.isOpen && (
               <div
                 className="fixed bg-white dark:bg-slate-800 rounded-xl shadow-[0_15px_50px_-10px_rgba(0,0,0,0.4)] border border-slate-200 dark:border-slate-700 py-1.5 z-[300] min-w-[200px] animate-pop"
@@ -11089,24 +11171,23 @@ const renderSettings = () => {
               </div>
             )}
 
-            {notification && (
-              <div
-                className={`fixed top-3 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full shadow-[0_15px_50px_-10px_rgba(0,0,0,0.5)] font-black text-[13px] text-white z-[99999] animate-[modalPop_0.3s_ease-out_forwards] backdrop-blur-xl flex items-center gap-2 border ${
-                  notification.type === "error"
-                    ? "bg-rose-500/95 border-rose-400"
-                    : "bg-slate-900/95 dark:bg-indigo-600/95 border-slate-700 dark:border-indigo-400"
-                }`}
-              >
-                <i
-                  className={`fa-solid ${
-                    notification.type === "error"
-                      ? "fa-triangle-exclamation"
-                      : "fa-check-circle"
-                  } text-base`}
-                ></i>
-                {notification.message}
-              </div>
-            )}
+            <div className="fixed top-4 right-4 sm:top-6 sm:right-6 flex flex-col gap-2 z-[99999] pointer-events-none items-end">
+              {notifications.map((notif) => (
+                <div
+                  key={notif.id}
+                  className={`px-4 py-3 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] font-bold text-[13px] text-white animate-pop backdrop-blur-xl flex items-center gap-3 border pointer-events-auto ${
+                    notif.type === "error"
+                      ? "bg-rose-500/90 border-rose-400/50"
+                      : "bg-slate-800/90 dark:bg-indigo-600/90 border-slate-700/50 dark:border-indigo-400/50"
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] shrink-0 ${notif.type === "error" ? "bg-white/20 text-white" : "bg-emerald-400/20 text-emerald-300"}`}>
+                    <i className={`fa-solid ${notif.type === "error" ? "fa-triangle-exclamation" : "fa-check"}`}></i>
+                  </div>
+                  {notif.message}
+                </div>
+              ))}
+            </div>
 
             {confirmModal.isOpen && (
               <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[99998] p-2">
