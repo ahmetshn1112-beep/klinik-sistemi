@@ -10131,35 +10131,37 @@ const renderSettings = () => {
                     </div>
 
                     {/* A4 Resmi Evrak Alanı */}
-                    <div className="p-8 sm:p-12 bg-white text-black print:p-0 print:m-0 w-full" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
-                      {/* Klinik Anteti */}
-                      <div className="border-b-2 border-black pb-4 mb-6 text-center">
-                        <h1 className="text-2xl font-black uppercase tracking-wider mb-1 flex items-center justify-center gap-2 text-black">
-                          <i className="fa-solid fa-tooth text-gray-400 no-print"></i>
-                          {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK YÖNETİM SİSTEMİ"}
-                        </h1>
-                        <p className="text-xs font-bold text-gray-700 uppercase tracking-widest">{documentPreview.title}</p>
-                      </div>
+                    <div className="p-8 sm:p-12 bg-white text-black print:p-0 print:m-0 w-full flex flex-col print:justify-between" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+                      <div>
+                        {/* Klinik Anteti */}
+                        <div className="border-b-2 border-black pb-4 mb-6 print:pb-2 print:mb-3 text-center">
+                          <h1 className="text-2xl print:text-[18px] font-black uppercase tracking-wider mb-1 flex items-center justify-center gap-2 text-black">
+                            <i className="fa-solid fa-tooth text-gray-400 no-print"></i>
+                            {settings?.klinik?.ad ? settings.klinik.ad.toUpperCase() : "KLİNİK YÖNETİM SİSTEMİ"}
+                          </h1>
+                          <p className="text-xs print:text-[10px] font-bold text-gray-700 uppercase tracking-widest">{documentPreview.title}</p>
+                        </div>
 
-                      {/* Hukuki Metin İçeriği */}
-                      <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-justify text-black">
-                        {documentPreview.content}
-                      </div>
+                        {/* Hukuki Metin İçeriği */}
+                        <div className="whitespace-pre-wrap text-[13px] print:text-[10.5px] leading-relaxed print:leading-normal text-justify text-black">
+                          {documentPreview.content}
+                        </div>
+                      </div>
 
-                      {/* Alt İmza Alanı */}
-                      <div className="mt-12 pt-6 border-t border-gray-400 grid grid-cols-2 gap-8 text-[11px]">
-                        <div>
-                          <div className="font-bold uppercase text-gray-700">Klinik / Hekim Kaşe & İmza</div>
-                          <div className="mt-1 font-semibold">{globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
-                          <div className="mt-10 border-b border-black w-40"></div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold uppercase text-gray-700">Hasta / Vasi Onay İmzası</div>
-                          <div className="mt-1 font-semibold">Okudum, anladım, kabul ediyorum.</div>
-                          <div className="mt-10 border-b border-black w-40 ml-auto"></div>
-                        </div>
-                      </div>
-                    </div>
+                      {/* Alt İmza Alanı */}
+                      <div className="mt-12 pt-6 print:mt-4 print:pt-3 border-t border-gray-400 grid grid-cols-2 gap-8 text-[11px] print:text-[9px] break-inside-avoid">
+                        <div>
+                          <div className="font-bold uppercase text-gray-700">Klinik / Hekim Kaşe & İmza</div>
+                          <div className="mt-1 font-semibold">{globalData.doctorProfiles?.[currentUser]?.name || currentUser}</div>
+                          <div className="mt-10 print:mt-6 border-b border-black w-40 print:w-32"></div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold uppercase text-gray-700">Hasta / Vasi Onay İmzası</div>
+                          <div className="mt-1 font-semibold">Okudum, anladım, kabul ediyorum.</div>
+                          <div className="mt-10 print:mt-6 border-b border-black w-40 print:w-32 ml-auto"></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
