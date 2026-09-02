@@ -242,1187 +242,1197 @@ const useFirebase = () => {
       };
 
       const ProfessionalToothChart = ({
-        patientForm,
-        activePlanTreatment,
-        setPatientForm,
-        showNotification,
-        globalData,
-        currentUser,
-        saveGlobalData,
-        dynamicPricingCategories // BEYAZ EKRAN ÇÖZÜMÜ
-      }) => {
-        const [isPediatric, setIsPediatric] = useState(false);
-
-        // --- YENİ EKLENEN: DİŞ DETAY MODALI STATE'LERİ ---
-        const [detailToothModal, setDetailToothModal] = useState(null);
-        const [detailTab, setDetailTab] = useState("genel");
-        const [tempToothData, setTempToothData] = useState({ status: "Sağlıklı", diagnoses: [], notes: "", canalLengths: { root1: "", root2: "", root3: "", root4: "" } });
-        const [newDiagnosis, setNewDiagnosis] = useState("");
-        const [isEditingNotes, setIsEditingNotes] = useState(false); // YENİ: Not düzenleme modu
-
-        // Literatür bazlı genişletilmiş durum ve tanılar
-        const TOOTH_STATUS_OPTIONS = [
-          "Sağlıklı", "Başlangıç Çürüğü", "Kavitasyonlu Çürük", 
-          "Kanal Tedavili", "Dolgulu", "Kronlu", "İmplant", 
-          "Eksik", "Gömülü", "Kök Kalıntısı", "Şüpheli", "Diğer"
-        ];
-        
-        const DEFAULT_DIAGNOSES = [
-          "Reversible Pulpitis", "İrreversible Pulpitis", "Nekroz", 
-          "Akut Apikal Apse", "Kronik Apikal Apse", "Apikal Periodontitis",
-          "Sekonder Çürük", "Aşırı Madde Kaybı", "Mine Kırığı", "Kök Fraktürü", 
-          "Hassasiyet (Sıcak/Soğuk)", "Perküsyon Hassasiyeti", "Periodontal Cep"
-        ];
-
-        // YENİ: Dişe Göre Anatomik Kanal Önerileri Sistemi
-        const getStandardCanals = (tNo) => {
-          const t = parseInt(tNo);
-          const isUpper = t < 30 || (t >= 50 && t < 70); // Üst çene kontrolü
-          const pos = t % 10; // Dişin numarası (1-8 arası)
-          
-          if (pos >= 6) { // Molarlar
-            if (isUpper) return ["MB1", "MB2", "DB", "P"];
-            else return ["MB", "ML", "D"];
-          } else if (pos === 4 && isUpper) { // Üst 1. Premolarlar
-            return ["Bukkal", "Palatinal"];
-          } else if (pos === 4 || pos === 5) { // Diğer Premolarlar
-            return ["Ana Kanal"];
-          } else { // Kesiciler ve Kaninler
-            return ["Kanal 1"];
-          }
-        };
-
-        const openDetailModal = (tNo) => {
-          const tKey = tNo.toString();
-          const existingData = patientForm.toothRecords?.[tKey] || {};
-          
-          let initialLengths = existingData.canalLengths || {};
-          let initialCanals = existingData.activeCanals || [];
-          
-          // Eğer bu diş daha önce hiç kanal tedavisi için açılmamışsa
-          if (initialCanals.length === 0) {
-            // Eski kayıt (K1, K2) sistemiyle kaydedilmiş verileri kurtarma (Geriye Dönük Uyumluluk)
-            const legacyKeys = ["root1", "root2", "root3", "root4"].filter(k => initialLengths[k]);
-            if (legacyKeys.length > 0) {
-              initialCanals = legacyKeys;
-            } else {
-              // Yepyeni bir dişse anatomik önerileri yükle
-              initialCanals = getStandardCanals(tNo);
-            }
-          }
-
-          setTempToothData({
-            status: existingData.status || "Sağlıklı",
-            diagnoses: existingData.diagnoses || [],
-            notes: existingData.notes || "",
-            activeCanals: initialCanals,
-            canalLengths: initialLengths
-          });
-          setIsEditingNotes(false); // Modal açıldığında notlar okuma modunda başlasın
-          setDetailToothModal(tKey);
-          setDetailTab("genel");
-        };
-
-        const saveToothDetails = () => {
-          const tKey = detailToothModal;
-          const updatedRecords = {
-            ...(patientForm.toothRecords || {}),
-            [tKey]: tempToothData
-          };
-          const updatedPatient = { ...patientForm, toothRecords: updatedRecords };
-          setPatientForm(updatedPatient);
-          
-          if(saveGlobalData) {
-            saveGlobalData({
-              ...globalData,
-              patientsDb: { ...globalData.patientsDb, [updatedPatient.id]: updatedPatient }
-            });
-            showNotification(`${tKey} Numaralı diş detayları kaydedildi.`);
-            setIsEditingNotes(false); // Kaydedince tekrar okuma moduna dön
-          }
-        };
-
-        const toggleDiagnosis = (diag) => {
-          setTempToothData(prev => {
-            const has = prev.diagnoses.includes(diag);
-            let updatedNotes = prev.notes;
-            
-            // Eğer tanı ekleniyorsa, otomatik olarak nota da ekle
-            if (!has) {
-              const dateStr = new Date().toLocaleDateString('tr-TR');
-              const autoNote = `[${dateStr}] Tanı Eklendi: ${diag}`;
-              updatedNotes = prev.notes ? `${prev.notes}\n${autoNote}` : autoNote;
-            }
-
-            return {
-              ...prev,
-              diagnoses: has ? prev.diagnoses.filter(d => d !== diag) : [...prev.diagnoses, diag],
-              notes: updatedNotes
-            };
-          });
-        };
-        // -------------------------------------------------
-
-        // Doğru pedodontik (FDI) diş numaralandırması
-        const topRight = isPediatric
-          ? [55, 54, 53, 52, 51]
-          : [18, 17, 16, 15, 14, 13, 12, 11];
-        const topLeft = isPediatric
-          ? [61, 62, 63, 64, 65]
-          : [21, 22, 23, 24, 25, 26, 27, 28];
-        const botRight = isPediatric
-          ? [85, 84, 83, 82, 81]
-          : [48, 47, 46, 45, 44, 43, 42, 41];
-        const botLeft = isPediatric
-          ? [71, 72, 73, 74, 75]
-          : [31, 32, 33, 34, 35, 36, 37, 38];
-
-        const handleToothClick = (toothNo) => {
-          if (!activePlanTreatment) {
-            showNotification("Lütfen önce alt kısımdan bir işlem türü seçin!", "error");
-            return;
-          }
-
-          // ZIRHLI FİYAT OKUMA MOTORU (Klinik İzolasyonuna Uyumlu Patron Bulucu)
-          let ownerId = currentUser;
-          const myProfile = globalData.userProfiles?.[currentUser];
-          if (myProfile?.clinicId) {
-             const patron = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === myProfile.clinicId && v.role === "clinic_owner");
-             if (patron) ownerId = patron[0];
-          } else if (myProfile?.role === "assistant" || myProfile?.role === "doctor") {
-             ownerId = myProfile.createdBy || currentUser;
-          }
-          
-          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
-          const userPricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
-
-          if (activePlanTreatment === "Tam Protez (Tek Çene)") {
-            const tInt = parseInt(toothNo);
-            const isUpperClick = tInt < 30 || (tInt >= 50 && tInt < 70);
-            const targetJaw = isUpperClick ? "Üst Çene" : "Alt Çene";
-
-            const exists = patientForm.plannedTreatments?.some(
-              (t) => t.tooth === targetJaw && t.treatment === activePlanTreatment
-            );
-
-            if (exists) {
-              setPatientForm((prev) => ({
-                ...prev,
-                plannedTreatments: prev.plannedTreatments.filter(
-                  (t) => !(t.tooth === targetJaw && t.treatment === activePlanTreatment)
-                ),
-              }));
-              showNotification(`${targetJaw} bölgesinden Tam Protez çıkarıldı.`, "error");
-              return;
-            }
-
-            const txPrice = userPricing[activePlanTreatment] !== undefined ? parseFloat(userPricing[activePlanTreatment]) : 0;
-
-            const newTx = {
-              id: Date.now() + Math.random().toString(),
-              tooth: targetJaw,
-              treatment: activePlanTreatment,
-              date: Date.now(),
-              price: txPrice,
-            };
-
-            setPatientForm((prev) => ({
-              ...prev,
-              plannedTreatments: [...(prev.plannedTreatments || []), newTx],
-            }));
-
-            showNotification(`${targetJaw} için Tam Protez planlandı. (${txPrice} ₺)`);
-            return;
-          }
-
-          let actualPlanTreatment = activePlanTreatment;
-          if (activePlanTreatment === "Diş Çekimi" && ["18", "28", "38", "48"].includes(toothNo.toString())) {
-            actualPlanTreatment = "Gömülü ve 20lik Diş Çekimi";
-            showNotification("8 Numaralı diş seçildiği için tarife 'Gömülü ve 20lik Diş Çekimi' olarak otomatik güncellendi.");
-          }
-
-          const exists = patientForm.plannedTreatments?.some(
-            (t) => t.tooth === toothNo && t.treatment === actualPlanTreatment
-          );
-
-          if (exists) {
-            setPatientForm((prev) => ({
-              ...prev,
-              plannedTreatments: prev.plannedTreatments.filter(
-                (t) => !(t.tooth === toothNo && t.treatment === actualPlanTreatment)
-              ),
-            }));
-            showNotification(`${toothNo} numaralı bölgeden ${actualPlanTreatment} çıkarıldı.`, "error");
-            return;
-          }
-
-          const txPrice = userPricing[actualPlanTreatment] !== undefined ? parseFloat(userPricing[actualPlanTreatment]) : 0;
-
-          const newTx = {
-            id: Date.now() + Math.random().toString(),
-            tooth: toothNo,
-            treatment: actualPlanTreatment,
-            date: Date.now(),
-            price: txPrice,
-          };
-
-          setPatientForm((prev) => ({
-            ...prev,
-            plannedTreatments: [...(prev.plannedTreatments || []), newTx],
-          }));
-
-          showNotification(`${toothNo} numaralı dişe ${actualPlanTreatment} planlandı. (${txPrice} ₺)`);
-        };
-
-        const getToothAnatomy = (toothNo) => {
-          const t = parseInt(toothNo);
-
-          const pos = t % 10;
-
-          const isUpper = t < 30;
-
-          let anatomy = {
-            type: "incisor",
-
-            roots: 1,
-
-            crownPath: "",
-
-            rootPaths: [],
-
-            canalLines: [],
-          };
-
-          if (pos >= 6) {
-            anatomy.type = "molar";
-
-            anatomy.crownPath =
-              "M 5,80 C 5,110 10,135 20,135 C 30,132 30,132 40,135 C 50,135 55,110 55,80 Z";
-
-            if (isUpper) {
-              anatomy.roots = 3;
-
-              anatomy.rootPaths = [
-                "M 15,80 C 10,40 5,20 15,5 C 20,20 25,50 25,80 Z",
-
-                "M 35,80 C 35,50 40,20 45,5 C 55,20 50,40 45,80 Z",
-
-                "M 20,80 C 25,40 28,10 30,5 C 32,10 35,40 40,80 Z",
-              ];
-
-              anatomy.canalLines = [
-                { x1: 15, y1: 10, x2: 18, y2: 110 },
-
-                { x1: 45, y1: 10, x2: 42, y2: 110 },
-
-                { x1: 30, y1: 5, x2: 30, y2: 110 },
-              ];
-            } else {
-              anatomy.roots = 2;
-
-              anatomy.rootPaths = [
-                "M 10,80 C 10,40 10,15 20,5 C 25,15 25,40 25,80 Z",
-
-                "M 35,80 C 35,40 35,15 40,5 C 50,15 50,40 50,80 Z",
-              ];
-
-              anatomy.canalLines = [
-                { x1: 18, y1: 10, x2: 20, y2: 110 },
-
-                { x1: 42, y1: 10, x2: 40, y2: 110 },
-              ];
-            }
-          } else if (pos >= 4) {
-            anatomy.type = "premolar";
-
-            anatomy.crownPath =
-              "M 12,80 C 12,110 18,135 30,135 C 42,135 48,110 48,80 Z";
-
-            if (isUpper && pos === 4) {
-              anatomy.roots = 2;
-
-              anatomy.rootPaths = [
-                "M 15,80 C 15,40 20,15 25,5 C 28,15 28,40 30,80 Z",
-
-                "M 30,80 C 32,40 32,15 35,5 C 40,15 45,40 45,80 Z",
-              ];
-
-              anatomy.canalLines = [
-                { x1: 25, y1: 10, x2: 28, y2: 110 },
-
-                { x1: 35, y1: 10, x2: 32, y2: 110 },
-              ];
-            } else {
-              anatomy.roots = 1;
-
-              anatomy.rootPaths = [
-                "M 20,80 C 20,40 25,10 30,5 C 35,10 40,40 40,80 Z",
-              ];
-
-              anatomy.canalLines = [{ x1: 30, y1: 8, x2: 30, y2: 110 }];
-            }
-          } else if (pos === 3) {
-            anatomy.type = "canine";
-
-            anatomy.roots = 1;
-
-            anatomy.crownPath =
-              "M 15,80 C 15,110 25,140 30,145 C 35,140 45,110 45,80 Z";
-
-            anatomy.rootPaths = [
-              "M 18,80 C 18,30 25,5 30,2 C 35,5 42,30 42,80 Z",
-            ];
-
-            anatomy.canalLines = [{ x1: 30, y1: 5, x2: 30, y2: 120 }];
-          } else {
-            anatomy.type = "incisor";
-
-            anatomy.roots = 1;
-
-            anatomy.crownPath =
-              "M 15,80 C 15,110 18,135 22,135 C 30,135 30,135 38,135 C 42,135 45,110 45,80 Z";
-
-            anatomy.rootPaths = [
-              "M 20,80 C 20,40 25,10 30,5 C 35,10 40,40 40,80 Z",
-            ];
-
-            anatomy.canalLines = [{ x1: 30, y1: 8, x2: 30, y2: 115 }];
-          }
-
-          return anatomy;
-        };
-
-        // YENİ: Zaman Çizelgesi (Timeline) Veri Hazırlığı
-        const allTreatmentsSorted = useMemo(() => {
-          return [...(patientForm.plannedTreatments || [])].sort(
-            (a, b) => a.date - b.date
-          );
-        }, [patientForm.plannedTreatments]);
-
-        const uniqueDates = useMemo(() => {
-          const dates = allTreatmentsSorted.map((t) =>
-            new Date(t.date).toLocaleDateString("tr-TR")
-          );
-          return [...new Set(dates)]; // Sadece eşsiz tarihleri al
-        }, [allTreatmentsSorted]);
-
-        const [timelineIndex, setTimelineIndex] = useState(
-          uniqueDates.length > 0 ? uniqueDates.length - 1 : -1
-        );
-
-        useEffect(() => {
-          // Yeni işlem eklendiğinde timeline'ı en sona kaydır
-          setTimelineIndex(
-            uniqueDates.length > 0 ? uniqueDates.length - 1 : -1
-          );
-        }, [uniqueDates.length]);
-
-        const renderTooth = (toothNo, isUpper) => {
-          // Zaman makinesi filtresi: Sadece seçili timelineIndex'e kadar olan işlemleri getir
-          const treatments = allTreatmentsSorted.filter((x) => {
-            if (x.tooth !== toothNo.toString()) return false;
-            if (timelineIndex === -1) return true;
-            const txDateStr = new Date(x.date).toLocaleDateString("tr-TR");
-            const txIndex = uniqueDates.indexOf(txDateStr);
-            return txIndex <= timelineIndex;
-          });
-
-          const hasExtraction = treatments.some((t) =>
-            t.treatment.includes("Çekim")
-          );
-          const hasImplant = treatments.some((t) =>
-            t.treatment.includes("İmplant")
-          );
-          const hasGraftedImplant = treatments.some((t) =>
-            t.treatment.includes("İmplant (Greftli)")
-          );
-          const hasFilling = treatments.some((t) =>
-            t.treatment.includes("Dolgu")
-          );
-          const hasCanal = treatments.some(
-            (t) =>
-              t.treatment.includes("Kanal Tedavisi") &&
-              !t.treatment.includes("Yenileme")
-          );
-          const hasRetreatment = treatments.some((t) =>
-            t.treatment.includes("Yenileme")
-          );
-          const hasCleaning = treatments.some((t) =>
-            t.treatment.includes("Detertraj")
-          );
-          const hasCrown = treatments.some((t) => t.treatment.includes("Kron"));
-          // YENİ: Profesyonel Zirkonyum ve Vener Algılayıcıları
-          const hasVeneer = treatments.some((t) => t.treatment.includes("Vener"));
-          const hasZirconium = treatments.some((t) => t.treatment.includes("Zirkonyum"));
-
-          const hasWholeJawDetertraj = patientForm.plannedTreatments?.some(
-            (t) => t.tooth === "Tüm Çene" && t.treatment === "Detertraj"
-          );
-
-          // YENİ: Tam Protez Görünüm Kontrolü
-          const allJawTreatments = allTreatmentsSorted.filter((x) => {
-             const targetJaw = isUpper ? "Üst Çene" : "Alt Çene";
-             if (x.tooth !== targetJaw) return false;
-             if (timelineIndex === -1) return true;
-             const txDateStr = new Date(x.date).toLocaleDateString("tr-TR");
-             const txIndex = uniqueDates.indexOf(txDateStr);
-             return txIndex <= timelineIndex;
-          });
-          const isFullDenture = allJawTreatments.some(t => t.treatment === "Tam Protez (Tek Çene)");
-
-          // 1. ADIM: Dişin durum ve tanılarını (Diagnoses) çekiyoruz
-          const toothRecord = patientForm.toothRecords?.[toothNo.toString()] || { status: "Sağlıklı", diagnoses: [] };
-          const tStatus = toothRecord.status;
-          const tDiags = toothRecord.diagnoses || [];
-
-          // Klinik teşhis bayrakları (Sıradaki adımlarda görselleştireceğiz)
-          const isImpacted = tStatus === "Gömülü" || treatments.some(t => t.treatment.includes("Gömülü"));
-          const hasAbscess = tDiags.some(d => d.includes("Apse") || d.includes("Apikal Periodontitis") || d.includes("Lezyon"));
-          const hasInitialCaries = tStatus === "Başlangıç Çürüğü" || tDiags.includes("Başlangıç Çürüğü");
-          const hasDeepCaries = tStatus === "Kavitasyonlu Çürük" || tDiags.includes("Aşırı Madde Kaybı") || tDiags.includes("Sekonder Çürük");
-          const hasPulpitis = tDiags.some(d => d.includes("Pulpitis") || d.includes("Nekroz"));
-
-          let heatMapClass = "";
-          if (hasExtraction || hasImplant) heatMapClass = "heatmap-danger";
-          else if (hasCanal || hasRetreatment) heatMapClass = "heatmap-warning";
-          else if (hasFilling || hasCrown) heatMapClass = "heatmap-info";
-
-          const anatomy = getToothAnatomy(toothNo);
-
-          // Gömülü dişler için rotasyon yerine küçültme ve diş etine gömme (oklüzalden uzaklaştırma) efekti
-          let baseTransform = isUpper ? "" : "scale(1, -1) translate(0, -140)";
-          if (isImpacted) {
-             // scale(0.75) ile boyut küçülüyor.
-             // translate(7.5, -25) ile hem X ekseninde ortalanıyor hem de Y ekseninde oklüzalden uzaklaşıyor (kök tarafına gömülüyor).
-             const impactTransform = "translate(7.5, -25) scale(0.75)";
-             baseTransform = `${baseTransform} ${impactTransform}`;
-          }
-          const transform = baseTransform;
-
-          return (
-            <div
-  key={toothNo}
-  onClick={() => handleToothClick(toothNo.toString())}
-  className={`flex flex-col items-center group cursor-pointer hover:scale-110 transition-transform relative z-10 w-[24px] sm:w-[30px] md:w-[36px] ${heatMapClass}`}
->
-              {/* YENİ EKLENEN KISIM: AKILLI TOOLTIP (BİLGİ KUTUSU) */}
-              {treatments.length > 0 && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-slate-900 dark:bg-slate-700 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-300 shadow-xl flex flex-col items-center scale-95 group-hover:scale-100">
-                  <div className="font-black text-indigo-300 mb-0.5 border-b border-slate-700 pb-0.5 w-full text-center">
-                    Diş {toothNo}
-                  </div>
-                  {treatments.map((t, idx) => (
-                    <div
-                      key={idx}
-                      className="font-semibold tracking-wide mt-0.5"
-                    >
-                      {t.treatment}{" "}
-                      <span className="text-slate-400">({t.price} ₺)</span>
-                    </div>
-                  ))}
-                  {/* Kutucuğun altındaki küçük ok (triangle) */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-700"></div>
-                </div>
-              )}
-
-              {isUpper && (
-                <div className="relative text-[10px] font-black text-slate-500 dark:text-slate-400 mb-1 transition-colors group-hover:text-indigo-500 flex items-center justify-center">
-                  <span className="pointer-events-none">{toothNo}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
-                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3 h-3 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
-                    title="Diş Detayları"
-                  >
-                    <i className="fa-solid fa-info"></i>
-                  </button>
-                </div>
-              )}
-
-              <svg
-                viewBox="0 0 60 140"
-                className="w-full h-[70px] sm:h-[90px] md:h-[110px] drop-shadow-md overflow-visible"
-              >
-                <defs>
-                  {/* Normal Kök Gradyanı */}
-                  <linearGradient id={`rootGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#dcb892" />
-                    <stop offset="50%" stopColor="#fef3c7" />
-                    <stop offset="100%" stopColor="#dcb892" />
-                  </linearGradient>
-
-                  {/* Sağlıklı Diş Kuron Gradyanı */}
-                  <linearGradient id={`crownGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffffff" />
-                    <stop offset="80%" stopColor="#f8fafc" />
-                    <stop offset="100%" stopColor="#e2e8f0" />
-                  </linearGradient>
-
-                  {/* Standart Porselen Kron Gradyanı (Metalik/Gri Yansıma) */}
-                  <linearGradient id="porcelainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#f1f5f9" />
-                    <stop offset="50%" stopColor="#cbd5e1" />
-                    <stop offset="100%" stopColor="#94a3b8" />
-                  </linearGradient>
-
-                  {/* PROFESYONEL: Zirkonyum Kron Gradyanı (Belirgin Premium İndigo/Mavi) */}
-                  <linearGradient id="zirconiumGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#e0e7ff" />
-                    <stop offset="40%" stopColor="#a5b4fc" />
-                    <stop offset="70%" stopColor="#818cf8" />
-                    <stop offset="100%" stopColor="#6366f1" />
-                  </linearGradient>
-
-                  {/* PROFESYONEL: Estetik Dolgu / Kompozit Şeffaflığı */}
-                  <linearGradient id="compositeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="rgba(255, 255, 255, 0.95)" />
-                    <stop offset="60%" stopColor="rgba(224, 242, 254, 0.8)" />
-                    <stop offset="100%" stopColor="rgba(186, 230, 253, 0.5)" />
-                  </linearGradient>
-
-                  {/* Apse / Lezyon Filtresi (Radial Blur) */}
-                  <radialGradient id="abscessGrad">
-                    <stop offset="0%" stopColor="rgba(225, 29, 72, 0.9)" />
-                    <stop offset="60%" stopColor="rgba(159, 18, 57, 0.6)" />
-                    <stop offset="100%" stopColor="transparent" />
-                  </radialGradient>
-
-                  {/* 3D Derinlik ve Gölgelendirme Filtresi */}
-                  <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodOpacity="0.35" />
-                  </filter>
-
-                  {/* 3D Titanyum Yüzey Gradyanı */}
-                  <linearGradient id={`titaniumGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#94a3b8" />
-                    <stop offset="30%" stopColor="#f8fafc" />
-                    <stop offset="70%" stopColor="#64748b" />
-                    <stop offset="100%" stopColor="#334155" />
-                  </linearGradient>
-                  
-                  {/* DAHA BELİRGİN Greft (Kemik Tozu) Bulutu Gradyanı */}
-                  <radialGradient id={`graftGrad-${toothNo}`}>
-                    <stop offset="0%" stopColor="rgba(250, 204, 21, 0.85)" />
-                    <stop offset="60%" stopColor="rgba(253, 224, 71, 0.6)" />
-                    <stop offset="100%" stopColor="transparent" />
-                  </radialGradient>
-                </defs>
-
-                <g transform={transform}>
-                  {isFullDenture ? (
-                    <g filter="url(#drop-shadow)">
-                      {/* Pembe Akrilik Protez Kaidesi (Kökleri kapatan estetik diş eti) */}
-                      <path d="M -2,85 Q 30,110 62,85 L 55,60 Q 30,75 5,60 Z" fill="#ec4899" stroke="#be185d" strokeWidth="1" opacity="0.95" />
-                      
-                      {/* Yapay Porselen/Akrilik Diş (Oklüzale hizalanmış) */}
-                      <path d={anatomy.crownPath} fill="url(#porcelainGrad)" stroke="#cbd5e1" strokeWidth="1.2" />
-                      
-                      {/* Diş ve Kaide Birleşim Hattı */}
-                      <path d="M 10,83 Q 30,76 50,83" fill="none" stroke="#9d174d" strokeWidth="1.5" opacity="0.7" />
-                    </g>
-                  ) : (
-                    <>
-                      {/* NORMAL DİŞ VE İMPLANT ÇİZİMLERİ (Tam Protez Yoksa) */}
-                      {hasImplant ? (
-                        <g filter="url(#drop-shadow)">
-                          {/* GREFT (Kemik Tozu) Simülasyonu */}
-                          {hasGraftedImplant && (
-                            <g>
-                              <ellipse cx="30" cy="40" rx="22" ry="36" fill={`url(#graftGrad-${toothNo})`} />
-                              {/* Partiküller */}
-                              <circle cx="15" cy="25" r="2.5" fill="#facc15" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
-                              <circle cx="44" cy="30" r="3" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
-                              <circle cx="12" cy="45" r="3.5" fill="#eab308" stroke="#ca8a04" strokeWidth="0.5" opacity="0.8" />
-                              <circle cx="47" cy="50" r="2.5" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
-                              <circle cx="16" cy="60" r="2.5" fill="#facc15" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
-                              <circle cx="42" cy="65" r="3" fill="#eab308" stroke="#ca8a04" strokeWidth="0.5" opacity="0.8" />
-                              <circle cx="30" cy="12" r="2.5" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
-                            </g>
-                          )}
-
-                          {/* İMPLANT GÖVDESİ (Titanyum Fikstür) */}
-                          <rect x="25" y="70" width="10" height="12" fill={`url(#titaniumGrad-${toothNo})`} stroke="#1e293b" strokeWidth="0.5" />
-                          <path d="M 21,25 L 21,70 L 39,70 L 39,25 L 34,10 L 26,10 Z" fill={`url(#titaniumGrad-${toothNo})`} stroke="#0f172a" strokeWidth="1" />
-                          <path d="M 21,25 L 39,28 M 21,35 L 39,38 M 21,45 L 39,48 M 21,55 L 39,58 M 21,65 L 39,68" stroke="#0f172a" strokeWidth="1.5" opacity="0.8" />
-                          <path d="M 21,28 L 39,31 M 21,38 L 39,41 M 21,48 L 39,51 M 21,58 L 39,61" stroke="#cbd5e1" strokeWidth="0.5" opacity="0.6" />
-                        </g>
-                      ) : (
-                        anatomy.rootPaths.map((path, i) => (
-                          <path key={i} d={path} fill={`url(#rootGrad-${toothNo})`} stroke="#c19b76" strokeWidth="1" opacity="0.95" />
-                        ))
-                      )}
-
-                      {hasCrown ? (
-                        <g>
-                          <path d={anatomy.crownPath} fill={hasZirconium ? "url(#zirconiumGrad)" : "url(#porcelainGrad)"} stroke={hasZirconium ? "#4f46e5" : "#475569"} strokeWidth="1.5" filter="url(#drop-shadow)" />
-                          {hasZirconium && ( <path d="M 20,85 Q 30,110 40,85" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" /> )}
-                          {!hasZirconium && ( <path d={anatomy.crownPath} fill="none" stroke="#334155" strokeWidth="2.5" opacity="0.8" /> )}
-                        </g>
-                      ) : (
-                        <path d={anatomy.crownPath} fill={`url(#crownGrad-${toothNo})`} stroke="#94a3b8" strokeWidth="0.5" />
-                      )}
-
-                      {hasVeneer && !hasCrown && ( <path d={anatomy.crownPath} fill="url(#compositeGrad)" stroke="#7dd3fc" strokeWidth="1.2" opacity="0.9" filter="url(#drop-shadow)" /> )}
-
-                      {hasFilling && !hasCrown && !hasVeneer && (
-                        <g filter="url(#drop-shadow)">
-                          <path d="M 23,105 Q 30,112 37,105 Q 39,112 35,116 Q 30,113 25,116 Q 21,112 23,105 Z" fill="#ef4444" stroke="#991b1b" strokeWidth="0.5" opacity="0.9" />
-                          <path d="M 26,108 Q 30,111 34,108" fill="none" stroke="#7f1d1d" strokeWidth="1" opacity="0.8" />
-                        </g>
-                      )}
-
-                      {hasInitialCaries && !hasCrown && !hasVeneer && !hasFilling && (
-                        <g opacity="0.8">
-                          <circle cx="27" cy="100" r="1.5" fill="#a16207" />
-                          <circle cx="33" cy="102" r="2" fill="#854d0e" />
-                          <circle cx="29" cy="105" r="1" fill="#713f12" />
-                        </g>
-                      )}
-
-                      {hasDeepCaries && !hasCrown && !hasVeneer && !hasFilling && (
-                        <g filter="url(#drop-shadow)"><path d="M 22,98 Q 30,105 38,98 Q 35,110 30,112 Q 25,110 22,98 Z" fill="#422006" stroke="#1c1917" strokeWidth="0.5" opacity="0.9" /></g>
-                      )}
-
-                      {hasPulpitis && !hasCanal && ( <path d="M 28,105 Q 30,80 30,60" fill="none" stroke="#ef4444" strokeWidth="2" strokeDasharray="2,2" opacity="0.8" /> )}
-
-                      {hasAbscess && anatomy.canalLines.map((line, i) => ( <circle key={`abscess-${i}`} cx={line.x1} cy={line.y1 - 2} r="6" fill="url(#abscessGrad)" className="animate-pulse opacity-80" /> ))}
-
-                      {hasCanal && anatomy.canalLines.map((line, i) => (
-                        <g key={`canal-${i}`} filter="url(#drop-shadow)">
-                          <polygon points={`${line.x1 - 0.8},${line.y1} ${line.x1 + 0.8},${line.y1} ${line.x2 + 2.5},80 ${line.x2 - 2.5},80`} fill="#f43f5e" stroke="#be123c" strokeWidth="0.5" opacity="0.95" />
-                          <circle cx={line.x1} cy={line.y1} r="1" fill="#fb7185" />
-                        </g>
-                      ))}
-
-                      {/* PROFESYONEL: Kanal Yenileme (İçi mor dolgulu, belirgin) */}
-                      {hasRetreatment && !hasCanal && anatomy.canalLines.map((line, i) => ( 
-                        <g key={`retreat-${i}`} filter="url(#drop-shadow)">
-                          <polygon points={`${line.x1 - 1},${line.y1} ${line.x1 + 1},${line.y1} ${line.x2 + 3},80 ${line.x2 - 3},80`} fill="#c084fc" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="3,1" opacity="0.95" /> 
-                          <circle cx={line.x1} cy={line.y1} r="1.5" fill="#9333ea" />
-                        </g>
-                      ))}
-                      
-                      {/* Normal kanalın üzerine yenileme eklendiğinde (Saran kalın çerçeve) */}
-                      {hasRetreatment && hasCanal && anatomy.canalLines.map((line, i) => ( 
-                        <polygon key={`retreat-over-${i}`} points={`${line.x1 - 1.5},${line.y1 - 1} ${line.x1 + 1.5},${line.y1 - 1} ${line.x2 + 3.5},81 ${line.x2 - 3.5},81`} fill="none" stroke="#6d28d9" strokeWidth="2.5" strokeDasharray="4,2" opacity="0.9" filter="url(#drop-shadow)" /> 
-                      ))}
-
-                      {hasCleaning && (
-                        <g>
-                          <path d="M 15,85 Q 30,77 45,85" fill="none" stroke="#f472b6" strokeWidth="0.8" opacity="0.6" />
-                          <path d="M 15,85 Q 30,77 45,85" fill="none" stroke="#06b6d4" strokeWidth="3.5" strokeLinecap="round" opacity="0.25" filter="url(#drop-shadow)" />
-                          <circle cx="20" cy="82" r="1.2" fill="#67e8f9" className="animate-pulse" />
-                          <circle cx="30" cy="78" r="1.5" fill="#cffafe" className="animate-pulse" style={{ animationDelay: "0.2s" }} />
-                          <circle cx="40" cy="82" r="1.2" fill="#67e8f9" className="animate-pulse" style={{ animationDelay: "0.4s" }} />
-                          <path d="M 29,76 L 31,76 M 30,75 L 30,77" stroke="#ffffff" strokeWidth="0.5" />
-                        </g>
-                      )}
-                    </>
-                  )}
-
-                  {/* TÜM ÇENE DETERTRAJ (Genel Ferahlık Bandı - Tam protezliyken gizlenir) */}
-                  {hasWholeJawDetertraj && !isFullDenture && (
-                    <g>
-                      <path d="M -5,85 Q 30,78 65,85" fill="none" stroke="#0ea5e9" strokeWidth="4" strokeLinecap="round" opacity="0.15" />
-                      <path d="M -5,85 Q 30,78 65,85" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4,4" opacity="0.8" />
-                    </g>
-                  )}
-                </g>
-
-                {hasExtraction && (
-                  <g stroke="#ef4444" strokeWidth="4" strokeLinecap="round">
-                    <line x1="10" y1="20" x2="50" y2="120" />
-                    <line x1="50" y1="20" x2="10" y2="120" />
-                  </g>
-                )}
-              </svg>
-
-              {!isUpper && (
-                <div className="relative text-[10px] font-black text-slate-500 dark:text-slate-400 mt-1 transition-colors group-hover:text-indigo-500 flex items-center justify-center">
-                  <span className="pointer-events-none">{toothNo}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
-                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3 h-3 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
-                    title="Diş Detayları"
-                  >
-                    <i className="fa-solid fa-info"></i>
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        };
-
-        return (
-          <div
-            className="relative w-full mx-auto bg-white dark:bg-slate-800 p-2 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 print-tooth-chart"
-            style={{ pageBreakInside: "avoid" }}
-          >
-            <div className="absolute top-[20%] left-[5%] right-[5%] h-[20%] bg-gradient-to-b from-rose-400 to-rose-200/20 blur-[20px] rounded-[100px] opacity-20 pointer-events-none"></div>
-            <div className="absolute bottom-[20%] left-[5%] right-[5%] h-[20%] bg-gradient-to-t from-rose-400 to-rose-200/20 blur-[20px] rounded-[100px] opacity-20 pointer-events-none"></div>
-
-            {/* YENİ: Pediatrik Mod Geçiş Butonları */}
-            <div className="flex justify-center mb-2 relative z-20 no-print">
-              <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl inline-flex shadow-inner">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsPediatric(false);
-                  }}
-                  className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 ${
-                    !isPediatric
-                      ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
-                  }`}
-                >
-                  <i className="fa-solid fa-user mr-1"></i> Yetişkin
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsPediatric(true);
-                  }}
-                  className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 ${
-                    isPediatric
-                      ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
-                  }`}
-                >
-                  <i className="fa-solid fa-child mr-1"></i> Pediatrik
-                </button>
-              </div>
-            </div>
-
-            <div className="flex justify-center gap-0 sm:gap-0.5 mb-1.5 border-b border-dashed border-slate-200 dark:border-slate-600 pb-2 relative z-10">
-  <div className="flex gap-0 sm:gap-0.5">
-    {topRight.map((t) => renderTooth(t, true))}
-  </div>
-  <div className="w-px bg-slate-300 dark:bg-slate-600 mx-0.5 sm:mx-1 h-[100px]"></div>
-  <div className="flex gap-0 sm:gap-0.5">
-    {topLeft.map((t) => renderTooth(t, true))}
-  </div>
-</div>
-
-            <div className="flex justify-center gap-0 sm:gap-0.5 pt-0.5 relative z-10">
-  <div className="flex gap-0 sm:gap-0.5">
-    {botRight.map((t) => renderTooth(t, false))}
-  </div>
-  <div className="w-px bg-slate-300 dark:bg-slate-600 mx-0.5 sm:mx-1 h-[100px]"></div>
-  <div className="flex gap-0 sm:gap-0.5">
-    {botLeft.map((t) => renderTooth(t, false))}
-  </div>
-</div>
-
-            {/* YENİ EKLENEN: DİŞ DETAY MODALI */}
-            {detailToothModal && (
-              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[300] p-2 transition-all" onClick={() => setDetailToothModal(null)}>
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
-                  
-                  {/* Modal Header */}
-                  <div className="px-3 py-2 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
-                    <div className="flex items-center gap-2">
-                      <div className="w-9 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-                        <i className="fa-solid fa-tooth text-base"></i>
-                      </div>
-                      <div>
-                        <h3 className="font-black text-base uppercase tracking-wider">{detailToothModal} Numaralı Diş</h3>
-                        <div className="text-[10px] text-slate-400 font-bold">Hasta: {patientForm.name}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => {
-                        const originalTitle = document.title;
-                        document.title = `${patientForm.name} - Dis ${detailToothModal} Raporu`;
-                        window.print();
-                        setTimeout(() => document.title = originalTitle, 2000);
-                      }} className="w-7 h-7 flex justify-center items-center rounded-lg bg-white/10 hover:bg-white/20 transition" title="Yazdır">
-                        <i className="fa-solid fa-print text-[13px]"></i>
-                      </button>
-                      <button onClick={() => setDetailToothModal(null)} className="w-7 h-7 flex justify-center items-center rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition">
-                        <i className="fa-solid fa-xmark text-base"></i>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Tabs */}
-                  <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-1.5 gap-1 overflow-x-auto custom-scrollbar shrink-0">
-                    {["genel", "randevular", "sicil"].map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setDetailTab(tab)}
-                        className={`px-2.5 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition-all ${
-                          detailTab === tab ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 shadow-sm" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                        }`}
-                      >
-                        {tab === "genel" ? <><i className="fa-solid fa-notes-medical mr-1"></i> Genel Durum & Tanı</> :
-                         tab === "randevular" ? <><i className="fa-regular fa-calendar-check mr-1"></i> İlgili Randevular</> :
-                         <><i className="fa-solid fa-clock-rotate-left mr-1"></i> Dişin Geçmişi (Sicil)</>}
-                      </button>
-                    ))}
+        patientForm,
+        activePlanTreatment,
+        setPatientForm,
+        showNotification,
+        globalData,
+        currentUser,
+        saveGlobalData,
+        dynamicPricingCategories,
+        selectedTeethMulti,
+        setSelectedTeethMulti
+      }) => {
+        const [isPediatric, setIsPediatric] = useState(false);
+
+        // --- DİŞ DETAY MODALI STATE'LERİ ---
+        const [detailToothModal, setDetailToothModal] = useState(null);
+        const [detailTab, setDetailTab] = useState("genel");
+        const [tempToothData, setTempToothData] = useState({ status: "Sağlıklı", diagnoses: [], notes: "", surfaces: [], canalLengths: { root1: "", root2: "", root3: "", root4: "" } });
+        const [newDiagnosis, setNewDiagnosis] = useState("");
+        const [isEditingNotes, setIsEditingNotes] = useState(false);
+
+        const TOOTH_STATUS_OPTIONS = [
+          "Sağlıklı", "Başlangıç Çürüğü", "Kavitasyonlu Çürük", 
+          "Kanal Tedavili", "Dolgulu", "Kronlu", "İmplant", 
+          "Eksik", "Gömülü", "Kök Kalıntısı", "Şüpheli", "Diğer"
+        ];
+        
+        const DEFAULT_DIAGNOSES = [
+          "Reversible Pulpitis", "İrreversible Pulpitis", "Nekroz", 
+          "Akut Apikal Apse", "Kronik Apikal Apse", "Apikal Periodontitis",
+          "Sekonder Çürük", "Aşırı Madde Kaybı", "Mine Kırığı", "Kök Fraktürü", 
+          "Hassasiyet (Sıcak/Soğuk)", "Perküsyon Hassasiyeti", "Periodontal Cep"
+        ];
+
+        // --- PROFESYONEL ODONTOGRAM ANATOMİ MOTORU (32 PERMANENT + 20 PRIMARY DİŞ) ---
+        const generateAnatomyDatabase = () => {
+          const db = {};
+          
+          const mirrorPath = (pathStr) => {
+            if(!pathStr) return "";
+            return pathStr.replace(/([0-9.]+)(,)([0-9.]+)/g, (match, x, comma, y) => `${60 - parseFloat(x)}${comma}${y}`);
+          };
+          
+          const mirrorCanals = (canals) => {
+            const mirrored = {};
+            Object.entries(canals).forEach(([k, v]) => {
+              mirrored[k] = { ...v, x1: 60 - v.x1, x2: 60 - v.x2 };
+            });
+            return mirrored;
+          };
+
+          // --- YETİŞKİN (PERMANENT) DİŞ ŞABLONLARI ---
+          const permTemplates = {
+            upper: {
+              "1": { type: "incisor", rootCount: 1, crownPath: "M 12,80 C 12,115 15,135 22,135 C 30,135 30,135 38,135 C 45,135 48,115 48,80 Z", dentinPath: "M 15,80 C 15,110 18,128 24,128 C 30,128 30,128 36,128 C 42,128 45,110 45,80 Z", rootPaths: ["M 18,80 C 18,35 23,10 30,5 C 37,10 42,35 42,80 Z"], pulpChamberPath: "M 25,75 C 25,85 28,95 30,95 C 32,95 35,85 35,75 Z", occlusalPath: "M 22,125 Q 30,130 38,125", canals: { "Ana Kanal": { x1: 30, y1: 8, x2: 30, y2: 75 } } },
+              "2": { type: "incisor", rootCount: 1, crownPath: "M 16,80 C 16,110 19,130 25,130 C 30,130 30,130 35,130 C 41,130 44,110 44,80 Z", dentinPath: "M 18,80 C 18,105 21,124 26,124 C 30,124 30,124 34,124 C 39,124 42,105 42,80 Z", rootPaths: ["M 20,80 C 20,35 24,12 30,6 C 36,12 40,35 40,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,90 30,90 C 32,90 34,85 34,75 Z", occlusalPath: "M 25,120 Q 30,125 35,120", canals: { "Ana Kanal": { x1: 30, y1: 10, x2: 30, y2: 75 } } },
+              "3": { type: "canine", rootCount: 1, crownPath: "M 14,80 C 14,105 25,135 30,140 C 35,135 46,105 46,80 Z", dentinPath: "M 17,80 C 17,100 26,125 30,130 C 34,125 43,100 43,80 Z", rootPaths: ["M 18,80 C 18,25 25,5 30,2 C 35,5 42,25 42,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,100 30,105 C 32,100 34,85 34,75 Z", occlusalPath: "M 25,120 L 30,135 L 35,120", canals: { "Ana Kanal": { x1: 30, y1: 5, x2: 30, y2: 75 } } },
+              "4": { type: "premolar", rootCount: 2, crownPath: "M 12,80 C 12,110 18,135 30,135 C 42,135 48,110 48,80 Z", dentinPath: "M 15,80 C 15,105 20,128 30,128 C 40,128 45,105 45,80 Z", rootPaths: ["M 16,80 C 16,40 20,15 25,5 C 28,15 28,40 30,80 Z", "M 30,80 C 32,40 32,15 35,5 C 40,15 44,40 44,80 Z"], pulpChamberPath: "M 22,70 C 22,80 30,85 38,70 Z", occlusalPath: "M 20,120 Q 30,125 40,120 M 30,120 L 30,130", canals: { "Bukkal": { x1: 25, y1: 10, x2: 26, y2: 70 }, "Palatinal": { x1: 35, y1: 10, x2: 34, y2: 70 } } },
+              "5": { type: "premolar", rootCount: 1, crownPath: "M 13,80 C 13,110 19,132 30,132 C 41,132 47,110 47,80 Z", dentinPath: "M 16,80 C 16,105 21,125 30,125 C 39,125 44,105 44,80 Z", rootPaths: ["M 18,80 C 18,35 24,10 30,5 C 36,10 42,35 42,80 Z"], pulpChamberPath: "M 24,70 C 24,80 30,85 36,70 Z", occlusalPath: "M 22,118 Q 30,125 38,118 M 30,118 L 30,128", canals: { "Ana Kanal": { x1: 30, y1: 8, x2: 30, y2: 70 } } },
+              "6": { type: "molar", rootCount: 3, crownPath: "M 5,80 C 5,115 10,135 20,135 C 30,130 30,130 40,135 C 50,135 55,115 55,80 Z", dentinPath: "M 8,80 C 8,110 12,128 20,128 C 30,124 30,124 40,128 C 48,128 52,110 52,80 Z", rootPaths: ["M 12,80 C 8,40 4,20 12,5 C 18,20 22,45 22,80 Z", "M 38,80 C 38,45 42,20 48,5 C 56,20 52,40 48,80 Z", "M 22,80 C 26,40 28,10 30,5 C 32,10 34,40 38,80 Z"], pulpChamberPath: "M 16,65 C 16,75 44,75 44,65 Z", occlusalPath: "M 15,120 Q 20,125 30,120 Q 40,125 45,120 M 30,115 L 30,130 L 25,125", canals: { "MB1": { x1: 12, y1: 10, x2: 19, y2: 65 }, "MB2": { x1: 15, y1: 12, x2: 21, y2: 65 }, "DB": { x1: 48, y1: 10, x2: 41, y2: 65 }, "P": { x1: 30, y1: 5, x2: 30, y2: 65 } } },
+              "7": { type: "molar", rootCount: 3, crownPath: "M 6,80 C 6,112 11,130 20,130 C 30,126 30,126 40,130 C 49,130 54,112 54,80 Z", dentinPath: "M 9,80 C 9,108 13,124 20,124 C 30,120 30,120 40,124 C 47,124 51,108 51,80 Z", rootPaths: ["M 14,80 C 10,40 8,20 15,6 C 20,20 24,45 24,80 Z", "M 36,80 C 36,45 40,20 45,6 C 52,20 50,40 46,80 Z", "M 24,80 C 27,40 28,10 30,6 C 32,10 33,40 36,80 Z"], pulpChamberPath: "M 18,65 C 18,75 42,75 42,65 Z", occlusalPath: "M 16,118 Q 20,122 30,118 Q 40,122 44,118 M 30,115 L 30,125", canals: { "MB": { x1: 15, y1: 12, x2: 21, y2: 65 }, "DB": { x1: 45, y1: 12, x2: 39, y2: 65 }, "P": { x1: 30, y1: 6, x2: 30, y2: 65 } } },
+              "8": { type: "molar", rootCount: 3, crownPath: "M 8,80 C 8,110 13,125 20,125 C 30,120 30,120 40,125 C 47,125 52,110 52,80 Z", dentinPath: "M 11,80 C 11,105 15,120 20,120 C 30,115 30,115 40,120 C 45,120 49,105 49,80 Z", rootPaths: ["M 16,80 C 14,40 18,15 25,8 C 28,15 28,45 28,80 Z", "M 32,80 C 32,45 32,15 35,8 C 42,15 46,40 44,80 Z"], pulpChamberPath: "M 20,68 C 20,78 40,78 40,68 Z", occlusalPath: "M 18,115 Q 25,120 30,115 Q 35,120 42,115", canals: { "Kanal 1": { x1: 25, y1: 12, x2: 24, y2: 68 }, "Kanal 2": { x1: 35, y1: 12, x2: 36, y2: 68 } } }
+            },
+            lower: {
+              "1": { type: "incisor", rootCount: 1, crownPath: "M 18,80 C 18,115 20,135 24,135 C 30,135 30,135 36,135 C 40,135 42,115 42,80 Z", dentinPath: "M 20,80 C 20,110 22,128 26,128 C 30,128 30,128 34,128 C 38,128 40,110 40,80 Z", rootPaths: ["M 22,80 C 22,35 26,10 30,5 C 34,10 38,35 38,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,95 30,95 C 32,95 34,85 34,75 Z", occlusalPath: "M 23,125 L 37,125", canals: { "Ana Kanal": { x1: 30, y1: 8, x2: 30, y2: 75 } } },
+              "2": { type: "incisor", rootCount: 1, crownPath: "M 16,80 C 16,115 19,135 24,135 C 30,135 30,135 36,135 C 41,135 44,115 44,80 Z", dentinPath: "M 18,80 C 18,110 21,128 26,128 C 30,128 30,128 34,128 C 39,128 42,110 42,80 Z", rootPaths: ["M 20,80 C 20,35 24,10 30,5 C 36,10 40,35 40,80 Z"], pulpChamberPath: "M 25,75 C 25,85 28,95 30,95 C 32,95 35,85 35,75 Z", occlusalPath: "M 22,125 Q 30,130 38,125", canals: { "Ana Kanal": { x1: 30, y1: 8, x2: 30, y2: 75 } } },
+              "3": { type: "canine", rootCount: 1, crownPath: "M 15,80 C 15,105 25,135 30,140 C 35,135 45,105 45,80 Z", dentinPath: "M 18,80 C 18,100 26,125 30,130 C 34,125 42,100 42,80 Z", rootPaths: ["M 18,80 C 18,25 25,5 30,2 C 35,5 42,25 42,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,100 30,105 C 32,100 34,85 34,75 Z", occlusalPath: "M 25,120 L 30,135 L 35,120", canals: { "Ana Kanal": { x1: 30, y1: 5, x2: 30, y2: 75 } } },
+              "4": { type: "premolar", rootCount: 1, crownPath: "M 12,80 C 12,110 18,130 30,130 C 42,130 48,110 48,80 Z", dentinPath: "M 15,80 C 15,105 20,124 30,124 C 40,124 45,105 45,80 Z", rootPaths: ["M 18,80 C 18,35 24,10 30,5 C 36,10 42,35 42,80 Z"], pulpChamberPath: "M 24,70 C 24,80 30,85 36,70 Z", occlusalPath: "M 20,118 Q 30,123 40,118 M 30,118 L 30,128", canals: { "Ana Kanal": { x1: 30, y1: 8, x2: 30, y2: 70 } } },
+              "5": { type: "premolar", rootCount: 1, crownPath: "M 11,80 C 11,110 17,135 30,135 C 43,135 49,110 49,80 Z", dentinPath: "M 14,80 C 14,105 19,128 30,128 C 41,128 46,105 46,80 Z", rootPaths: ["M 18,80 C 18,35 24,10 30,5 C 36,10 42,35 42,80 Z"], pulpChamberPath: "M 22,70 C 22,80 30,85 38,70 Z", occlusalPath: "M 20,120 Q 30,125 40,120 M 30,115 L 30,125", canals: { "Ana Kanal": { x1: 30, y1: 8, x2: 30, y2: 70 } } },
+              "6": { type: "molar", rootCount: 2, crownPath: "M 4,80 C 4,115 10,135 20,135 C 30,132 30,132 40,135 C 50,135 56,115 56,80 Z", dentinPath: "M 7,80 C 7,110 12,128 20,128 C 30,125 30,125 40,128 C 48,128 53,110 53,80 Z", rootPaths: ["M 10,80 C 8,40 10,15 20,5 C 26,15 26,45 26,80 Z", "M 34,80 C 34,45 34,15 40,5 C 50,15 52,40 50,80 Z"], pulpChamberPath: "M 16,65 C 16,80 44,80 44,65 Z", occlusalPath: "M 12,120 Q 20,125 30,120 Q 40,125 48,120 M 20,115 L 20,130 M 40,115 L 40,130", canals: { "MB": { x1: 16, y1: 10, x2: 20, y2: 65 }, "ML": { x1: 24, y1: 12, x2: 22, y2: 65 }, "D": { x1: 44, y1: 10, x2: 40, y2: 65 } } },
+              "7": { type: "molar", rootCount: 2, crownPath: "M 6,80 C 6,112 11,130 20,130 C 30,128 30,128 40,130 C 49,130 54,112 54,80 Z", dentinPath: "M 9,80 C 9,108 13,124 20,124 C 30,122 30,122 40,124 C 47,124 51,108 51,80 Z", rootPaths: ["M 12,80 C 10,40 12,15 22,6 C 26,15 26,45 26,80 Z", "M 34,80 C 34,45 34,15 38,6 C 48,15 50,40 48,80 Z"], pulpChamberPath: "M 18,65 C 18,78 42,78 42,65 Z", occlusalPath: "M 14,118 Q 20,122 30,118 Q 40,122 46,118 M 30,115 L 30,125", canals: { "M": { x1: 18, y1: 12, x2: 21, y2: 65 }, "D": { x1: 42, y1: 12, x2: 39, y2: 65 } } },
+              "8": { type: "molar", rootCount: 2, crownPath: "M 8,80 C 8,110 13,125 20,125 C 30,120 30,120 40,125 C 47,125 52,110 52,80 Z", dentinPath: "M 11,80 C 11,105 15,120 20,120 C 30,117 30,117 40,120 C 45,120 49,105 49,80 Z", rootPaths: ["M 16,80 C 14,40 16,15 24,8 C 28,15 28,45 28,80 Z", "M 32,80 C 32,45 32,15 36,8 C 44,15 46,40 44,80 Z"], pulpChamberPath: "M 20,68 C 20,78 40,78 40,68 Z", occlusalPath: "M 16,115 Q 25,120 30,115 Q 35,120 44,115", canals: { "Ana Kanal 1": { x1: 25, y1: 12, x2: 24, y2: 68 }, "Ana Kanal 2": { x1: 35, y1: 12, x2: 36, y2: 68 } } }
+            }
+          };
+
+          // --- YENİ: SÜT DİŞİ (PRIMARY) ŞABLONLARI ---
+          const primTemplates = {
+            upper: {
+              "1": { type: "primary_incisor", rootCount: 1, crownPath: "M 15,80 C 12,105 18,125 24,125 C 30,125 30,125 36,125 C 42,125 48,105 45,80 C 30,86 30,86 15,80 Z", dentinPath: "M 18,80 C 16,102 21,120 26,120 C 30,120 30,120 34,120 C 39,120 44,102 42,80 Z", rootPaths: ["M 20,80 C 22,40 26,15 30,12 C 34,15 38,40 40,80 Z"], pulpChamberPath: "M 25,75 C 25,85 28,90 30,90 C 32,90 35,85 35,75 Z", occlusalPath: "M 22,118 Q 30,122 38,118", canals: { "Ana Kanal": { x1: 30, y1: 15, x2: 30, y2: 75 } } },
+              "2": { type: "primary_incisor", rootCount: 1, crownPath: "M 17,80 C 15,100 20,120 26,120 C 30,120 30,120 34,120 C 40,120 45,100 43,80 C 30,85 30,85 17,80 Z", dentinPath: "M 19,80 C 18,98 22,115 27,115 C 30,115 30,115 33,115 C 38,115 42,98 41,80 Z", rootPaths: ["M 22,80 C 24,45 27,18 30,15 C 33,18 36,45 38,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,90 30,90 C 32,90 34,85 34,75 Z", occlusalPath: "M 24,113 Q 30,117 36,113", canals: { "Ana Kanal": { x1: 30, y1: 18, x2: 30, y2: 75 } } },
+              "3": { type: "primary_canine", rootCount: 1, crownPath: "M 14,80 C 12,100 22,130 30,135 C 38,130 48,100 46,80 C 30,88 30,88 14,80 Z", dentinPath: "M 17,80 C 15,95 24,120 30,125 C 36,120 45,95 43,80 Z", rootPaths: ["M 18,80 C 20,35 26,12 30,8 C 34,12 40,35 42,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,100 30,105 C 32,100 34,85 34,75 Z", occlusalPath: "M 22,115 L 30,128 L 38,115", canals: { "Ana Kanal": { x1: 30, y1: 12, x2: 30, y2: 75 } } },
+              "4": { type: "primary_molar", rootCount: 3, crownPath: "M 10,80 C 5,100 12,120 20,120 C 30,118 30,118 40,120 C 48,120 55,100 50,80 C 30,88 30,88 10,80 Z", dentinPath: "M 13,80 C 9,98 15,115 22,115 C 30,113 30,113 38,115 C 45,115 51,98 47,80 Z", rootPaths: ["M 14,80 C 6,40 2,20 10,12 C 16,25 22,50 22,80 Z", "M 38,80 C 38,50 44,25 50,12 C 58,20 54,40 46,80 Z", "M 22,80 C 26,40 28,15 30,10 C 32,15 34,40 38,80 Z"], pulpChamberPath: "M 18,70 C 18,80 42,80 42,70 Z", occlusalPath: "M 15,105 Q 20,110 30,105 Q 40,110 45,105 M 30,100 L 30,115", canals: { "MB": { x1: 10, y1: 18, x2: 20, y2: 70 }, "DB": { x1: 50, y1: 18, x2: 40, y2: 70 }, "P": { x1: 30, y1: 12, x2: 30, y2: 70 } } },
+              "5": { type: "primary_molar", rootCount: 3, crownPath: "M 8,80 C 3,105 10,125 20,125 C 30,122 30,122 40,125 C 50,125 57,105 52,80 C 30,88 30,88 8,80 Z", dentinPath: "M 11,80 C 7,102 13,120 22,120 C 30,117 30,117 38,120 C 47,120 53,102 49,80 Z", rootPaths: ["M 12,80 C 4,35 0,15 8,10 C 15,22 22,45 22,80 Z", "M 38,80 C 38,45 45,22 52,10 C 60,15 56,35 48,80 Z", "M 22,80 C 26,35 28,12 30,8 C 32,12 34,35 38,80 Z"], pulpChamberPath: "M 16,70 C 16,80 44,80 44,70 Z", occlusalPath: "M 14,110 Q 20,115 30,110 Q 40,115 46,110 M 30,105 L 30,120", canals: { "MB": { x1: 8, y1: 15, x2: 18, y2: 70 }, "DB": { x1: 52, y1: 15, x2: 42, y2: 70 }, "P": { x1: 30, y1: 10, x2: 30, y2: 70 } } }
+            },
+            lower: {
+              "1": { type: "primary_incisor", rootCount: 1, crownPath: "M 18,80 C 16,105 20,125 24,125 C 30,125 30,125 36,125 C 40,125 44,105 42,80 C 30,86 30,86 18,80 Z", dentinPath: "M 20,80 C 18,102 22,120 26,120 C 30,120 30,120 34,120 C 38,120 42,102 40,80 Z", rootPaths: ["M 22,80 C 24,40 27,15 30,12 C 33,15 36,40 38,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,95 30,95 C 32,95 34,85 34,75 Z", occlusalPath: "M 23,118 L 37,118", canals: { "Ana Kanal": { x1: 30, y1: 15, x2: 30, y2: 75 } } },
+              "2": { type: "primary_incisor", rootCount: 1, crownPath: "M 17,80 C 15,105 19,125 24,125 C 30,125 30,125 36,125 C 41,125 45,105 43,80 C 30,86 30,86 17,80 Z", dentinPath: "M 19,80 C 17,102 21,120 26,120 C 30,120 30,120 34,120 C 39,120 43,102 41,80 Z", rootPaths: ["M 21,80 C 23,40 26,15 30,12 C 34,15 37,40 39,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,95 30,95 C 32,95 34,85 34,75 Z", occlusalPath: "M 22,118 L 38,118", canals: { "Ana Kanal": { x1: 30, y1: 15, x2: 30, y2: 75 } } },
+              "3": { type: "primary_canine", rootCount: 1, crownPath: "M 15,80 C 13,100 24,130 30,135 C 36,130 47,100 45,80 C 30,88 30,88 15,80 Z", dentinPath: "M 18,80 C 16,95 25,120 30,125 C 35,120 44,95 42,80 Z", rootPaths: ["M 18,80 C 20,35 26,12 30,8 C 34,12 40,35 42,80 Z"], pulpChamberPath: "M 26,75 C 26,85 28,100 30,105 C 32,100 34,85 34,75 Z", occlusalPath: "M 24,115 L 30,128 L 36,115", canals: { "Ana Kanal": { x1: 30, y1: 12, x2: 30, y2: 75 } } },
+              "4": { type: "primary_molar", rootCount: 2, crownPath: "M 8,80 C 4,105 10,120 20,120 C 30,118 30,118 40,120 C 50,120 56,105 52,80 C 30,88 30,88 8,80 Z", dentinPath: "M 11,80 C 7,100 13,115 22,115 C 30,113 30,113 38,115 C 47,115 53,100 49,80 Z", rootPaths: ["M 12,80 C 4,40 2,15 12,8 C 18,15 22,45 24,80 Z", "M 36,80 C 38,45 42,15 48,8 C 58,15 56,40 48,80 Z"], pulpChamberPath: "M 18,70 C 18,82 42,82 42,70 Z", occlusalPath: "M 16,108 Q 20,112 30,108 Q 40,112 44,108 M 30,102 L 30,115", canals: { "M": { x1: 12, y1: 12, x2: 20, y2: 70 }, "D": { x1: 48, y1: 12, x2: 40, y2: 70 } } },
+              "5": { type: "primary_molar", rootCount: 2, crownPath: "M 6,80 C 2,110 9,125 20,125 C 30,122 30,122 40,125 C 51,125 58,110 54,80 C 30,88 30,88 6,80 Z", dentinPath: "M 9,80 C 5,105 12,120 22,120 C 30,117 30,117 38,120 C 48,120 55,105 51,80 Z", rootPaths: ["M 10,80 C 2,40 0,15 10,6 C 18,15 22,45 24,80 Z", "M 36,80 C 38,45 42,15 50,6 C 60,15 58,40 50,80 Z"], pulpChamberPath: "M 18,70 C 18,82 42,82 42,70 Z", occlusalPath: "M 14,112 Q 20,116 30,112 Q 40,116 46,112 M 22,105 L 22,118 M 38,105 L 38,118", canals: { "M": { x1: 10, y1: 10, x2: 20, y2: 70 }, "D": { x1: 50, y1: 10, x2: 40, y2: 70 } } }
+            }
+          };
+
+          const quadrants = [
+            { range: [11, 18], arch: "upper", side: "right", mirror: false, templates: permTemplates },
+            { range: [21, 28], arch: "upper", side: "left", mirror: true, templates: permTemplates },
+            { range: [41, 48], arch: "lower", side: "right", mirror: false, templates: permTemplates },
+            { range: [31, 38], arch: "lower", side: "left", mirror: true, templates: permTemplates },
+            
+            // SÜT DİŞLERİ
+            { range: [51, 55], arch: "upper", side: "right", mirror: false, templates: primTemplates },
+            { range: [61, 65], arch: "upper", side: "left", mirror: true, templates: primTemplates },
+            { range: [81, 85], arch: "lower", side: "right", mirror: false, templates: primTemplates },
+            { range: [71, 75], arch: "lower", side: "left", mirror: true, templates: primTemplates }
+          ];
+
+          quadrants.forEach(q => {
+            const start = q.range[0];
+            const end = q.range[1];
+            for (let i = start; i <= end; i++) {
+              const toothNum = i.toString();
+              const toothIndex = toothNum[1];
+              const base = q.templates[q.arch][toothIndex];
+              
+              if(!base) continue;
+
+              if (q.mirror) {
+                db[toothNum] = {
+                  ...base,
+                  toothNumber: toothNum,
+                  crownPath: mirrorPath(base.crownPath),
+                  dentinPath: mirrorPath(base.dentinPath),
+                  rootPaths: base.rootPaths.map(mirrorPath),
+                  pulpChamberPath: mirrorPath(base.pulpChamberPath),
+                  occlusalPath: mirrorPath(base.occlusalPath),
+                  canals: mirrorCanals(base.canals),
+                  anatomyMetadata: { defaultCanals: Object.keys(base.canals).reverse() }
+                };
+              } else {
+                db[toothNum] = {
+                  ...base,
+                  toothNumber: toothNum,
+                  anatomyMetadata: { defaultCanals: Object.keys(base.canals) }
+                };
+              }
+            }
+          });
+          
+          return db;
+        };
+
+        const TOOTH_ANATOMY = generateAnatomyDatabase();
+
+        const getStandardCanals = (tNo) => {
+          return TOOTH_ANATOMY[tNo]?.anatomyMetadata?.defaultCanals || ["Ana Kanal"];
+        };
+
+        const openDetailModal = (tNo) => {
+          const tKey = tNo.toString();
+          const existingData = patientForm.toothRecords?.[tKey] || {};
+          
+          let initialLengths = existingData.canalLengths || {};
+          let initialCanals = existingData.activeCanals || [];
+          
+          if (initialCanals.length === 0) {
+            const legacyKeys = ["root1", "root2", "root3", "root4"].filter(k => initialLengths[k]);
+            if (legacyKeys.length > 0) {
+              initialCanals = legacyKeys;
+            } else {
+              initialCanals = getStandardCanals(tKey);
+            }
+          }
+
+          setTempToothData({
+            status: existingData.status || "Sağlıklı",
+            diagnoses: existingData.diagnoses || [],
+            notes: existingData.notes || "",
+            activeCanals: initialCanals,
+            canalLengths: initialLengths,
+            surfaces: existingData.surfaces || [] 
+          });
+          setIsEditingNotes(false); 
+          setDetailToothModal(tKey);
+          setDetailTab("genel");
+        };
+
+        const saveToothDetails = () => {
+          const tKey = detailToothModal;
+          const updatedRecords = {
+            ...(patientForm.toothRecords || {}),
+            [tKey]: tempToothData
+          };
+          const updatedPatient = { ...patientForm, toothRecords: updatedRecords };
+          setPatientForm(updatedPatient);
+          
+          if(saveGlobalData) {
+            saveGlobalData({
+              ...globalData,
+              patientsDb: { ...globalData.patientsDb, [updatedPatient.id]: updatedPatient }
+            });
+            showNotification(`${tKey} Numaralı diş detayları kaydedildi.`);
+            setIsEditingNotes(false); 
+          }
+        };
+
+        const toggleDiagnosis = (diag) => {
+          setTempToothData(prev => {
+            const has = prev.diagnoses.includes(diag);
+            let updatedNotes = prev.notes;
+            
+            if (!has) {
+              const dateStr = new Date().toLocaleDateString('tr-TR');
+              const autoNote = `[${dateStr}] Tanı Eklendi: ${diag}`;
+              updatedNotes = prev.notes ? `${prev.notes}\n${autoNote}` : autoNote;
+            }
+
+            return {
+              ...prev,
+              diagnoses: has ? prev.diagnoses.filter(d => d !== diag) : [...prev.diagnoses, diag],
+              notes: updatedNotes
+            };
+          });
+        };
+
+        const topRight = isPediatric ? [55, 54, 53, 52, 51] : [18, 17, 16, 15, 14, 13, 12, 11];
+        const topLeft = isPediatric ? [61, 62, 63, 64, 65] : [21, 22, 23, 24, 25, 26, 27, 28];
+        const botRight = isPediatric ? [85, 84, 83, 82, 81] : [48, 47, 46, 45, 44, 43, 42, 41];
+        const botLeft = isPediatric ? [71, 72, 73, 74, 75] : [31, 32, 33, 34, 35, 36, 37, 38];
+
+        const handleToothClick = (toothNo) => {
+          if (!activePlanTreatment) {
+            setSelectedTeethMulti(prev => 
+              prev.includes(toothNo.toString()) 
+                ? prev.filter(t => t !== toothNo.toString()) 
+                : [...prev, toothNo.toString()]
+            );
+            return;
+          }
+
+          let ownerId = currentUser;
+          const myProfile = globalData.userProfiles?.[currentUser];
+          if (myProfile?.clinicId) {
+             const patron = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === myProfile.clinicId && v.role === "clinic_owner");
+             if (patron) ownerId = patron[0];
+          } else if (myProfile?.role === "assistant" || myProfile?.role === "doctor") {
+             ownerId = myProfile.createdBy || currentUser;
+          }
+          
+          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
+          const userPricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+
+          if (activePlanTreatment === "Tam Protez (Tek Çene)") {
+            const tInt = parseInt(toothNo);
+            const isUpperClick = tInt < 30 || (tInt >= 50 && tInt < 70);
+            const targetJaw = isUpperClick ? "Üst Çene" : "Alt Çene";
+
+            const exists = patientForm.plannedTreatments?.some(
+              (t) => t.tooth === targetJaw && t.treatment === activePlanTreatment
+            );
+
+            if (exists) {
+              setPatientForm((prev) => ({
+                ...prev,
+                plannedTreatments: prev.plannedTreatments.filter(
+                  (t) => !(t.tooth === targetJaw && t.treatment === activePlanTreatment)
+                ),
+              }));
+              showNotification(`${targetJaw} bölgesinden Tam Protez çıkarıldı.`, "error");
+              return;
+            }
+
+            const txPrice = userPricing[activePlanTreatment] !== undefined ? parseFloat(userPricing[activePlanTreatment]) : 0;
+
+            const newTx = {
+              id: Date.now() + Math.random().toString(),
+              tooth: targetJaw,
+              treatment: activePlanTreatment,
+              date: Date.now(),
+              price: txPrice,
+            };
+
+            setPatientForm((prev) => ({
+              ...prev,
+              plannedTreatments: [...(prev.plannedTreatments || []), newTx],
+            }));
+
+            showNotification(`${targetJaw} için Tam Protez planlandı. (${txPrice} ₺)`);
+            return;
+          }
+
+          let actualPlanTreatment = activePlanTreatment;
+          if (activePlanTreatment === "Diş Çekimi" && ["18", "28", "38", "48"].includes(toothNo.toString())) {
+            actualPlanTreatment = "Gömülü ve 20lik Diş Çekimi";
+            showNotification("8 Numaralı diş seçildiği için tarife 'Gömülü ve 20lik Diş Çekimi' olarak otomatik güncellendi.");
+          }
+
+          const exists = patientForm.plannedTreatments?.some(
+            (t) => t.tooth === toothNo && t.treatment === actualPlanTreatment
+          );
+
+          if (exists) {
+            setPatientForm((prev) => ({
+              ...prev,
+              plannedTreatments: prev.plannedTreatments.filter(
+                (t) => !(t.tooth === toothNo && t.treatment === actualPlanTreatment)
+              ),
+            }));
+            showNotification(`${toothNo} numaralı bölgeden ${actualPlanTreatment} çıkarıldı.`, "error");
+            return;
+          }
+
+          const txPrice = userPricing[actualPlanTreatment] !== undefined ? parseFloat(userPricing[actualPlanTreatment]) : 0;
+
+          const newTx = {
+            id: Date.now() + Math.random().toString(),
+            tooth: toothNo,
+            treatment: actualPlanTreatment,
+            date: Date.now(),
+            price: txPrice,
+          };
+
+          setPatientForm((prev) => ({
+            ...prev,
+            plannedTreatments: [...(prev.plannedTreatments || []), newTx],
+          }));
+
+          showNotification(`${toothNo} numaralı dişe ${actualPlanTreatment} planlandı. (${txPrice} ₺)`);
+        };
+
+        const allTreatmentsSorted = useMemo(() => {
+          return [...(patientForm.plannedTreatments || [])].sort(
+            (a, b) => a.date - b.date
+          );
+        }, [patientForm.plannedTreatments]);
+
+        const uniqueDates = useMemo(() => {
+          const dates = allTreatmentsSorted.map((t) =>
+            new Date(t.date).toLocaleDateString("tr-TR")
+          );
+          return [...new Set(dates)]; 
+        }, [allTreatmentsSorted]);
+
+        const [timelineIndex, setTimelineIndex] = useState(
+          uniqueDates.length > 0 ? uniqueDates.length - 1 : -1
+        );
+
+        useEffect(() => {
+          setTimelineIndex(
+            uniqueDates.length > 0 ? uniqueDates.length - 1 : -1
+          );
+        }, [uniqueDates.length]);
+
+        const renderTooth = (toothNo, isUpper) => {
+          const treatments = allTreatmentsSorted.filter((x) => {
+            if (x.tooth !== toothNo.toString()) return false;
+            if (timelineIndex === -1) return true;
+            const txDateStr = new Date(x.date).toLocaleDateString("tr-TR");
+            const txIndex = uniqueDates.indexOf(txDateStr);
+            return txIndex <= timelineIndex;
+          });
+
+          const hasExtraction = treatments.some((t) => t.treatment.includes("Çekim"));
+          const hasImplant = treatments.some((t) => t.treatment.includes("İmplant"));
+          const hasGraftedImplant = treatments.some((t) => t.treatment.includes("İmplant (Greftli)"));
+          const hasFilling = treatments.some((t) => t.treatment.includes("Dolgu"));
+          const hasCanal = treatments.some((t) => t.treatment.includes("Kanal Tedavisi") && !t.treatment.includes("Yenileme"));
+          const hasRetreatment = treatments.some((t) => t.treatment.includes("Yenileme"));
+          const hasCleaning = treatments.some((t) => t.treatment.includes("Detertraj"));
+          const hasCrown = treatments.some((t) => t.treatment.includes("Kron"));
+          const hasVeneer = treatments.some((t) => t.treatment.includes("Vener"));
+          const hasZirconium = treatments.some((t) => t.treatment.includes("Zirkonyum"));
+
+          const hasWholeJawDetertraj = patientForm.plannedTreatments?.some(
+            (t) => t.tooth === "Tüm Çene" && t.treatment === "Detertraj"
+          );
+
+          const allJawTreatments = allTreatmentsSorted.filter((x) => {
+             const targetJaw = isUpper ? "Üst Çene" : "Alt Çene";
+             if (x.tooth !== targetJaw) return false;
+             if (timelineIndex === -1) return true;
+             const txDateStr = new Date(x.date).toLocaleDateString("tr-TR");
+             const txIndex = uniqueDates.indexOf(txDateStr);
+             return txIndex <= timelineIndex;
+          });
+          const isFullDenture = allJawTreatments.some(t => t.treatment === "Tam Protez (Tek Çene)");
+
+          const toothRecord = patientForm.toothRecords?.[toothNo.toString()] || { status: "Sağlıklı", diagnoses: [], surfaces: [] };
+          const tStatus = toothRecord.status;
+          const tDiags = toothRecord.diagnoses || [];
+          const tSurfaces = toothRecord.surfaces || []; // YENİ: Yüzey verisi okundu
+
+          const isImpacted = tStatus === "Gömülü" || treatments.some(t => t.treatment.includes("Gömülü"));
+          const hasAbscess = tDiags.some(d => d.includes("Apse") || d.includes("Apikal Periodontitis") || d.includes("Lezyon"));
+          const hasInitialCaries = tStatus === "Başlangıç Çürüğü" || tDiags.includes("Başlangıç Çürüğü");
+          const hasDeepCaries = tStatus === "Kavitasyonlu Çürük" || tDiags.includes("Aşırı Madde Kaybı") || tDiags.includes("Sekonder Çürük");
+          const hasPulpitis = tDiags.some(d => d.includes("Pulpitis") || d.includes("Nekroz"));
+
+          let heatMapClass = "";
+          if (hasExtraction || hasImplant) heatMapClass = "heatmap-danger";
+          else if (hasCanal || hasRetreatment) heatMapClass = "heatmap-warning";
+          else if (hasFilling || hasCrown) heatMapClass = "heatmap-info";
+
+          const anatomy = TOOTH_ANATOMY[toothNo.toString()] || TOOTH_ANATOMY["11"];
+
+          let baseTransform = isUpper ? "" : "scale(1, -1) translate(0, -140)";
+          if (isImpacted) {
+             const impactTransform = "translate(7.5, -25) scale(0.75)";
+             baseTransform = `${baseTransform} ${impactTransform}`;
+          }
+          const transform = baseTransform;
+
+          const isMultiSelected = selectedTeethMulti.includes(toothNo.toString());
+
+          return (
+            <div
+              key={toothNo}
+              onClick={() => handleToothClick(toothNo.toString())}
+              className={`flex flex-col items-center group cursor-pointer hover:scale-110 transition-transform relative z-10 w-[24px] sm:w-[30px] md:w-[36px] ${heatMapClass} ${isMultiSelected ? 'ring-4 ring-indigo-500 rounded-lg bg-indigo-50 dark:bg-indigo-900/50 scale-110 z-20 shadow-md' : ''}`}
+            >
+              {treatments.length > 0 && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 bg-slate-900 dark:bg-slate-700 text-white text-[10px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-300 shadow-xl flex flex-col items-center scale-95 group-hover:scale-100">
+                  <div className="font-black text-indigo-300 mb-0.5 border-b border-slate-700 pb-0.5 w-full text-center">
+                    Diş {toothNo}
                   </div>
+                  {treatments.map((t, idx) => (
+                    <div
+                      key={idx}
+                      className="font-semibold tracking-wide mt-0.5"
+                    >
+                      {t.treatment}{" "}
+                      <span className="text-slate-400">({t.price} ₺)</span>
+                    </div>
+                  ))}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900 dark:border-t-slate-700"></div>
+                </div>
+              )}
 
-                  {/* Tab Contents */}
-                  <div className="p-2 overflow-y-auto custom-scrollbar flex-1 bg-white dark:bg-slate-800" id="print-tooth-detail">
-                    
-                    {/* YAZDIRMA İÇİN GİZLİ BAŞLIK */}
-                    <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
-                      <h1 className="text-base font-black uppercase text-black">{detailToothModal} NUMARALI DİŞ KLİNİK RAPORU</h1>
-                      <div className="text-[13px] font-bold text-gray-700 mt-2 grid grid-cols-2">
-                        <div>Hasta: {patientForm.name}</div>
-                        <div className="text-right">Tarih: {new Date().toLocaleDateString("tr-TR")}</div>
-                      </div>
-                    </div>
+              {isUpper && (
+                <div className="relative text-[10px] font-black text-slate-500 dark:text-slate-400 mb-1 transition-colors group-hover:text-indigo-500 flex items-center justify-center">
+                  <span className="pointer-events-none">{toothNo}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
+                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3 h-3 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
+                    title="Diş Detayları"
+                  >
+                    <i className="fa-solid fa-info"></i>
+                  </button>
+                </div>
+              )}
 
-                    {detailTab === "genel" && (
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Dişin Güncel Durumu</label>
-                            <div className="flex flex-wrap gap-1">
-                              {TOOTH_STATUS_OPTIONS.map(opt => (
-                                <button
-                                  key={opt}
-                                  onClick={() => setTempToothData({...tempToothData, status: opt})}
-                                  className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all ${
-                                    tempToothData.status === opt 
-                                      ? "bg-indigo-500 text-white border-indigo-600 shadow-md" 
-                                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300"
-                                  }`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Tanılar / Semptomlar</label>
-                            <div className="flex flex-wrap gap-1 mb-2">
-                              {DEFAULT_DIAGNOSES.map(diag => (
-                                <button
-                                  key={diag}
-                                  onClick={() => toggleDiagnosis(diag)}
-                                  className={`px-2 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1 ${
-                                    tempToothData.diagnoses.includes(diag)
-                                      ? "bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400"
-                                      : "bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-100"
-                                  }`}
-                                >
-                                  <i className={`fa-solid ${tempToothData.diagnoses.includes(diag) ? "fa-check" : "fa-plus opacity-50"}`}></i>
-                                  {diag}
-                                </button>
-                              ))}
-                              {tempToothData.diagnoses.filter(d => !DEFAULT_DIAGNOSES.includes(d)).map(diag => (
-                                <button key={diag} onClick={() => toggleDiagnosis(diag)} className="px-2 py-1 rounded-md border text-[11px] font-bold transition-all flex items-center gap-1 bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-400">
-                                  <i className="fa-solid fa-check"></i> {diag}
-                                </button>
-                              ))}
-                            </div>
-                            <div className="flex gap-1">
-                              <input 
-                                type="text" 
-                                value={newDiagnosis} 
-                                onChange={(e) => setNewDiagnosis(e.target.value)} 
-                                placeholder="Özel tanı ekle..." 
-                                className="flex-1 p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 dark:text-white"
-                                onKeyDown={(e) => {
-                                  if(e.key === 'Enter' && newDiagnosis.trim()) {
-                                    e.preventDefault();
-                                    if(!tempToothData.diagnoses.includes(newDiagnosis.trim())) {
-                                      toggleDiagnosis(newDiagnosis.trim());
-                                    }
-                                    setNewDiagnosis("");
-                                  }
-                                }}
-                              />
-                              <button 
-                                onClick={() => {
-                                  if(newDiagnosis.trim() && !tempToothData.diagnoses.includes(newDiagnosis.trim())) {
-                                    toggleDiagnosis(newDiagnosis.trim());
-                                    setNewDiagnosis("");
-                                  }
-                                }}
-                                className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 px-2.5 py-1.5 rounded-lg font-bold hover:bg-indigo-200 transition text-[11px]"
-                              >
-                                Ekle
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+              <svg
+                viewBox="0 0 60 140"
+                className="w-full h-[70px] sm:h-[90px] md:h-[110px] drop-shadow-md overflow-visible"
+              >
+                <defs>
+                  <linearGradient id={`rootGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#dcb892" />
+                    <stop offset="50%" stopColor="#fef3c7" />
+                    <stop offset="100%" stopColor="#dcb892" />
+                  </linearGradient>
+                  <linearGradient id={`crownGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="80%" stopColor="#f8fafc" />
+                    <stop offset="100%" stopColor="#e2e8f0" />
+                  </linearGradient>
+                  <linearGradient id="porcelainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#f1f5f9" />
+                    <stop offset="50%" stopColor="#cbd5e1" />
+                    <stop offset="100%" stopColor="#94a3b8" />
+                  </linearGradient>
+                  <linearGradient id="zirconiumGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#e0e7ff" />
+                    <stop offset="40%" stopColor="#a5b4fc" />
+                    <stop offset="70%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#6366f1" />
+                  </linearGradient>
+                  <linearGradient id="compositeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="rgba(255, 255, 255, 0.95)" />
+                    <stop offset="60%" stopColor="rgba(224, 242, 254, 0.8)" />
+                    <stop offset="100%" stopColor="rgba(186, 230, 253, 0.5)" />
+                  </linearGradient>
+                  <radialGradient id="abscessGrad">
+                    <stop offset="0%" stopColor="rgba(225, 29, 72, 0.9)" />
+                    <stop offset="60%" stopColor="rgba(159, 18, 57, 0.6)" />
+                    <stop offset="100%" stopColor="transparent" />
+                  </radialGradient>
+                  <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodOpacity="0.35" />
+                  </filter>
+                  <linearGradient id={`titaniumGrad-${toothNo}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#94a3b8" />
+                    <stop offset="30%" stopColor="#f8fafc" />
+                    <stop offset="70%" stopColor="#64748b" />
+                    <stop offset="100%" stopColor="#334155" />
+                  </linearGradient>
+                  <radialGradient id={`graftGrad-${toothNo}`}>
+                    <stop offset="0%" stopColor="rgba(250, 204, 21, 0.85)" />
+                    <stop offset="60%" stopColor="rgba(253, 224, 71, 0.6)" />
+                    <stop offset="100%" stopColor="transparent" />
+                  </radialGradient>
+                </defs>
 
-                        {/* KANAL BOYU ALANI (Şartlı Gösterim) */}
-                        {(tempToothData.status === "Kanal Tedavili" || tempToothData.diagnoses.some(d => d.includes("Pulpitis") || d.includes("Apse") || d.includes("Nekroz"))) && (
-                          <div className="p-2 border border-indigo-200 bg-indigo-50/50 dark:bg-indigo-900/20 dark:border-indigo-800/50 rounded-xl mb-2 shadow-sm">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-indigo-200/50 dark:border-indigo-800/50">
-                              <label className="text-[11px] font-black text-indigo-700 dark:text-indigo-400 uppercase flex items-center gap-1">
-                                <i className="fa-solid fa-ruler-vertical"></i> Kanal Anatomisi ve Boy Ölçümleri
-                              </label>
-                              
-                              {/* Dinamik Kanal Ekleme Menüsü */}
-                              <div className="flex items-center gap-1 relative group z-20">
-                                <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                  <i className="fa-solid fa-plus text-indigo-500 text-[10px]"></i>
-                                </div>
-                                <select 
-                                  className="text-[10px] pl-6 pr-6 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg font-bold shadow-sm outline-none cursor-pointer hover:border-indigo-400 dark:bg-slate-800 dark:text-indigo-300 dark:border-indigo-700 appearance-none"
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    if(val === "custom") {
-                                      const customName = window.prompt("Özel kanal adını giriniz:");
-                                      if(customName && customName.trim() && !tempToothData.activeCanals.includes(customName.trim())) {
-                                        setTempToothData({
-                                          ...tempToothData, 
-                                          activeCanals: [...(tempToothData.activeCanals || []), customName.trim().substring(0,10)]
-                                        });
-                                      }
-                                    } else if(val && !tempToothData.activeCanals.includes(val)) {
-                                      setTempToothData({
-                                        ...tempToothData, 
-                                        activeCanals: [...(tempToothData.activeCanals || []), val]
-                                      });
-                                    }
-                                    e.target.value = ""; // Seçimi sıfırla
-                                  }}
-                                >
-                                  <option value="">Kanal Ekle (Varyasyon)</option>
-                                  <optgroup label="Standart Kanallar">
-                                    <option value="MB1">MB1 (Mesiobukkal 1)</option>
-                                    <option value="MB2">MB2 (Mesiobukkal 2)</option>
-                                    <option value="MB3">MB3 (Mesiobukkal 3)</option>
-                                    <option value="DB">DB (Distobukkal)</option>
-                                    <option value="ML">ML (Mesiolingual)</option>
-                                    <option value="MM">MM (Middle Mesial)</option>
-                                    <option value="DL">DL (Distolingual)</option>
-                                    <option value="D">D (Distal)</option>
-                                    <option value="P">P (Palatinal)</option>
-                                  </optgroup>
-                                  <optgroup label="Tek Kök Kanalları">
-                                    <option value="B">Bukkal</option>
-                                    <option value="L">Lingual</option>
-                                    <option value="Palatinal">Palatinal</option>
-                                    <option value="Kanal 1">Kanal 1</option>
-                                    <option value="Kanal 2">Kanal 2</option>
-                                    <option value="Ana Kanal">Ana Kanal</option>
-                                  </optgroup>
-                                  <option value="custom">✎ Kendim Yazacağım...</option>
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-indigo-500 text-[8px] pointer-events-none"></i>
-                              </div>
-                            </div>
+                <g transform={transform}>
+                  {isFullDenture ? (
+                    <g filter="url(#drop-shadow)">
+                      <path d="M -2,85 Q 30,110 62,85 L 55,60 Q 30,75 5,60 Z" fill="#ec4899" stroke="#be185d" strokeWidth="1" opacity="0.95" />
+                      <path d={anatomy.crownPath} fill="url(#porcelainGrad)" stroke="#cbd5e1" strokeWidth="1.2" />
+                      <path d="M 10,83 Q 30,76 50,83" fill="none" stroke="#9d174d" strokeWidth="1.5" opacity="0.7" />
+                    </g>
+                  ) : (
+                    <>
+                      {hasImplant ? (
+                        <g filter="url(#drop-shadow)">
+                          {hasGraftedImplant && (
+                            <g>
+                              <ellipse cx="30" cy="40" rx="22" ry="36" fill={`url(#graftGrad-${toothNo})`} />
+                              <circle cx="15" cy="25" r="2.5" fill="#facc15" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="44" cy="30" r="3" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="12" cy="45" r="3.5" fill="#eab308" stroke="#ca8a04" strokeWidth="0.5" opacity="0.8" />
+                              <circle cx="47" cy="50" r="2.5" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="16" cy="60" r="2.5" fill="#facc15" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                              <circle cx="42" cy="65" r="3" fill="#eab308" stroke="#ca8a04" strokeWidth="0.5" opacity="0.8" />
+                              <circle cx="30" cy="12" r="2.5" fill="#fef08a" stroke="#ca8a04" strokeWidth="0.5" opacity="0.9" />
+                            </g>
+                          )}
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {(tempToothData.activeCanals || []).map((cName, idx) => {
-                                // Geriye dönük uyumluluk: Eski K1, K2 kayıtlarını şık gösterme
-                                let displayObj = cName;
-                                if(cName === "root1") displayObj = "K1";
-                                if(cName === "root2") displayObj = "K2";
-                                if(cName === "root3") displayObj = "K3";
-                                if(cName === "root4") displayObj = "K4";
-                                
-                                return (
-                                <div key={idx} className="flex items-center gap-1.5 animate-pop">
-                                  <div className="relative flex-1 group/input">
-                                    <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none border-r border-slate-200 dark:border-slate-700 pr-2">
-                                      <span className="text-indigo-600 dark:text-indigo-400 text-[10px] font-black truncate max-w-[55px]" title={displayObj}>
-                                        {displayObj}
-                                      </span>
-                                    </div>
-                                    <input 
-                                      type="text" 
-                                      placeholder="Boy (mm)"
-                                      value={tempToothData.canalLengths[cName] || ""}
-                                      onChange={(e) => setTempToothData({
-                                        ...tempToothData,
-                                        canalLengths: { ...tempToothData.canalLengths, [cName]: e.target.value }
-                                      })}
-                                      className="w-full pl-[70px] pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 dark:text-white transition-all shadow-sm"
-                                    />
-                                  </div>
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      // Silme işlemi
-                                      const newCanals = tempToothData.activeCanals.filter(c => c !== cName);
-                                      const newLengths = { ...tempToothData.canalLengths };
-                                      delete newLengths[cName];
-                                      setTempToothData({
-                                        ...tempToothData,
-                                        activeCanals: newCanals,
-                                        canalLengths: newLengths
-                                      });
-                                    }}
-                                    className="w-7 h-7 shrink-0 flex items-center justify-center bg-white border border-rose-200 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all dark:bg-slate-800 dark:border-rose-900/50 dark:hover:bg-rose-600 shadow-sm"
-                                    title="Kanalı Kaldır"
-                                  >
-                                    <i className="fa-solid fa-trash-can text-[11px]"></i>
-                                  </button>
-                                </div>
-                              )})}
-                            </div>
-                            
-                            {(tempToothData.activeCanals || []).length === 0 && (
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold italic text-center py-4 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-indigo-200 dark:border-indigo-800/50">
-                                <i className="fa-solid fa-circle-info mr-1"></i> Henüz kanal eklenmedi. Yukarıdaki menüden anatominize uygun kanal ekleyebilirsiniz.
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          <rect x="25" y="70" width="10" height="12" fill={`url(#titaniumGrad-${toothNo})`} stroke="#1e293b" strokeWidth="0.5" />
+                          <path d="M 21,25 L 21,70 L 39,70 L 39,25 L 34,10 L 26,10 Z" fill={`url(#titaniumGrad-${toothNo})`} stroke="#0f172a" strokeWidth="1" />
+                          <path d="M 21,25 L 39,28 M 21,35 L 39,38 M 21,45 L 39,48 M 21,55 L 39,58 M 21,65 L 39,68" stroke="#0f172a" strokeWidth="1.5" opacity="0.8" />
+                          <path d="M 21,28 L 39,31 M 21,38 L 39,41 M 21,48 L 39,51 M 21,58 L 39,61" stroke="#cbd5e1" strokeWidth="0.5" opacity="0.6" />
+                        </g>
+                      ) : (
+                        anatomy.rootPaths?.map((path, i) => (
+                          <path key={i} d={path} fill={`url(#rootGrad-${toothNo})`} stroke="#c19b76" strokeWidth="1" opacity="0.95" />
+                        ))
+                      )}
 
-                        {/* KLİNİK NOTLAR ALANI */}
-                        <div>
-                          <div className="flex justify-between items-center mb-1.5">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase">Bu Dişe Özel Klinik Notlar</label>
-                            {!isEditingNotes && (
-                              <button 
-                                onClick={() => setIsEditingNotes(true)} 
-                                className="text-[11px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1"
-                              >
-                                <i className="fa-solid fa-pen"></i> Düzenle
-                              </button>
-                            )}
-                          </div>
-                          
-                          {isEditingNotes ? (
-                            <textarea 
-                              rows="4" 
-                              value={tempToothData.notes}
-                              onChange={e => setTempToothData({...tempToothData, notes: e.target.value})}
-                              placeholder="Diş ile ilgili detaylı notlar, kullanılan materyaller vb..."
-                              className="w-full p-2 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl text-[13px] font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-amber-400 resize-none shadow-inner"
-                              autoFocus
-                            ></textarea>
-                          ) : (
-                            <div className="w-full p-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-medium text-slate-700 dark:text-slate-300 min-h-[80px] whitespace-pre-wrap">
-                              {tempToothData.notes ? tempToothData.notes : <span className="text-slate-400 italic">Not girilmemiş...</span>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                      {!hasCrown && !hasImplant && anatomy.dentinPath && (
+                        <>
+                          <path d={anatomy.dentinPath} fill="#fef08a" opacity="0.4" />
+                          <path d={anatomy.pulpChamberPath} fill="#fecdd3" opacity="0.6" />
+                        </>
+                      )}
 
+                      {hasCrown ? (
+                        <g>
+                          <path d={anatomy.crownPath} fill={hasZirconium ? "url(#zirconiumGrad)" : "url(#porcelainGrad)"} stroke={hasZirconium ? "#4f46e5" : "#475569"} strokeWidth="1.5" filter="url(#drop-shadow)" />
+                          {hasZirconium && ( <path d="M 20,85 Q 30,110 40,85" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" /> )}
+                          {!hasZirconium && ( <path d={anatomy.crownPath} fill="none" stroke="#334155" strokeWidth="2.5" opacity="0.8" /> )}
+                        </g>
+                      ) : (
+                        <g>
+                          <path d={anatomy.crownPath} fill={`url(#crownGrad-${toothNo})`} stroke="#94a3b8" strokeWidth="0.5" opacity="0.9" />
+                          {anatomy.occlusalPath && <path d={anatomy.occlusalPath} fill="none" stroke="#94a3b8" strokeWidth="0.8" opacity="0.7" />}
+                        </g>
+                      )}
 
-                    {detailTab === "randevular" && (() => {
-                      const apts = [];
-                      if (globalData.appointments) {
-                        Object.values(globalData.appointments).forEach(docApts => {
-                          Object.entries(docApts).forEach(([key, apt]) => {
-                            if (apt.patientName === patientForm.name && (apt.selectedTeeth?.includes(detailToothModal) || apt.selectedTeeth?.includes("Tüm Çene"))) {
-                              const [y, m, d] = key.split("-").map(Number);
-                              apts.push({ ...apt, dateStr: `${d}/${m}/${y}`, timeStr: key.split("-")[3] });
-                            }
-                          });
-                        });
-                      }
-                      return (
-                        <div className="space-y-1.5">
-                          {apts.length > 0 ? apts.map((a, i) => (
-                            <div key={i} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm border-l-4 border-l-indigo-500">
-                              <div>
-                                <div className="font-black text-[13px] text-indigo-700 dark:text-indigo-400">{a.treatment || "Genel İşlem"}</div>
-                                <div className="text-[11px] text-slate-500 font-bold mt-0.5"><i className="fa-regular fa-calendar mr-1"></i> {a.dateStr} - {a.timeStr}</div>
-                              </div>
-                              <div className="text-[10px] font-bold px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{a.status}</div>
+                      {hasVeneer && !hasCrown && ( <path d={anatomy.crownPath} fill="url(#compositeGrad)" stroke="#7dd3fc" strokeWidth="1.2" opacity="0.9" filter="url(#drop-shadow)" /> )}
+
+                      {hasFilling && !hasCrown && !hasVeneer && (
+                        <g filter="url(#drop-shadow)">
+                          <path d="M 23,105 Q 30,112 37,105 Q 39,112 35,116 Q 30,113 25,116 Q 21,112 23,105 Z" fill="#ef4444" stroke="#991b1b" strokeWidth="0.5" opacity="0.9" />
+                          <path d="M 26,108 Q 30,111 34,108" fill="none" stroke="#7f1d1d" strokeWidth="1" opacity="0.8" />
+                        </g>
+                      )}
+
+                      {hasInitialCaries && !hasCrown && !hasVeneer && !hasFilling && (
+                        <g opacity="0.8">
+                          <circle cx="27" cy="100" r="1.5" fill="#a16207" />
+                          <circle cx="33" cy="102" r="2" fill="#854d0e" />
+                          <circle cx="29" cy="105" r="1" fill="#713f12" />
+                        </g>
+                      )}
+
+                      {hasDeepCaries && !hasCrown && !hasVeneer && !hasFilling && (
+                        <g filter="url(#drop-shadow)"><path d="M 22,98 Q 30,105 38,98 Q 35,110 30,112 Q 25,110 22,98 Z" fill="#422006" stroke="#1c1917" strokeWidth="0.5" opacity="0.9" /></g>
+                      )}
+
+                      {hasPulpitis && !hasCanal && ( <path d="M 28,105 Q 30,80 30,60" fill="none" stroke="#ef4444" strokeWidth="2" strokeDasharray="2,2" opacity="0.8" /> )}
+
+                      {hasAbscess && anatomy.canals && Object.values(anatomy.canals).map((line, i) => ( <circle key={`abscess-${i}`} cx={line.x1} cy={line.y1 - 2} r="6" fill="url(#abscessGrad)" className="animate-pulse opacity-80" /> ))}
+
+                      {hasCanal && anatomy.canals && Object.values(anatomy.canals).map((line, i) => (
+                        <g key={`canal-${i}`} filter="url(#drop-shadow)">
+                          <polygon points={`${line.x1 - 0.8},${line.y1} ${line.x1 + 0.8},${line.y1} ${line.x2 + 2.5},80 ${line.x2 - 2.5},80`} fill="#f43f5e" stroke="#be123c" strokeWidth="0.5" opacity="0.95" />
+                          <circle cx={line.x1} cy={line.y1} r="1" fill="#fb7185" />
+                        </g>
+                      ))}
+
+                      {hasRetreatment && !hasCanal && anatomy.canals && Object.values(anatomy.canals).map((line, i) => ( 
+                        <g key={`retreat-${i}`} filter="url(#drop-shadow)">
+                          <polygon points={`${line.x1 - 1},${line.y1} ${line.x1 + 1},${line.y1} ${line.x2 + 3},80 ${line.x2 - 3},80`} fill="#c084fc" stroke="#6d28d9" strokeWidth="1.5" strokeDasharray="3,1" opacity="0.95" /> 
+                          <circle cx={line.x1} cy={line.y1} r="1.5" fill="#9333ea" />
+                        </g>
+                      ))}
+                      
+                      {hasRetreatment && hasCanal && anatomy.canals && Object.values(anatomy.canals).map((line, i) => ( 
+                        <polygon key={`retreat-over-${i}`} points={`${line.x1 - 1.5},${line.y1 - 1} ${line.x1 + 1.5},${line.y1 - 1} ${line.x2 + 3.5},81 ${line.x2 - 3.5},81`} fill="none" stroke="#6d28d9" strokeWidth="2.5" strokeDasharray="4,2" opacity="0.9" filter="url(#drop-shadow)" /> 
+                      ))}
+
+                      {hasCleaning && (
+                        <g>
+                          <path d="M 15,85 Q 30,77 45,85" fill="none" stroke="#f472b6" strokeWidth="0.8" opacity="0.6" />
+                          <path d="M 15,85 Q 30,77 45,85" fill="none" stroke="#06b6d4" strokeWidth="3.5" strokeLinecap="round" opacity="0.25" filter="url(#drop-shadow)" />
+                          <circle cx="20" cy="82" r="1.2" fill="#67e8f9" className="animate-pulse" />
+                          <circle cx="30" cy="78" r="1.5" fill="#cffafe" className="animate-pulse" style={{ animationDelay: "0.2s" }} />
+                          <circle cx="40" cy="82" r="1.2" fill="#67e8f9" className="animate-pulse" style={{ animationDelay: "0.4s" }} />
+                          <path d="M 29,76 L 31,76 M 30,75 L 30,77" stroke="#ffffff" strokeWidth="0.5" />
+                        </g>
+                      )}
+                    </>
+                  )}
+
+                  {hasWholeJawDetertraj && !isFullDenture && (
+                    <g>
+                      <path d="M -5,85 Q 30,78 65,85" fill="none" stroke="#0ea5e9" strokeWidth="4" strokeLinecap="round" opacity="0.15" />
+                      <path d="M -5,85 Q 30,78 65,85" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4,4" opacity="0.8" />
+                    </g>
+                  )}
+                </g>
+
+                {/* YENİ: Seçilen Yüzeylerin Diş Üzerinde Görselleşmesi */}
+                {tSurfaces.length > 0 && !isFullDenture && !hasCrown && !hasExtraction && !hasImplant && (
+                  <text x="30" y={isUpper ? 135 : 15} fontSize="14" fontWeight="900" fill="#4f46e5" textAnchor="middle" opacity="0.95" filter="url(#drop-shadow)" style={{ letterSpacing: "1px" }}>
+                    {tSurfaces.join("")}
+                  </text>
+                )}
+
+                {hasExtraction && (
+                  <g stroke="#ef4444" strokeWidth="4" strokeLinecap="round">
+                    <line x1="10" y1="20" x2="50" y2="120" />
+                    <line x1="50" y1="20" x2="10" y2="120" />
+                  </g>
+                )}
+              </svg>
+
+              {!isUpper && (
+                <div className="relative text-[10px] font-black text-slate-500 dark:text-slate-400 mt-1 transition-colors group-hover:text-indigo-500 flex items-center justify-center">
+                  <span className="pointer-events-none">{toothNo}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openDetailModal(toothNo); }}
+                    className="absolute -right-4 bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400 rounded-full w-3 h-3 flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all z-50 hover:bg-indigo-600 hover:text-white shadow-sm"
+                    title="Diş Detayları"
+                  >
+                    <i className="fa-solid fa-info"></i>
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        return (
+          <div
+            className="relative w-full mx-auto bg-white dark:bg-slate-800 p-2 sm:p-2 rounded-xl border border-slate-200 dark:border-slate-700 print-tooth-chart"
+            style={{ pageBreakInside: "avoid" }}
+          >
+            <div className="absolute top-[20%] left-[5%] right-[5%] h-[20%] bg-gradient-to-b from-rose-400 to-rose-200/20 blur-[20px] rounded-[100px] opacity-20 pointer-events-none"></div>
+            <div className="absolute bottom-[20%] left-[5%] right-[5%] h-[20%] bg-gradient-to-t from-rose-400 to-rose-200/20 blur-[20px] rounded-[100px] opacity-20 pointer-events-none"></div>
+
+            <div className="flex justify-center mb-2 relative z-20 no-print">
+              <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl inline-flex shadow-inner">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsPediatric(false);
+                  }}
+                  className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 ${
+                    !isPediatric
+                      ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  }`}
+                >
+                  <i className="fa-solid fa-user mr-1"></i> Yetişkin
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsPediatric(true);
+                  }}
+                  className={`px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 ${
+                    isPediatric
+                      ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                  }`}
+                >
+                  <i className="fa-solid fa-child mr-1"></i> Pediatrik
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-0 sm:gap-0.5 mb-1.5 border-b border-dashed border-slate-200 dark:border-slate-600 pb-2 relative z-10">
+              <div className="flex gap-0 sm:gap-0.5">
+                {topRight.map((t) => renderTooth(t, true))}
+              </div>
+              <div className="w-px bg-slate-300 dark:bg-slate-600 mx-0.5 sm:mx-1 h-[100px]"></div>
+              <div className="flex gap-0 sm:gap-0.5">
+                {topLeft.map((t) => renderTooth(t, true))}
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-0 sm:gap-0.5 pt-0.5 relative z-10">
+              <div className="flex gap-0 sm:gap-0.5">
+                {botRight.map((t) => renderTooth(t, false))}
+              </div>
+              <div className="w-px bg-slate-300 dark:bg-slate-600 mx-0.5 sm:mx-1 h-[100px]"></div>
+              <div className="flex gap-0 sm:gap-0.5">
+                {botLeft.map((t) => renderTooth(t, false))}
+              </div>
+            </div>
+
+            {/* YENİ EKLENEN: DİŞ DETAY MODALI */}
+            {detailToothModal && (
+              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[300] p-2 transition-all" onClick={() => setDetailToothModal(null)}>
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-pop" onClick={e => e.stopPropagation()}>
+                  {(() => {
+                    const tNoStr = detailToothModal.toString();
+                    const anatomy = TOOTH_ANATOMY[tNoStr] || {};
+                    const q = parseInt(tNoStr[0]);
+                    const isUpper = q === 1 || q === 2 || q === 5 || q === 6;
+                    const side = q === 1 || q === 4 || q === 5 || q === 8 ? "Sağ" : "Sol";
+                    const jaw = isUpper ? "Üst" : "Alt";
+                    
+                    const typeMap = { 
+                      incisor: "Kesici (İnsizör)", 
+                      canine: "Köpek Dişi (Kanon)", 
+                      premolar: "Küçük Azı (Premolar)", 
+                      molar: "Büyük Azı (Molar)",
+                      primary_incisor: "Süt Kesici",
+                      primary_canine: "Süt Köpek Dişi",
+                      primary_molar: "Süt Molar"
+                    };
+                    const tType = typeMap[anatomy.type] || "Belirtilmemiş";
+                    const tDesc = `${jaw} Çene, ${side} ${tNoStr[1]}. ${tType}`;
+                    
+                    const pastTxList = (patientForm.clinicalHistory || [])
+                      .filter(h => h.selectedTeeth && (Array.isArray(h.selectedTeeth) ? h.selectedTeeth.includes(tNoStr) : h.selectedTeeth.split(",").map(s=>s.trim()).includes(tNoStr)))
+                      .map(h => h.treatment);
+                    const plannedTxList = (patientForm.plannedTreatments || [])
+                      .filter(t => t.tooth === tNoStr)
+                      .map(t => t.treatment);
+                      
+                    const combinedTx = [...pastTxList, ...plannedTxList].filter(Boolean);
+                    const uniqueTx = [...new Set(combinedTx)].join(", ");
+
+                    const surfaceOptions = ["Mesial (M)", "Oklüzal (O)", "Distal (D)", "Bukkal (B)", "Palatinal (P)", "Lingual (L)", "Fasiyal/Labial (F)"];
+
+                    return (
+                      <>
+                        <div className="px-3 py-2 bg-[#0f172a] text-white flex justify-between items-center shrink-0">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex flex-col items-center justify-center border border-indigo-500/30 shadow-inner">
+                              <span className="text-[10px] font-bold opacity-70 leading-none">DİŞ</span>
+                              <span className="font-black text-sm leading-tight">{detailToothModal}</span>
                             </div>
-                          )) : <div className="text-center py-8 text-slate-400 text-[13px] font-medium">Bu dişi içeren bir randevu bulunmuyor.</div>}
-                        </div>
-                      );
-                    })()}
-
-                    {detailTab === "sicil" && (() => {
-                      const toothHistory = (patientForm.clinicalHistory || []).filter(h => {
-                        if (!h.selectedTeeth) return false;
-                        const teethArr = Array.isArray(h.selectedTeeth) ? h.selectedTeeth : h.selectedTeeth.split(",").map(s => s.trim());
-                        return teethArr.includes(detailToothModal.toString());
-                      }).sort((a, b) => {
-                         const parseDate = (dStr, tStr) => {
-                           if (!dStr) return 0;
-                           let day = 0, month = 0, year = 0;
-                           if (dStr.includes(".")) [day, month, year] = dStr.split(".");
-                           else if (dStr.includes("/")) [day, month, year] = dStr.split("/");
-                           else if (dStr.includes("-")) [year, month, day] = dStr.split("-");
-                           const [hr, min] = (tStr || "00:00").split(":");
-                           return new Date(year, month - 1, day, hr, min).getTime();
-                         };
-                         return parseDate(b.date, b.time) - parseDate(a.date, a.time);
-                      });
-
-                      if (toothHistory.length === 0) {
-                        return (
-                          <div className="flex flex-col items-center justify-center h-40 text-center opacity-50 py-10">
-                            <i className="fa-solid fa-clock-rotate-left text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
-                            <span className="text-slate-500 dark:text-slate-400 font-black text-[13px]">
-                              Bu dişe ait geçmiş bir klinik kayıt bulunmuyor.
-                            </span>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="p-2 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px before:h-full before:w-[3px] before:bg-gradient-to-b before:from-indigo-500 before:via-emerald-400 before:to-transparent dark:before:via-emerald-700">
-                          {toothHistory.map((h, idx) => (
-                            <div key={idx} className="relative flex items-start justify-start group mb-6 pl-10 animate-pop" style={{animationDelay: `${idx * 0.1}s`}}>
-                              <div className="absolute left-2.5 flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white dark:border-[#0f172a] bg-white dark:bg-slate-800 shadow-md shrink-0 z-10 text-slate-500 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 -translate-x-1/2 mt-1">
-                                {h.visitType === "İlk Muayene" ? <i className="fa-solid fa-eye text-[12px]"></i> :
-                                 h.treatment.toLowerCase().includes("kanal") ? <i className="fa-solid fa-tooth text-[12px] text-rose-500 group-hover:text-white"></i> :
-                                 h.treatment.toLowerCase().includes("dolgu") ? <i className="fa-solid fa-fill-drip text-[12px] text-amber-500 group-hover:text-white"></i> :
-                                 h.treatment.toLowerCase().includes("çekim") ? <i className="fa-solid fa-pliers text-[12px] text-red-600 group-hover:text-white"></i> :
-                                 h.treatment.toLowerCase().includes("implant") ? <i className="fa-solid fa-screw text-[12px] text-purple-500 group-hover:text-white"></i> :
-                                 <i className="fa-solid fa-stethoscope text-[12px]"></i>}
+                            <div>
+                              <h3 className="font-black text-[13px] uppercase tracking-wider text-indigo-300">{tDesc}</h3>
+                              <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                                <i className="fa-solid fa-user"></i> Hasta: {patientForm.name}
                               </div>
-                              
-                              <div className="w-full bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow relative">
-                                <div className="absolute top-4 left-[-6px] w-3 h-3 bg-slate-50 dark:bg-slate-900/50 border-b border-l border-slate-200 dark:border-slate-700 transform rotate-45"></div>
-                                <div className="flex justify-between items-center mb-2">
-                                  <div className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider border border-indigo-200 dark:border-indigo-800">
-                                    {h.date} • {h.time}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => {
+                              const originalTitle = document.title;
+                              document.title = `${patientForm.name} - Dis ${detailToothModal} Raporu`;
+                              window.print();
+                              setTimeout(() => document.title = originalTitle, 2000);
+                            }} className="w-7 h-7 flex justify-center items-center rounded-lg bg-white/10 hover:bg-white/20 transition" title="Yazdır">
+                              <i className="fa-solid fa-print text-[13px]"></i>
+                            </button>
+                            <button onClick={() => setDetailToothModal(null)} className="w-7 h-7 flex justify-center items-center rounded-lg bg-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-white transition">
+                              <i className="fa-solid fa-xmark text-base"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-1.5 gap-1 overflow-x-auto custom-scrollbar shrink-0">
+                          {["genel", "yuzeyler", "randevular", "sicil"].map((tab) => (
+                            <button
+                              key={tab}
+                              onClick={() => setDetailTab(tab)}
+                              className={`px-3 py-1.5 rounded-lg font-bold text-[11px] uppercase tracking-wider whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                                detailTab === tab ? "bg-indigo-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
+                              }`}
+                            >
+                              {tab === "genel" ? <><i className="fa-solid fa-laptop-medical"></i> Klinik Kartı</> :
+                              tab === "yuzeyler" ? <><i className="fa-solid fa-cube"></i> Yüzeyler</> :
+                              tab === "randevular" ? <><i className="fa-regular fa-calendar-check"></i> Randevular</> :
+                              <><i className="fa-solid fa-clock-rotate-left"></i> İşlem Sicili</>}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="p-2 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50 dark:bg-slate-800" id="print-tooth-detail">
+                          <div className="hidden print-only mb-2 border-b-2 border-black pb-2">
+                            <h1 className="text-base font-black uppercase text-black">{detailToothModal} NUMARALI DİŞ ({tDesc}) - KLİNİK RAPORU</h1>
+                            <div className="text-[13px] font-bold text-gray-700 mt-2 grid grid-cols-2">
+                              <div>Hasta: {patientForm.name}</div>
+                              <div className="text-right">Tarih: {new Date().toLocaleDateString("tr-TR")}</div>
+                            </div>
+                          </div>
+
+                          {detailTab === "genel" && (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 shadow-sm flex flex-col h-full">
+                                  <label className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-2 flex items-center gap-1">
+                                    <i className="fa-solid fa-heart-pulse"></i> Dişin Güncel Durumu
+                                  </label>
+                                  <div className="flex flex-wrap gap-1 mt-auto">
+                                    {TOOTH_STATUS_OPTIONS.map(opt => (
+                                      <button
+                                        key={opt}
+                                        onClick={() => setTempToothData({...tempToothData, status: opt})}
+                                        className={`px-2 py-1 rounded border text-[10px] font-bold transition-all ${
+                                          tempToothData.status === opt 
+                                            ? "bg-indigo-500 text-white border-indigo-600 shadow-sm" 
+                                            : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-300"
+                                        }`}
+                                      >
+                                        {opt}
+                                      </button>
+                                    ))}
                                   </div>
-                                  <div className="text-[9px] font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded bg-white dark:bg-slate-800">{h.visitType}</div>
+                                </div>
+
+                                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 shadow-sm">
+                                  <label className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase mb-2 flex items-center gap-1">
+                                    <i className="fa-solid fa-microscope"></i> Anatomi & Restorasyon
+                                  </label>
+                                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                    <div className="bg-slate-50 dark:bg-slate-800 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                      <div className="text-[9px] text-slate-400 font-bold uppercase">Kök Sayısı</div>
+                                      <div className="font-black text-slate-700 dark:text-slate-200">{anatomy.rootCount || "?"} Kök</div>
+                                    </div>
+                                    <div className="bg-slate-50 dark:bg-slate-800 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                      <div className="text-[9px] text-slate-400 font-bold uppercase">Kanal Varyasyonları</div>
+                                      <div className="font-black text-slate-700 dark:text-slate-200">{(anatomy.anatomyMetadata?.defaultCanals || []).join(", ") || "Bilinmiyor"}</div>
+                                    </div>
+                                    <div className="col-span-2 bg-emerald-50 dark:bg-emerald-900/20 p-1.5 rounded-lg border border-emerald-100 dark:border-emerald-800/50">
+                                      <div className="text-[9px] text-emerald-600 dark:text-emerald-500 font-bold uppercase">Kayıtlı İşlem Geçmişi</div>
+                                      <div className="font-black text-emerald-800 dark:text-emerald-300 mt-0.5">{uniqueTx || "Bu dişe ait işlem kaydı yok."}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 shadow-sm">
+                                <label className="text-[10px] font-black text-rose-500 uppercase mb-2 flex items-center gap-1">
+                                  <i className="fa-solid fa-notes-medical"></i> Klinik Tanılar & Semptomlar
+                                </label>
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                  {DEFAULT_DIAGNOSES.map(diag => (
+                                    <button
+                                      key={diag}
+                                      onClick={() => toggleDiagnosis(diag)}
+                                      className={`px-2 py-1 rounded-md border text-[10px] font-bold transition-all flex items-center gap-1 ${
+                                        tempToothData.diagnoses.includes(diag)
+                                          ? "bg-rose-500 border-rose-600 text-white shadow-sm"
+                                          : "bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                      }`}
+                                    >
+                                      {tempToothData.diagnoses.includes(diag) ? <i className="fa-solid fa-check"></i> : <i className="fa-solid fa-plus opacity-50"></i>}
+                                      {diag}
+                                    </button>
+                                  ))}
+                                  {tempToothData.diagnoses.filter(d => !DEFAULT_DIAGNOSES.includes(d)).map(diag => (
+                                    <button key={diag} onClick={() => toggleDiagnosis(diag)} className="px-2 py-1 rounded-md border text-[10px] font-bold transition-all flex items-center gap-1 bg-rose-500 border-rose-600 text-white shadow-sm">
+                                      <i className="fa-solid fa-check"></i> {diag}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className="flex gap-1">
+                                  <input 
+                                    type="text" 
+                                    value={newDiagnosis} 
+                                    onChange={(e) => setNewDiagnosis(e.target.value)} 
+                                    placeholder="Özel tanı ekle (Örn: Çatlak Diş Sendromu)..." 
+                                    className="flex-1 p-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold outline-none focus:border-rose-500 dark:text-white"
+                                    onKeyDown={(e) => {
+                                      if(e.key === 'Enter' && newDiagnosis.trim()) {
+                                        e.preventDefault();
+                                        if(!tempToothData.diagnoses.includes(newDiagnosis.trim())) toggleDiagnosis(newDiagnosis.trim());
+                                        setNewDiagnosis("");
+                                      }
+                                    }}
+                                  />
+                                  <button 
+                                    onClick={() => {
+                                      if(newDiagnosis.trim() && !tempToothData.diagnoses.includes(newDiagnosis.trim())) {
+                                        toggleDiagnosis(newDiagnosis.trim());
+                                        setNewDiagnosis("");
+                                      }
+                                    }}
+                                    className="bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400 px-3 py-1.5 rounded-lg font-bold hover:bg-rose-200 transition text-[11px]"
+                                  >
+                                    Ekle
+                                  </button>
+                                </div>
+                              </div>
+
+                              {(tempToothData.status === "Kanal Tedavili" || tempToothData.diagnoses.some(d => d.includes("Pulpitis") || d.includes("Apse") || d.includes("Nekroz") || d.includes("Kök"))) && (
+                                <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 p-2.5 rounded-xl shadow-sm">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-indigo-200/50 dark:border-indigo-800/50">
+                                    <label className="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase flex items-center gap-1">
+                                      <i className="fa-solid fa-ruler-vertical"></i> Endodonti: Kanal Anatomisi ve Boy Ölçümleri
+                                    </label>
+                                    
+                                    <div className="flex items-center gap-1 relative group z-20">
+                                      <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                        <i className="fa-solid fa-plus text-indigo-500 text-[10px]"></i>
+                                      </div>
+                                      <select 
+                                        className="text-[10px] pl-6 pr-6 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg font-bold shadow-sm outline-none cursor-pointer hover:border-indigo-400 dark:bg-slate-800 dark:text-indigo-300 dark:border-indigo-700 appearance-none"
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          if(val === "custom") {
+                                            const customName = window.prompt("Özel kanal adını giriniz:");
+                                            if(customName && customName.trim() && !tempToothData.activeCanals.includes(customName.trim())) {
+                                              setTempToothData({
+                                                ...tempToothData, 
+                                                activeCanals: [...(tempToothData.activeCanals || []), customName.trim().substring(0,10)]
+                                              });
+                                            }
+                                          } else if(val && !tempToothData.activeCanals.includes(val)) {
+                                            setTempToothData({
+                                              ...tempToothData, 
+                                              activeCanals: [...(tempToothData.activeCanals || []), val]
+                                            });
+                                          }
+                                          e.target.value = "";
+                                        }}
+                                      >
+                                        <option value="">Kanal Ekle (Varyasyon)</option>
+                                        <optgroup label="Standart Kanallar">
+                                          <option value="MB1">MB1 (Mesiobukkal 1)</option>
+                                          <option value="MB2">MB2 (Mesiobukkal 2)</option>
+                                          <option value="MB3">MB3 (Mesiobukkal 3)</option>
+                                          <option value="DB">DB (Distobukkal)</option>
+                                          <option value="ML">ML (Mesiolingual)</option>
+                                          <option value="MM">MM (Middle Mesial)</option>
+                                          <option value="DL">DL (Distolingual)</option>
+                                          <option value="D">D (Distal)</option>
+                                          <option value="P">P (Palatinal)</option>
+                                        </optgroup>
+                                        <optgroup label="Tek Kök Kanalları">
+                                          <option value="B">Bukkal</option>
+                                          <option value="L">Lingual</option>
+                                          <option value="Palatinal">Palatinal</option>
+                                          <option value="Kanal 1">Kanal 1</option>
+                                          <option value="Kanal 2">Kanal 2</option>
+                                          <option value="Ana Kanal">Ana Kanal</option>
+                                        </optgroup>
+                                        <option value="custom">✎ Kendim Yazacağım...</option>
+                                      </select>
+                                      <i className="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-indigo-500 text-[8px] pointer-events-none"></i>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    {(tempToothData.activeCanals || []).map((cName, idx) => {
+                                      let displayObj = cName;
+                                      if(cName === "root1") displayObj = "K1";
+                                      if(cName === "root2") displayObj = "K2";
+                                      if(cName === "root3") displayObj = "K3";
+                                      if(cName === "root4") displayObj = "K4";
+                                      
+                                      return (
+                                      <div key={idx} className="flex items-center gap-1.5 animate-pop">
+                                        <div className="relative flex-1 group/input">
+                                          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none border-r border-slate-200 dark:border-slate-700 pr-2">
+                                            <span className="text-indigo-600 dark:text-indigo-400 text-[10px] font-black truncate max-w-[55px]" title={displayObj}>
+                                              {displayObj}
+                                            </span>
+                                          </div>
+                                          <input 
+                                            type="text" 
+                                            placeholder="Boy (mm) / Güta No"
+                                            value={tempToothData.canalLengths[cName] || ""}
+                                            onChange={(e) => setTempToothData({
+                                              ...tempToothData,
+                                              canalLengths: { ...tempToothData.canalLengths, [cName]: e.target.value }
+                                            })}
+                                            className="w-full pl-[70px] pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/50 dark:text-white transition-all shadow-sm"
+                                          />
+                                        </div>
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            const newCanals = tempToothData.activeCanals.filter(c => c !== cName);
+                                            const newLengths = { ...tempToothData.canalLengths };
+                                            delete newLengths[cName];
+                                            setTempToothData({
+                                              ...tempToothData,
+                                              activeCanals: newCanals,
+                                              canalLengths: newLengths
+                                            });
+                                          }}
+                                          className="w-7 h-7 shrink-0 flex items-center justify-center bg-white border border-rose-200 text-rose-500 rounded-lg hover:bg-rose-500 hover:text-white hover:border-rose-500 transition-all dark:bg-slate-800 dark:border-rose-900/50 dark:hover:bg-rose-600 shadow-sm"
+                                          title="Kanalı Kaldır"
+                                        >
+                                          <i className="fa-solid fa-trash-can text-[11px]"></i>
+                                        </button>
+                                      </div>
+                                    )})}
+                                  </div>
+                                  
+                                  {(tempToothData.activeCanals || []).length === 0 && (
+                                    <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold italic text-center py-4 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-indigo-200 dark:border-indigo-800/50">
+                                      <i className="fa-solid fa-circle-info mr-1"></i> Henüz kanal eklenmedi. Yukarıdaki menüden anatominize uygun kanal ekleyebilirsiniz.
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 shadow-sm flex flex-col">
+                                <div className="flex justify-between items-center mb-1.5 border-b border-slate-100 dark:border-slate-700 pb-1.5">
+                                  <label className="block text-[10px] font-black text-amber-500 uppercase"><i className="fa-solid fa-pen-clip"></i> Bu Dişe Özel Notlar</label>
+                                  {!isEditingNotes && (
+                                    <button 
+                                      onClick={() => setIsEditingNotes(true)} 
+                                      className="text-[10px] bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-lg font-bold transition flex items-center gap-1"
+                                    >
+                                      <i className="fa-solid fa-pen"></i> Düzenle
+                                    </button>
+                                  )}
                                 </div>
                                 
-                                <h5 className="font-black text-slate-800 dark:text-white text-[13px] leading-snug mb-1.5">{h.treatment}</h5>
-                                
-                                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
-                                  <i className="fa-solid fa-user-doctor"></i> Hekim: <span className="text-slate-700 dark:text-slate-300">{globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}</span>
-                                </div>
-                                
-                                {(h.diagnosis || h.complaint || h.procedureNotes || h.materials) && (
-                                  <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700/50 text-[10px] space-y-1 shadow-inner mt-2">
-                                    {h.diagnosis && <div className="flex gap-2"><span className="font-black text-rose-500 shrink-0 w-14">Tanı:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.diagnosis}</span></div>}
-                                    {h.complaint && <div className="flex gap-2"><span className="font-black text-amber-500 shrink-0 w-14">Şikayet:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.complaint}</span></div>}
-                                    {h.procedureNotes && <div className="flex gap-2"><span className="font-black text-indigo-500 shrink-0 w-14">Not:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.procedureNotes}</span></div>}
-                                    {h.materials && <div className="flex gap-2"><span className="font-black text-emerald-500 shrink-0 w-14">Materyal:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.materials}</span></div>}
+                                {isEditingNotes ? (
+                                  <textarea 
+                                    rows="4" 
+                                    value={tempToothData.notes}
+                                    onChange={e => setTempToothData({...tempToothData, notes: e.target.value})}
+                                    placeholder="Diş ile ilgili detaylı notlar, kullanılan materyaller vb..."
+                                    className="w-full p-2 bg-amber-50/30 dark:bg-slate-800 border border-amber-200 dark:border-slate-600 rounded-lg text-[12px] font-semibold text-slate-700 dark:text-slate-300 outline-none focus:border-amber-400 resize-none shadow-inner"
+                                    autoFocus
+                                  ></textarea>
+                                ) : (
+                                  <div className="w-full p-2 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 rounded-lg text-[12px] font-medium text-slate-700 dark:text-slate-300 min-h-[60px] whitespace-pre-wrap">
+                                    {tempToothData.notes ? tempToothData.notes : <span className="text-slate-400 italic">Not girilmemiş...</span>}
                                   </div>
                                 )}
                               </div>
                             </div>
-                          ))}
+                          )}
+
+                          {detailTab === "yuzeyler" && (
+                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-sm h-full flex flex-col">
+                               <div className="mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
+                                  <h4 className="font-black text-indigo-600 dark:text-indigo-400 text-[11px] uppercase tracking-wider"><i className="fa-solid fa-cube mr-1"></i> Diş Yüzey İşaretlemeleri</h4>
+                                  <p className="text-[10px] text-slate-500 font-medium mt-1">Dolgu, çürük veya lezyon bulunan yüzeyleri işaretleyin.</p>
+                               </div>
+                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                  {surfaceOptions.map(surf => {
+                                     const code = surf.match(/\((.*?)\)/)[1];
+                                     const isActive = (tempToothData.surfaces || []).includes(code);
+                                     return (
+                                       <label key={code} className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${isActive ? 'bg-indigo-50 border-indigo-300 dark:bg-indigo-900/30 dark:border-indigo-600' : 'bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'}`}>
+                                          <input type="checkbox" className="accent-indigo-600 w-4 h-4" checked={isActive} onChange={(e) => {
+                                             const arr = tempToothData.surfaces || [];
+                                             if (e.target.checked) setTempToothData({...tempToothData, surfaces: [...arr, code]});
+                                             else setTempToothData({...tempToothData, surfaces: arr.filter(s => s !== code)});
+                                          }} />
+                                          <div className="flex flex-col">
+                                             <span className={`font-bold text-[11px] ${isActive ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200'}`}>{surf}</span>
+                                          </div>
+                                       </label>
+                                     );
+                                  })}
+                               </div>
+                               {(tempToothData.surfaces || []).length > 0 && (
+                                 <div className="mt-4 p-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-2">
+                                   <i className="fa-solid fa-info-circle text-emerald-600 dark:text-emerald-400"></i>
+                                   <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">Aktif Yüzeyler: {(tempToothData.surfaces || []).join(", ")}</span>
+                                 </div>
+                               )}
+                            </div>
+                          )}
+
+                          {detailTab === "randevular" && (() => {
+                            const apts = [];
+                            if (globalData.appointments) {
+                              Object.values(globalData.appointments).forEach(docApts => {
+                                Object.entries(docApts).forEach(([key, apt]) => {
+                                  if (apt.patientName === patientForm.name && (apt.selectedTeeth?.includes(detailToothModal) || apt.selectedTeeth?.includes("Tüm Çene"))) {
+                                    const [y, m, d] = key.split("-").map(Number);
+                                    apts.push({ ...apt, dateStr: `${d}/${m}/${y}`, timeStr: key.split("-")[3] });
+                                  }
+                                });
+                              });
+                            }
+                            return (
+                              <div className="space-y-1.5">
+                                {apts.length > 0 ? apts.map((a, i) => (
+                                  <div key={i} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm border-l-4 border-l-indigo-500">
+                                    <div>
+                                      <div className="font-black text-[13px] text-indigo-700 dark:text-indigo-400">{a.treatment || "Genel İşlem"}</div>
+                                      <div className="text-[11px] text-slate-500 font-bold mt-0.5"><i className="fa-regular fa-calendar mr-1"></i> {a.dateStr} - {a.timeStr}</div>
+                                    </div>
+                                    <div className="text-[10px] font-bold px-2 py-1 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{a.status}</div>
+                                  </div>
+                                )) : <div className="text-center py-8 text-slate-400 text-[13px] font-medium">Bu dişi içeren bir randevu bulunmuyor.</div>}
+                              </div>
+                            );
+                          })()}
+
+                          {detailTab === "sicil" && (() => {
+                            const toothHistory = (patientForm.clinicalHistory || []).filter(h => {
+                              if (!h.selectedTeeth) return false;
+                              const teethArr = Array.isArray(h.selectedTeeth) ? h.selectedTeeth : h.selectedTeeth.split(",").map(s => s.trim());
+                              return teethArr.includes(detailToothModal.toString());
+                            }).sort((a, b) => {
+                               const parseDate = (dStr, tStr) => {
+                                 if (!dStr) return 0;
+                                 let day = 0, month = 0, year = 0;
+                                 if (dStr.includes(".")) [day, month, year] = dStr.split(".");
+                                 else if (dStr.includes("/")) [day, month, year] = dStr.split("/");
+                                 else if (dStr.includes("-")) [year, month, day] = dStr.split("-");
+                                 const [hr, min] = (tStr || "00:00").split(":");
+                                 return new Date(year, month - 1, day, hr, min).getTime();
+                               };
+                               return parseDate(b.date, b.time) - parseDate(a.date, a.time);
+                            });
+
+                            if (toothHistory.length === 0) {
+                              return (
+                                <div className="flex flex-col items-center justify-center h-40 text-center opacity-50 py-10">
+                                  <i className="fa-solid fa-clock-rotate-left text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>
+                                  <span className="text-slate-500 dark:text-slate-400 font-black text-[13px]">
+                                    Bu dişe ait geçmiş bir klinik kayıt bulunmuyor.
+                                  </span>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="p-2 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px before:h-full before:w-[3px] before:bg-gradient-to-b before:from-indigo-500 before:via-emerald-400 before:to-transparent dark:before:via-emerald-700">
+                                {toothHistory.map((h, idx) => (
+                                  <div key={idx} className="relative flex items-start justify-start group mb-6 pl-10 animate-pop" style={{animationDelay: `${idx * 0.1}s`}}>
+                                    <div className="absolute left-2.5 flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white dark:border-[#0f172a] bg-white dark:bg-slate-800 shadow-md shrink-0 z-10 text-slate-500 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 -translate-x-1/2 mt-1">
+                                      {h.visitType === "İlk Muayene" ? <i className="fa-solid fa-eye text-[12px]"></i> :
+                                       h.treatment.toLowerCase().includes("kanal") ? <i className="fa-solid fa-tooth text-[12px] text-rose-500 group-hover:text-white"></i> :
+                                       h.treatment.toLowerCase().includes("dolgu") ? <i className="fa-solid fa-fill-drip text-[12px] text-amber-500 group-hover:text-white"></i> :
+                                       h.treatment.toLowerCase().includes("çekim") ? <i className="fa-solid fa-pliers text-[12px] text-red-600 group-hover:text-white"></i> :
+                                       h.treatment.toLowerCase().includes("implant") ? <i className="fa-solid fa-screw text-[12px] text-purple-500 group-hover:text-white"></i> :
+                                       <i className="fa-solid fa-stethoscope text-[12px]"></i>}
+                                    </div>
+                                    
+                                    <div className="w-full bg-slate-50 dark:bg-slate-900/50 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow relative">
+                                      <div className="absolute top-4 left-[-6px] w-3 h-3 bg-slate-50 dark:bg-slate-900/50 border-b border-l border-slate-200 dark:border-slate-700 transform rotate-45"></div>
+                                      <div className="flex justify-between items-center mb-2">
+                                        <div className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider border border-indigo-200 dark:border-indigo-800">
+                                          {h.date} • {h.time}
+                                        </div>
+                                        <div className="text-[9px] font-bold text-slate-500 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded bg-white dark:bg-slate-800">{h.visitType}</div>
+                                      </div>
+                                      
+                                      <h5 className="font-black text-slate-800 dark:text-white text-[13px] leading-snug mb-1.5">{h.treatment}</h5>
+                                      
+                                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                                        <i className="fa-solid fa-user-doctor"></i> Hekim: <span className="text-slate-700 dark:text-slate-300">{globalData.systemUsers?.[h.doctorId]?.displayName || h.doctorName}</span>
+                                      </div>
+                                      
+                                      {(h.diagnosis || h.complaint || h.procedureNotes || h.materials) && (
+                                        <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700/50 text-[10px] space-y-1 shadow-inner mt-2">
+                                          {h.diagnosis && <div className="flex gap-2"><span className="font-black text-rose-500 shrink-0 w-14">Tanı:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.diagnosis}</span></div>}
+                                          {h.complaint && <div className="flex gap-2"><span className="font-black text-amber-500 shrink-0 w-14">Şikayet:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.complaint}</span></div>}
+                                          {h.procedureNotes && <div className="flex gap-2"><span className="font-black text-indigo-500 shrink-0 w-14">Not:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.procedureNotes}</span></div>}
+                                          {h.materials && <div className="flex gap-2"><span className="font-black text-emerald-500 shrink-0 w-14">Materyal:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{h.materials}</span></div>}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
-                      );
-                    })()}
 
-                  </div>
-                  
-                  {/* Modal Footer (Sadece Genel sekmesinde Kaydet butonu aktif) */}
-                  <div className="px-2 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2 shrink-0 no-print">
-                    <button onClick={() => setDetailToothModal(null)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[13px] hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-sm">
-                      Kapat
-                    </button>
-                    {detailTab === "genel" && (
-                      <button onClick={saveToothDetails} className="px-3 py-2 bg-indigo-600 text-white rounded-xl font-black text-[13px] hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/30">
-                        Durum ve Notları Kaydet
-                      </button>
-                    )}
-                  </div>
-
-                </div>
-              </div>
-            )}
-            {/* DİŞ DETAY MODALI BİTİŞ */}
-
-          </div>
-        );
-      };
+                        <div className="px-2 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2 shrink-0 no-print">
+                          <button onClick={() => setDetailToothModal(null)} className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[13px] hover:bg-slate-100 dark:hover:bg-slate-700 transition shadow-sm">
+                            Kapat
+                          </button>
+                          {/* YENİ: Kaydet butonu Yüzeyler sekmesinde de görünür yapıldı */}
+                          {(detailTab === "genel" || detailTab === "yuzeyler") && (
+                            <button onClick={saveToothDetails} className="px-3 py-2 bg-indigo-600 text-white rounded-xl font-black text-[13px] hover:bg-indigo-700 transition shadow-lg shadow-indigo-500/30">
+                              Değişiklikleri Kaydet
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      };
       // YENİ GÜVENLİK MOTORU: Şifreleri (SHA-256) ile Kriptolamak İçin
       const hashPassword = async (password) => {
         const msgBuffer = new TextEncoder().encode(password);
@@ -2014,8 +2024,9 @@ const useFirebase = () => {
         const [patientModalTab, setPatientModalTab] = useState("info");
 
         const [activePlanTreatment, setActivePlanTreatment] = useState("");
+        const [selectedTeethMulti, setSelectedTeethMulti] = useState([]); // YENİ: App içerisine taşındı
 
-        const [editingTxId, setEditingTxId] = useState(null);
+        const [editingTxId, setEditingTxId] = useState(null);
 
         const [editingTxPrice, setEditingTxPrice] = useState("");
 
@@ -13982,6 +13993,8 @@ const renderSettings = () => {
                                 currentUser={currentUser}
                                 saveGlobalData={saveGlobalData} 
                                 dynamicPricingCategories={DYNAMIC_PRICING_CATEGORIES}
+                                selectedTeethMulti={selectedTeethMulti}
+                                setSelectedTeethMulti={setSelectedTeethMulti}
                               />
 
                               {/* --- YAZDIRMA İŞLEM TABLOSU (Gizli, Sadece Baskıda) --- */}
@@ -14027,8 +14040,19 @@ const renderSettings = () => {
                                     İşlem Türü Seçin
                                   </h3>
                                   {activePlanTreatment && (
-                                    <div className="hidden sm:flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm items-center gap-1">
+                                    <div className="flex bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm items-center gap-1.5">
                                       <i className="fa-solid fa-check-circle"></i> Seçili İşlem: {activePlanTreatment}
+                                      <button type="button" onClick={() => setActivePlanTreatment("")} className="hover:text-rose-500 transition-colors ml-1 px-1" title="İşlemi Bırak">
+                                        <i className="fa-solid fa-xmark"></i>
+                                      </button>
+                                    </div>
+                                  )}
+                                  {selectedTeethMulti.length > 0 && !activePlanTreatment && (
+                                    <div className="flex bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm items-center gap-1.5 animate-pop">
+                                      <i className="fa-solid fa-check-double"></i> {selectedTeethMulti.length} Diş Seçili
+                                      <button type="button" onClick={() => setSelectedTeethMulti([])} className="hover:text-rose-500 transition-colors ml-1 px-1" title="Seçimi Temizle">
+                                        <i className="fa-solid fa-xmark"></i>
+                                      </button>
                                     </div>
                                   )}
                                   <button
@@ -14060,7 +14084,51 @@ const renderSettings = () => {
                                             <button
                                               key={tx}
                                               type="button"
-                                              onClick={(e) => { e.preventDefault(); setActivePlanTreatment(tx); }}
+                                              onClick={(e) => { 
+                                                e.preventDefault(); 
+                                                if (selectedTeethMulti.length > 0) {
+                                                    let ownerId = currentUser;
+                                                    const myProfile = globalData.userProfiles?.[currentUser];
+                                                    if (myProfile?.clinicId) {
+                                                       const patron = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === myProfile.clinicId && v.role === "clinic_owner");
+                                                       if (patron) ownerId = patron[0];
+                                                    } else if (myProfile?.role === "assistant" || myProfile?.role === "doctor") {
+                                                       ownerId = myProfile.createdBy || currentUser;
+                                                    }
+                                                    const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
+                                                    const userPricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+                                                    
+                                                    const newTreatments = [];
+                                                    selectedTeethMulti.forEach(toothNo => {
+                                                        let actualPlanTreatment = tx;
+                                                        if (tx === "Diş Çekimi" && ["18", "28", "38", "48"].includes(toothNo)) {
+                                                            actualPlanTreatment = "Gömülü ve 20lik Diş Çekimi";
+                                                        }
+                                                        const exists = patientForm.plannedTreatments?.some(t => t.tooth === toothNo && t.treatment === actualPlanTreatment);
+                                                        if (!exists) {
+                                                            const txPrice = userPricing[actualPlanTreatment] !== undefined ? parseFloat(userPricing[actualPlanTreatment]) : 0;
+                                                            newTreatments.push({
+                                                                id: Date.now() + Math.random().toString(),
+                                                                tooth: toothNo,
+                                                                treatment: actualPlanTreatment,
+                                                                date: Date.now(),
+                                                                price: txPrice,
+                                                            });
+                                                        }
+                                                    });
+                                                    
+                                                    if (newTreatments.length > 0) {
+                                                        setPatientForm(prev => ({
+                                                            ...prev,
+                                                            plannedTreatments: [...(prev.plannedTreatments || []), ...newTreatments]
+                                                        }));
+                                                        showNotification(`${selectedTeethMulti.length} dişe ${tx} başarıyla uygulandı.`);
+                                                    }
+                                                    setSelectedTeethMulti([]); // Seçimi temizle
+                                                } else {
+                                                    setActivePlanTreatment(tx); 
+                                                }
+                                              }}
                                               className={`text-left px-2 py-1.5 rounded-md text-[10px] font-bold transition-all flex justify-between items-center w-full ${
                                                 isSelected ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 border border-slate-200 dark:border-slate-700"
                                               }`}
