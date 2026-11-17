@@ -1,16 +1,23 @@
-# React + Vite
+# Klinik Sistemi
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Local Firebase emulators
 
-Currently, two official plugins are available:
+The Firebase CLI configuration defaults to the demo project `demo-klinik-sistemi`. Start the Auth, Realtime Database, and Functions emulators with:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```sh
+npm run emulators
+```
 
-## React Compiler
+The root `npm install` must complete successfully first; `firebase-tools` is a development dependency.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+In another terminal, start Vite with `VITE_USE_FIREBASE_EMULATORS=true` in the local environment. Emulator connections are enabled only in Vite development mode. Never point emulator tests at the production project.
 
-## Expanding the Oxlint configuration
+Run the backend authorization unit tests with:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```sh
+npm run test:functions
+```
+
+The Functions backend currently requires trusted `username`, `clinicId`, `role`, and `active` custom claims and verifies them against `KlinikAnaVeritabani/users/{username}`. Existing accounts have not been provisioned with these claims by this repository, so the callable is not yet integrated into the application. Do not deploy restrictive Realtime Database Rules or treat the backend foundation as a completed production migration.
+
+Cloud Functions deployment and region selection require separate project-level review and explicit approval.

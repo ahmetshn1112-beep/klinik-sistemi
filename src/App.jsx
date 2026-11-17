@@ -1,36 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase, ref, set, update, onValue, push, child, get, runTransaction } from 'firebase/database';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword, onAuthStateChanged, setPersistence, browserSessionPersistence } from 'firebase/auth';
-const MONTHS = [
-        "Ocak",
-
-        "Şubat",
-
-        "Mart",
-
-        "Nisan",
-
-        "Mayıs",
-
-        "Haziran",
-
-        "Temmuz",
-
-        "Ağustos",
-
-        "Eylül",
-
-        "Ekim",
-
-        "Kasım",
-
-        "Aralık",
-      ];
-
+import { getDatabase, ref, set, update, onValue, push, child, get, runTransaction, connectDatabaseEmulator } from 'firebase/database';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword, onAuthStateChanged, setPersistence, browserSessionPersistence, connectAuthEmulator } from 'firebase/auth';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import ClinicAgenda from './ClinicAgenda.jsx';
       const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
-const DOCTOR_COLORS = ["#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6", "#14b8a6", "#64748b"];
+const DOCTOR_COLORS = ["#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6", "#14b8a6", "#64748b", "#a21caf", "#0284c7", "#65a30d", "#e11d48", "#334155", "#c2410c", "#0f766e", "#7c3aed"];
 const DOCTOR_SPECIALTIES = ["Endodonti", "Restoratif", "Protez", "İmplantoloji", "Periodontoloji", "Pedodonti", "Ortodonti", "Cerrahi"];
+const isAgendaBlock = (appointment) =>
+  appointment?.type === "block" ||
+  appointment?.isBlock === true ||
+  Boolean(appointment?.blockType);
 const DOCTOR_PAYOUT_MODELS = [
   { value: "gross", label: "Üretilen Toplam Ciro Üzerinden" },
   { value: "collected", label: "Gerçekleşen Tahsilat Üzerinden" },
@@ -211,7 +191,6 @@ const getDoctorScheduleStatus = (profile, date, time, duration = 15) => {
         },
       };
 
-      // TIME_SLOTS artık App içinde dinamik olarak hesaplanacak!
 
       // ARAMANIZ GEREKEN VE DEĞİŞTİRECEĞİNİZ KISIM BURASI:
 const useFirebase = () => {
@@ -224,11 +203,12 @@ const useFirebase = () => {
     const init = async () => {
       try {
         // DİKKAT: Buradaki bilgileri Firebase'den aldığın kendi bilgilerinle doldur!
-        const firebaseConfig = {
+const useFirebaseEmulators = import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true";
+const firebaseConfig = {
   apiKey: "AIzaSyBpn_3CS_NMIh1VO-Ao0_NhTHesC6jndtQ",
   authDomain: "klinikrandevusistemi-adaee.firebaseapp.com",
   databaseURL: "https://klinikrandevusistemi-adaee-default-rtdb.firebaseio.com",
-  projectId: "klinikrandevusistemi-adaee",
+  projectId: useFirebaseEmulators ? "demo-klinik-sistemi" : "klinikrandevusistemi-adaee",
   storageBucket: "klinikrandevusistemi-adaee.firebasestorage.app",
   messagingSenderId: "277717252835",
   appId: "1:277717252835:web:f63c4624a63835ed4fe3d6",
@@ -238,6 +218,11 @@ const useFirebase = () => {
         const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         const database = getDatabase(app);
         const firebaseAuth = getAuth(app); // YENİ: Auth motoru çalıştırıldı
+        if (useFirebaseEmulators) {
+          connectAuthEmulator(firebaseAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+          connectDatabaseEmulator(database, "127.0.0.1", 9000);
+          connectFunctionsEmulator(getFunctions(app), "127.0.0.1", 5001);
+        }
         
         // YENİ GÜVENLİK: Tarayıcı veya sekme kapandığında oturumu anında Firebase sunucularından düşür
         setPersistence(firebaseAuth, browserSessionPersistence).catch((err) => console.error("Oturum kalıcılık ayarı hatası:", err));
@@ -267,17 +252,10 @@ const useFirebase = () => {
         }, []);
 
         return (
-          <div className="text-base font-black text-white/90 bg-white/20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl mt-2 tracking-widest shadow-inner border border-white/10 backdrop-blur-sm">
-            <i className="fa-regular fa-clock"></i>
-            {time.toLocaleDateString("tr-TR", {
-              day: "2-digit",
-
-              month: "2-digit",
-
-              year: "numeric",
-            })}{" "}
-            - {time.toLocaleTimeString("tr-TR")}
-          </div>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            <i className="fa-regular fa-clock text-indigo-500"></i>
+            {time.toLocaleTimeString("tr-TR")}
+          </span>
         );
       };
 
@@ -1358,6 +1336,7 @@ const useFirebase = () => {
                             if (globalData.appointments) {
                               Object.values(globalData.appointments).forEach(docApts => {
                                 Object.entries(docApts).forEach(([key, apt]) => {
+                                  if (!apt || isAgendaBlock(apt)) return;
                                   if (apt.patientName === patientForm.name && (apt.selectedTeeth?.includes(detailToothModal) || apt.selectedTeeth?.includes("Tüm Çene"))) {
                                     const [y, m, d] = key.split("-").map(Number);
                                     apts.push({ ...apt, dateStr: `${d}/${m}/${y}`, timeStr: key.split("-")[3] });
@@ -1491,162 +1470,6 @@ const useFirebase = () => {
           return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
         }
         return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9)}`;
-      };
-
-      const CalendarDatePicker = ({ value, onChange, compact = false }) => {
-        const [isOpen, setIsOpen] = useState(false);
-        const [visibleMonth, setVisibleMonth] = useState(
-          () => new Date(value.getFullYear(), value.getMonth(), 1)
-        );
-        const pickerRef = useRef(null);
-
-        useEffect(() => {
-          if (!isOpen) return undefined;
-
-          const handlePointerDown = (event) => {
-            if (!pickerRef.current?.contains(event.target)) setIsOpen(false);
-          };
-          const handleKeyDown = (event) => {
-            if (event.key === "Escape") setIsOpen(false);
-          };
-
-          document.addEventListener("pointerdown", handlePointerDown);
-          document.addEventListener("keydown", handleKeyDown);
-          return () => {
-            document.removeEventListener("pointerdown", handlePointerDown);
-            document.removeEventListener("keydown", handleKeyDown);
-          };
-        }, [isOpen]);
-
-        const year = visibleMonth.getFullYear();
-        const month = visibleMonth.getMonth();
-        const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const days = Array.from(
-          { length: firstWeekday + daysInMonth },
-          (_, index) =>
-            index < firstWeekday
-              ? null
-              : new Date(year, month, index - firstWeekday + 1)
-        );
-        const isSameDay = (first, second) =>
-          first.getDate() === second.getDate() &&
-          first.getMonth() === second.getMonth() &&
-          first.getFullYear() === second.getFullYear();
-        const today = new Date();
-
-        return (
-          <div className="relative" ref={pickerRef}>
-            <button
-              type="button"
-              aria-haspopup="dialog"
-              aria-expanded={isOpen}
-              onClick={() => {
-                if (!isOpen) {
-                  setVisibleMonth(
-                    new Date(value.getFullYear(), value.getMonth(), 1)
-                  );
-                }
-                setIsOpen((open) => !open);
-              }}
-              className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-bold text-slate-700 dark:text-slate-200 shadow-sm hover:border-indigo-300 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition ${
-                compact ? "px-2 py-1 text-[12px]" : "px-2.5 py-1.5 text-[13px]"
-              }`}
-            >
-              <i className="fa-regular fa-calendar-days text-indigo-500"></i>
-              <span>
-                {value.toLocaleDateString("tr-TR", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-              <i className={`fa-solid fa-chevron-down text-[9px] transition-transform ${isOpen ? "rotate-180" : ""}`}></i>
-            </button>
-
-            {isOpen && (
-              <div
-                role="dialog"
-                aria-label="Tarih seç"
-                className="absolute left-0 top-full z-[100] mt-2 w-64 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-2xl animate-pop"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <button
-                    type="button"
-                    aria-label="Önceki ay"
-                    onClick={() =>
-                      setVisibleMonth(new Date(year, month - 1, 1))
-                    }
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  >
-                    <i className="fa-solid fa-chevron-left text-xs"></i>
-                  </button>
-                  <div className="text-[13px] font-black text-slate-800 dark:text-white">
-                    {MONTHS[month]} {year}
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Sonraki ay"
-                    onClick={() =>
-                      setVisibleMonth(new Date(year, month + 1, 1))
-                    }
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  >
-                    <i className="fa-solid fa-chevron-right text-xs"></i>
-                  </button>
-                </div>
-
-                <div className="mb-1 grid grid-cols-7 gap-1">
-                  {DAYS.map((day) => (
-                    <span
-                      key={day}
-                      className="py-1 text-center text-[9px] font-black uppercase text-slate-400"
-                    >
-                      {day}
-                    </span>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {days.map((day, index) =>
-                    day ? (
-                      <button
-                        key={day.toISOString()}
-                        type="button"
-                        aria-label={day.toLocaleDateString("tr-TR")}
-                        aria-pressed={isSameDay(day, value)}
-                        onClick={() => {
-                          onChange(day);
-                          setIsOpen(false);
-                        }}
-                        className={`aspect-square rounded-lg text-[11px] font-bold transition ${
-                          isSameDay(day, value)
-                            ? "bg-indigo-600 text-white shadow-sm"
-                            : isSameDay(day, today)
-                            ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                            : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                        }`}
-                      >
-                        {day.getDate()}
-                      </button>
-                    ) : (
-                      <span key={`empty-${index}`} />
-                    )
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange(today);
-                    setIsOpen(false);
-                  }}
-                  className="mt-3 w-full rounded-lg bg-indigo-50 py-2 text-[11px] font-black text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300"
-                >
-                  Bugüne Git
-                </button>
-              </div>
-            )}
-          </div>
-        );
       };
 
       function App() {
@@ -1914,7 +1737,6 @@ doctorProfiles: {},
           setIsModalOpen(false);
           setIsDoctorDetailsModalOpen(false);
           setSearchDropdownOpen(false);
-          setIsAptSearchOpen(false);
           
           setActiveTab("home"); // Ana sayfadan tertemiz başlat
           
@@ -2038,22 +1860,14 @@ return availableDoctors;
           confirm: false,
         });
 
-const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 640);
 
 const sidebarRef = useRef(null);
 const sidebarToggleRef = useRef(null);
 
         const [activeTab, setActiveTab] = useState("home");
 
-        const [listDoctorFilter, setListDoctorFilter] = useState("all");
-
-        const [calendarDoctor, setCalendarDoctor] = useState("");
-
         const [selectedDate, setSelectedDate] = useState(new Date());
-
-        const [isDocChanging, setIsDocChanging] = useState(false);
-
-        const [highlightedAptId, setHighlightedAptId] = useState(null);
 
         const [draggedAptInfo, setDraggedAptInfo] = useState(null);
 
@@ -2066,22 +1880,11 @@ const sidebarToggleRef = useRef(null);
         const searchRef = useRef(null);
         const [patientSuggestions, setPatientSuggestions] = useState([]);
 
-        const [aptSearchQuery, setAptSearchQuery] = useState("");
-        const [aptSearchInput, setAptSearchInput] = useState(""); // YENİ: Anlık yazım için
-
-        const [isAptSearchOpen, setIsAptSearchOpen] = useState(false);
-        const aptSearchRef = useRef(null);
-
         // YENİ: DEBOUNCE MOTORU (Klavye donmalarını engeller, yazma bitince arar)
         useEffect(() => {
           const globalTimer = setTimeout(() => setGlobalSearch(globalSearchInput), 300);
           return () => clearTimeout(globalTimer);
         }, [globalSearchInput]);
-
-        useEffect(() => {
-          const aptTimer = setTimeout(() => setAptSearchQuery(aptSearchInput), 300);
-          return () => clearTimeout(aptTimer);
-        }, [aptSearchInput]);
 
         const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -2257,13 +2060,12 @@ const [newDoctorForm, setNewDoctorForm] = useState({
   title: "Diş Hekimi",
   specialties: [],
   commissionRate: "",
-  calendarColor: "#4f46e5",
+  calendarColor: "",
 });
 const [doctorListFilter, setDoctorListFilter] = useState("all");
 const [doctorStatsRange, setDoctorStatsRange] = useState("all");
 const [pricingSearch, setPricingSearch] = useState("");
 const [pricingFilter, setPricingFilter] = useState("all");
-const [expandedAppointmentStatus, setExpandedAppointmentStatus] = useState(null);
         const [avatarModalInfo, setAvatarModalInfo] = useState({
           isOpen: false,
           docId: null,
@@ -2298,7 +2100,6 @@ const [expandedAppointmentStatus, setExpandedAppointmentStatus] = useState(null)
         const [docStatsSelectedTreatment, setDocStatsSelectedTreatment] =
           useState(null);
 
-        const [calendarViewMode, setCalendarViewMode] = useState("daily");
 
         const [patientLocalSearch, setPatientLocalSearch] = useState("");
 
@@ -2318,6 +2119,7 @@ const [expandedAppointmentStatus, setExpandedAppointmentStatus] = useState(null)
         const [takipSubFilter, setTakipSubFilter] = useState("all"); // YENİ: Takip Havuzu İçin Alt Filtre
         // --------------------------------------
         const [dashboardPeriod, setDashboardPeriod] = useState("month");
+        const [homeDashboardPeriod, setHomeDashboardPeriod] = useState("month");
         const [expandedTx, setExpandedTx] = useState(null); // Ana sayfa detayları için
 
         const [financePeriod, setFinancePeriod] = useState("all");
@@ -2497,30 +2299,6 @@ const [newTreatmentForm, setNewTreatmentForm] = useState({ name: "", category: "
         ];
 
         // --- TAKVİM ARALIĞINI DİNAMİK YAPAN MOTOR ---
-        const TIME_SLOTS = useMemo(() => {
-     const interval = parseInt(settings?.randevu?.slotAraligi || "15", 10);
-     const startStr = settings?.calisma?.baslama || "09:00";
-     const endStr = settings?.calisma?.bitis || "19:00";
-           
-           let startHour = parseInt(startStr.split(":")[0], 10);
-           let startMin = parseInt(startStr.split(":")[1], 10);
-           let endHour = parseInt(endStr.split(":")[0], 10);
-           let endMin = parseInt(endStr.split(":")[1], 10);
-           
-           const slots = [];
-           let currentTotalMin = startHour * 60 + startMin;
-           const endTotalMin = endHour * 60 + endMin;
-
-           while(currentTotalMin <= endTotalMin) {
-              const h = Math.floor(currentTotalMin / 60);
-              const m = currentTotalMin % 60;
-              slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-              currentTotalMin += interval;
-           }
-           return slots;
-        }, [settings.randevu.slotAraligi, settings.calisma]);
-
-        // --- YENİ TEDAVİYİ HER YERE AKTARAN MOTOR (KUSURSUZ) ---
         const DYNAMIC_PRICING_CATEGORIES = useMemo(() => {
            const cats = JSON.parse(JSON.stringify(INITIAL_PRICING_CATEGORIES));
            const ownerId = (currentUserProfile?.role === "assistant" || currentUserProfile?.role === "doctor") 
@@ -3055,12 +2833,6 @@ document.removeEventListener("pointerdown", handleClickOutside);
               setSearchDropdownOpen(false);
 
             if (
-              aptSearchRef.current &&
-              !aptSearchRef.current.contains(event.target)
-            )
-              setIsAptSearchOpen(false);
-
-            if (
               userMenuRef.current &&
               !userMenuRef.current.contains(event.target)
             ) {
@@ -3076,18 +2848,7 @@ document.removeEventListener("pointerdown", handleClickOutside);
         }, []);
 
         useEffect(() => {
-          setAptSearchQuery("");
-          setIsAptSearchOpen(false);
           setIsHeaderVisible(true);
-
-          if (activeTab === "calendar" && !calendarDoctor) {
-            // Asistan giriş yaptığında takvim boş yerine ona atanmış İLK HEKİMİ açsın
-            if (currentUserProfile?.role === "assistant" && allDoctors.length > 0) {
-              setCalendarDoctor(allDoctors[0]);
-            } else {
-              setCalendarDoctor(currentUser);
-            }
-          }
 
           if (activeTab === "pricing") {
             const ownerId = (globalData.userProfiles?.[currentUser]?.role === "assistant" || globalData.userProfiles?.[currentUser]?.role === "doctor")
@@ -3346,7 +3107,10 @@ document.removeEventListener("pointerdown", handleClickOutside);
                 requestedEndTime: calculateEndTime(startTime, durationMinutes),
                 existingStartTime,
                 existingEndTime: calculateEndTime(existingStartTime, existingDuration),
-                patientName: appointment.patientName || "Başka bir hasta",
+patientName:
+  appointment.title ||
+  appointment.patientName ||
+  (isAgendaBlock(appointment) ? "Blokaj / İzin" : "Başka bir hasta"),
               };
             }
           }
@@ -3361,85 +3125,7 @@ document.removeEventListener("pointerdown", handleClickOutside);
           );
         };
 
-        const getWeekDays = (date) => {
-          const d = new Date(date);
-
-          const day = d.getDay();
-
-          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-
-          const monday = new Date(d.setDate(diff));
-
-          const week = [];
-
-          for (let i = 0; i < 7; i++) {
-            const nextDay = new Date(monday);
-
-            nextDay.setDate(monday.getDate() + i);
-
-            week.push(nextDay);
-          }
-
-          return week;
-        };
-
-        const getTreatmentColor = (aptOrTreatment) => {
-          if (!aptOrTreatment)
-            return { bg: "#e0f2fe", text: "#1e40af", border: "#3b82f6" }; // Mavi (Varsayılan)
-
-          let text = "";
-          if (typeof aptOrTreatment === "object") {
-            if (aptOrTreatment.status === "İptal")
-              return { bg: "#f1f5f9", text: "#64748b", border: "#94a3b8" }; // Gri (İptal)
-            text = (
-              (aptOrTreatment.treatment || "") +
-              " " +
-              (aptOrTreatment.notes || "")
-            ).toLowerCase();
-          } else {
-            text = aptOrTreatment.toLowerCase();
-          }
-
-          // 1. KULLANICI TANIMLI ÖZEL BRANŞ RENKLERİ (Ayarlardan Çekilir)
-          const customColors = settings?.randevu?.bransRenkleri || {};
-          
-          // Zeki Kelime Algılayıcı Motor
-          const BRANS_KEYWORDS = {
-            "cerrahi": ["cerrahi", "implant", "gömülü", "çekim", "greft", "sinüs"],
-            "protez": ["protez", "kron", "zirkonyum", "porselen", "ölçü", "simantasyon", "vener", "lamina"],
-            "endodonti": ["kanal", "endodonti", "kuafaj", "amputasyon"],
-            "dolgu": ["dolgu", "kompozit", "inley", "onley"],
-            "ortodonti": ["ortodonti", "tel", "plak", "braket", "pekiştirme"],
-            "periodontoloji": ["detertraj", "küretaj", "diş taşı", "flap", "gingivektomi", "lazer"],
-            "pedodonti": ["çocuk", "pedodonti", "flor", "fissür", "süt dişi", "yer tutucu"],
-            "muayene": ["muayene", "teşhis", "röntgen", "kontrol", "acil"]
-          };
-
-          for (const [key, keywords] of Object.entries(BRANS_KEYWORDS)) {
-             if (keywords.some(k => text.includes(k))) {
-                const hexCode = customColors[key];
-                if (hexCode) {
-                   return {
-                      bg: hexCode + "25", // Seçilen rengin %15 saydam (pastel) versiyonunu arka plan yapar
-                      text: hexCode,      // Seçilen rengi yazı rengi yapar
-                      border: hexCode     // Seçilen rengi kenarlık yapar
-                   };
-                }
-             }
-          }
-
-          // 2. RENK SEÇİLMEMİŞSE VEYA YUKARIDAKİLERLE EŞLEŞMEZSE ESKİ KODLARI ÇALIŞTIR (Fallback)
-          if (text.includes("acil")) return { bg: "#fee2e2", text: "#991b1b", border: "#ef4444" };
-          if (text.includes("implant")) return { bg: "#f3e8ff", text: "#6b21a8", border: "#a855f7" };
-          if (text.includes("kontrol")) return { bg: "#dcfce7", text: "#166534", border: "#22c55e" };
-          if (text.includes("uzun") || text.includes("kanal") || text.includes("ortodonti") || text.includes("çekim"))
-            return { bg: "#ffedd5", text: "#9a3412", border: "#f97316" };
-
-          return { bg: "#e0f2fe", text: "#1e40af", border: "#3b82f6" };
-        };
-
-        // YENİ: Tek Tıkla Durum Güncelleme (Döngüsel)
-const handleStatusCycle = (e, docId, aptKey, aptData, requestedStatus = null) => {
+        const handleStatusCycle = (e, docId, aptKey, aptData, requestedStatus = null) => {
           e.stopPropagation();
 
           if (!hasPermission("appointments.edit")) {
@@ -3549,6 +3235,33 @@ const newStatus = requestedStatus || cycleMap[currentStatus] || "Geldi";
           const props = onToggle ? { onClick: onToggle } : {};
 
           switch (status) {
+case "Onaylandı":
+  return (
+    <span
+      {...props}
+      className={`${baseClass}${interactionClass} bg-indigo-500 text-white`}
+    >
+      Onaylandı
+    </span>
+  );
+case "İşlemde":
+  return (
+    <span
+      {...props}
+      className={`${baseClass}${interactionClass} bg-amber-500 text-white`}
+    >
+      İşlemde
+    </span>
+  );
+case "Blokaj":
+  return (
+    <span
+      {...props}
+      className={`${baseClass}${interactionClass} bg-slate-500 text-white`}
+    >
+      Blokaj
+    </span>
+  );
             case "Geldi":
               return (
                 <span
@@ -3591,54 +3304,6 @@ const newStatus = requestedStatus || cycleMap[currentStatus] || "Geldi";
               );
           }
         };
-
-const renderAppointmentStatusControl = (status, docId, aptKey, aptData) => {
-const controlKey = `${docId}:${aptKey}`;
-const isOpen = expandedAppointmentStatus === controlKey;
-const closeMenu = (event) => {
-  event.stopPropagation();
-  setExpandedAppointmentStatus(null);
-};
-const updateStatus = (event, nextStatus) => {
-  handleStatusCycle(event, docId, aptKey, aptData, nextStatus);
-  setExpandedAppointmentStatus(null);
-};
-const openCancellationOptions = (event) => {
-  event.stopPropagation();
-  setExpandedAppointmentStatus(null);
-  setCancelAptModal({
-    isOpen: true,
-    aptKey,
-    docId,
-    aptData: { ...aptData, time: aptKey.split("-").slice(3).join("-") },
-    reasonNote: "",
-  });
-};
-
-return (
-  <div className="relative inline-flex flex-col items-start" onClick={(event) => event.stopPropagation()}>
-    <button
-      type="button"
-      aria-expanded={isOpen}
-      onClick={(event) => {
-        event.stopPropagation();
-        setExpandedAppointmentStatus(isOpen ? null : controlKey);
-      }}
-      className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-    >
-      {getStatusBadge(status)}
-    </button>
-    {isOpen && (
-      <div className="absolute left-0 top-full z-[120] mt-1 min-w-[170px] rounded-xl border border-slate-200 bg-white p-1 shadow-xl dark:border-slate-700 dark:bg-slate-800">
-        <button type="button" onClick={(event) => updateStatus(event, "Bekliyor")} className="block w-full rounded-lg px-2.5 py-1.5 text-left text-[10px] font-bold text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-900/30">Bekliyor</button>
-        <button type="button" onClick={(event) => updateStatus(event, "Geldi")} className="block w-full rounded-lg px-2.5 py-1.5 text-left text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/30">Randevu Gerçekleşti</button>
-        <button type="button" onClick={openCancellationOptions} className="block w-full rounded-lg px-2.5 py-1.5 text-left text-[10px] font-bold text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/30">İptal / Gelmedi seçenekleri…</button>
-        <button type="button" onClick={closeMenu} className="mt-1 block w-full border-t border-slate-100 px-2.5 pt-1.5 text-left text-[10px] font-semibold text-slate-500 dark:border-slate-700">Kapat</button>
-      </div>
-    )}
-  </div>
-);
-};
 
         const renderTreatmentText = (apt) => {
           let text = apt.treatment || "Belirtilmedi";
@@ -3856,6 +3521,7 @@ return (
               if (!isAuthorized) return;
               
               Object.entries(dApts).forEach(([k, apt]) => {
+                if (!apt || isAgendaBlock(apt)) return;
                 const pId = patientForm?.id;
                 const isMatch = (apt.patientId && pId && apt.patientId === pId) || 
                                 (!apt.patientId && apt.patientName.toLowerCase() === pName.toLowerCase());
@@ -3909,29 +3575,11 @@ return (
             });
           }
 
-          const future = all.filter((a) => (a.status === "Yeni Kayıt" || a.status === "Bekliyor") && a.timestamp >= now).sort((a, b) => a.timestamp - b.timestamp);
-          const past = all.filter((a) => (a.status !== "Yeni Kayıt" && a.status !== "Bekliyor") || a.timestamp < now).sort((a, b) => b.timestamp - a.timestamp);
+          const future = all.filter((a) => (a.status === "Yeni Kayıt" || a.status === "Bekliyor" || a.status === "Onaylandı" || a.status === "İşlemde") && a.timestamp >= now).sort((a, b) => a.timestamp - b.timestamp);
+          const past = all.filter((a) => (!["Yeni Kayıt", "Bekliyor", "Onaylandı", "İşlemde"].includes(a.status)) || a.timestamp < now).sort((a, b) => b.timestamp - a.timestamp);
           
           return { past, future };
         };
-
-        const jumpToAppointment = (dateKey, aptKey, targetTab, targetDocId) => {
-          const [y, m, d] = dateKey.split("-");
-
-          setSelectedDate(new Date(y, m - 1, d));
-
-          if (targetDocId) {
-            setListDoctorFilter(targetDocId);
-
-            setCalendarDoctor(targetDocId);
-          }
-
-          setActiveTab(targetTab);
-
-          setHighlightedAptId(aptKey);
-
-          setTimeout(() => setHighlightedAptId(null), 3000);
-        };
 
         const triggerInstall = async () => {
           if (deferredPrompt) {
@@ -4695,219 +4343,8 @@ return (
           });
 
           setCancelAptModal({ isOpen: false, aptKey: null, docId: null, aptData: null, reasonNote: "" });
-          setExpandedAppointmentStatus(null);
           showNotification(notifMsg, actionType === "delete" ? "error" : "success");
         };
-
-        const getSearchedAppointments = (query) => {
-          if (!query || query.trim().length < 2) return { past: [], future: [] };
-          const q = query.toLowerCase().trim();
-          const all = [];
-          const now = new Date().getTime();
-
-          if (globalData.appointments) {
-            Object.entries(globalData.appointments).forEach(([dId, dApts]) => {
-              // DÜZELTME 1: Kliniğindeki TÜM hekimlerin randevuları taranacak
-              if (!allDoctors.includes(dId) && dId !== currentUser) return;
-              
-              Object.entries(dApts).forEach(([k, apt]) => {
-                let pInfo = null;
-                if (apt.patientId && globalData.patientsDb?.[apt.patientId]) {
-                    pInfo = globalData.patientsDb[apt.patientId];
-                } else {
-                    pInfo = Object.values(globalData.patientsDb || {}).find(p => p.name.toLowerCase() === apt.patientName.toLowerCase());
-                }
-
-                const matches = apt.patientName.toLowerCase().includes(q) || (apt.phone && apt.phone.includes(q)) || (pInfo && pInfo.phone && pInfo.phone.includes(q)) || (pInfo && pInfo.tc && pInfo.tc.includes(q));
-
-                if (matches) {
-                  const parts = k.split("-");
-                  if (parts.length >= 4) {
-                    const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
-                    const timeStr = parts.slice(3).join(":");
-                    const [hrStr, minStr] = timeStr.split(":");
-                    const hr = parseInt(hrStr || 0, 10);
-                    const min = parseInt(minStr || 0, 10);
-                    
-                    // DÜZELTME 2: NaN Hatasını Engelleyen Kusursuz Matematiksel Tarih Motoru
-                    const aptTime = new Date(y, m - 1, d, hr, min).getTime();
-
-                    all.push({
-                      ...apt,
-                      docId: dId,
-                      dateStr: `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`,
-                      timeStr: timeStr,
-                      timestamp: aptTime,
-                      originalKey: k,
-                      dateKey: `${y}-${m}-${d}`,
-                    });
-                  }
-                }
-              });
-            });
-          }
-
-          const future = all.filter((a) => (a.status === "Yeni Kayıt" || a.status === "Bekliyor") && a.timestamp >= now).sort((a, b) => a.timestamp - b.timestamp);
-          const past = all.filter((a) => (a.status !== "Yeni Kayıt" && a.status !== "Bekliyor") || a.timestamp < now).sort((a, b) => b.timestamp - a.timestamp);
-          
-          return { past, future };
-        };
-
-        const renderAptSearchDropdown = () => {
-          const { past, future } = getSearchedAppointments(aptSearchQuery);
-
-          if (past.length === 0 && future.length === 0)
-            return (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl rounded-xl z-50 p-2 text-center text-[13px] font-bold text-slate-500 dark:text-slate-400">
-                Randevu bulunamadı.
-              </div>
-            );
-
-          return (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl z-50 max-h-[400px] overflow-y-auto flex flex-col overflow-hidden">
-              {future.length > 0 && (
-                <div className="p-2">
-                  <div className="text-[10px] font-black text-indigo-500 uppercase px-2.5 py-1 tracking-wider">
-                    Gelecek Randevular
-                  </div>
-
-                  {future.map((a, i) => (
-                    <div
-                      key={`f-${i}`}
-                      onClick={() => {
-                        jumpToAppointment(
-                          a.dateKey,
-
-                          a.originalKey,
-
-                          "calendar",
-
-                          a.docId
-                        );
-
-                        setIsAptSearchOpen(false);
-
-                        setAptSearchQuery("");
-                      }}
-                      className="px-2.5 py-2 mx-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 cursor-pointer rounded-xl border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800 transition-all mb-1 group"
-                    >
-                      <div className="font-black text-slate-800 dark:text-slate-200 text-[13px] group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition">
-                        {a.patientName}
-                      </div>
-
-                      <div className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center gap-1.5">
-                        <i className="fa-regular fa-clock"></i> {a.dateStr} -{" "}
-                        {a.timeStr}
-                      </div>
-
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-1 flex justify-between">
-                        <span>
-                          {globalData.systemUsers?.[a.docId]?.displayName ||
-                            a.docId}
-                        </span>
-
-                        <span className="bg-slate-100 dark:bg-slate-700 px-1.5 rounded text-slate-600 dark:text-slate-300 truncate max-w-[100px]">
-                          {renderTreatmentText(a)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {past.length > 0 && (
-                <div className="p-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/80">
-                  <div className="text-[10px] font-black text-slate-400 uppercase px-2.5 py-1 tracking-wider">
-                    Geçmiş Randevular
-                  </div>
-
-                  {past.map((a, i) => (
-                    <div
-                      key={`p-${i}`}
-                      onClick={() => {
-                        jumpToAppointment(
-                          a.dateKey,
-
-                          a.originalKey,
-
-                          "calendar",
-
-                          a.docId
-                        );
-
-                        setIsAptSearchOpen(false);
-
-                        setAptSearchQuery("");
-                      }}
-                      className="px-2.5 py-2 mx-1 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer rounded-xl border border-transparent transition-all mb-1 opacity-70 hover:opacity-100 grayscale hover:grayscale-0 group"
-                    >
-                      <div className="font-bold text-slate-600 dark:text-slate-300 text-[13px] group-hover:text-slate-800 dark:group-hover:text-white transition">
-                        {a.patientName}
-                      </div>
-
-                      <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
-                        <i className="fa-regular fa-calendar-check"></i>{" "}
-                        {a.dateStr} - {a.timeStr}
-                      </div>
-
-                      <div className="text-[10px] text-slate-400 font-bold mt-1 flex justify-between">
-                        <span>
-                          {globalData.systemUsers?.[a.docId]?.displayName ||
-                            a.docId}
-                        </span>
-
-                        <span className="bg-slate-200/50 dark:bg-slate-600 px-1.5 rounded truncate max-w-[100px]">
-                          {renderTreatmentText(a)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        };
-
-        const renderAppointmentSearchBox = () => (
-          <div className="relative w-full" ref={aptSearchRef}>
-            <div className="relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-[13px]"></i>
-
-              <input
-                type="text"
-                placeholder="İsim, Tel, TC ile Ara..."
-                value={aptSearchInput}
-                onChange={(e) => {
-                  setAptSearchInput(e.target.value);
-                  setIsAptSearchOpen(true);
-                }}
-                onFocus={() => {
-                  if (aptSearchInput.length > 1) setIsAptSearchOpen(true);
-                }}
-                className="w-full pl-9 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 dark:focus:ring-indigo-900/50 shadow-inner transition-all"
-              />
-
-              {aptSearchInput && (
-                <button
-                  onClick={() => {
-                    setAptSearchInput("");
-                    setAptSearchQuery("");
-                    setIsAptSearchOpen(false);
-                  }}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-rose-500 transition"
-                >
-                  <i className="fa-solid fa-xmark"></i>
-                </button>
-              )}
-            </div>
-
-            {isAptSearchOpen &&
-              aptSearchQuery.length > 1 &&
-              renderAptSearchDropdown()}
-          </div>
-        );
-
-        // ★★★ YENİ: FIREBASE AUTHENTICATION SİSTEMİ ★★★
 
         const handleAuthSubmit = async (e) => {
           e.preventDefault();
@@ -5329,283 +4766,247 @@ return (
         // getVisibleDoctors() fonksiyonundan yetkilere göre dinamik çekilir.
         const allDoctors = getVisibleDoctors();
 
-        const visibleListDoctors =
-          listDoctorFilter === "all" ? allDoctors : [listDoctorFilter];
+        const renderHome = () => {
+          const dashboardToday = new Date();
+          const dashboardStart = new Date(dashboardToday);
+          dashboardStart.setHours(0, 0, 0, 0);
+          if (homeDashboardPeriod === "week") {
+            dashboardStart.setDate(dashboardStart.getDate() - 6);
+          } else if (homeDashboardPeriod === "month") {
+            dashboardStart.setDate(1);
+          } else if (homeDashboardPeriod === "all") {
+            dashboardStart.setTime(0);
+          }
+          const dashboardEnd = new Date(dashboardToday);
+          dashboardEnd.setHours(23, 59, 59, 999);
+          const isInDashboardPeriod = (value) => {
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return false;
+            date.setHours(0, 0, 0, 0);
+            return date >= dashboardStart && date <= dashboardEnd;
+          };
+          const dashboardPatients = Object.values(globalData.patientsDb || {}).filter((patient) =>
+            !patient.isDeleted &&
+            resolveClinicId(patient.addedBy) === currentClinicId &&
+            (currentUserProfile?.role !== "assistant" ||
+              (currentUserProfile.assignedDoctors || []).includes(patient.addedBy))
+          );
+          const dashboardPlans = dashboardPatients.flatMap((patient) =>
+            (Array.isArray(patient.plannedTreatments) ? patient.plannedTreatments : []).map((treatment) => ({
+              ...treatment,
+              patientName: patient.name,
+              patientDoctor: patient.addedBy,
+            }))
+          );
+          const periodPlans = dashboardPlans.filter((treatment) => isInDashboardPeriod(treatment.date));
+          const completedPeriodPlans = dashboardPlans.filter(
+            (treatment) => treatment.isCompleted && isInDashboardPeriod(treatment.completedAt || treatment.date)
+          );
+          const periodPayments = dashboardPatients.flatMap((patient) =>
+            (Array.isArray(patient.payments) ? patient.payments : [])
+              .filter((payment) => isInDashboardPeriod(payment.date))
+              .map((payment) => ({ ...payment, patientName: patient.name }))
+          );
+          const dashboardRevenue = periodPayments.reduce(
+            (sum, payment) => sum + (Number.parseFloat(payment.amount) || 0),
+            0
+          );
+          const dashboardDiscount = periodPlans.reduce((sum, treatment) => {
+            const original = Number.parseFloat(treatment.originalPrice);
+            const current = Number.parseFloat(treatment.price) || 0;
+            return sum + (Number.isFinite(original) ? Math.max(0, original - current) : 0);
+          }, 0);
+          const treatmentStats = new Map();
+          completedPeriodPlans.forEach((treatment) => {
+            const name = treatment.treatment || "Belirtilmeyen işlem";
+            const current = treatmentStats.get(name) || { count: 0, revenue: 0 };
+            current.count += 1;
+            current.revenue += Number.parseFloat(treatment.price) || 0;
+            treatmentStats.set(name, current);
+          });
+          const rankedTreatments = [...treatmentStats.entries()]
+            .map(([name, stats]) => ({ name, ...stats }))
+            .sort((a, b) => b.count - a.count || b.revenue - a.revenue)
+            .slice(0, 5);
+          const trendDays = Array.from({ length: 7 }, (_, index) => {
+            const date = new Date(dashboardToday);
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() - (6 - index));
+            const dateKey = formatDateKey(date);
+            const count = dashboardPlans.filter(
+              (treatment) => treatment.isCompleted &&
+                formatDateKey(new Date(treatment.completedAt || treatment.date)) === dateKey
+            ).length;
+            return { date, count };
+          });
+          const trendMax = Math.max(1, ...trendDays.map((day) => day.count));
+          const trendPoints = trendDays
+            .map((day, index) => `${index * 100},${92 - (day.count / trendMax) * 72}`)
+            .join(" ");
+          const dashboardMoney = (amount) =>
+            `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(amount)} ₺`;
+          const dashboardPeriodLabel = {
+            today: "Bugün",
+            week: "Son 7 gün",
+            month: "Bu ay",
+            all: "Tüm zamanlar",
+          }[homeDashboardPeriod];
 
-        const renderHome = () => {
-          const todayStr = formatDateKey(new Date());
-          let todaysApts = [],
-            waitingCount = 0,
-            totalApts = 0;
+return (
+<div className="flex flex-col gap-2 pb-3 animate-pop w-full min-h-full">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 shadow-sm shrink-0">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">Klinik Yönetim Paneli</p>
+                  <h1 className="mt-1 text-base font-black text-slate-800 dark:text-white">
+                    Hoş geldiniz, {globalData.systemUsers?.[currentUser]?.displayName || currentUser}
+                  </h1>
+                  <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+                    {dashboardToday.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    <span className="mx-1.5">·</span><RealtimeClock />
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-2.5 py-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                    <i className="fa-regular fa-calendar text-indigo-500"></i>
+                    <select
+                      value={homeDashboardPeriod}
+                      onChange={(event) => setHomeDashboardPeriod(event.target.value)}
+                      className="bg-transparent outline-none"
+                      aria-label="Gösterge paneli tarih aralığı"
+                    >
+                      <option value="today">Bugün</option>
+                      <option value="week">Son 7 gün</option>
+                      <option value="month">Bu ay</option>
+                      <option value="all">Tüm zamanlar</option>
+                    </select>
+                  </label>
+                  <button
+                    onClick={() => {
+                      setActiveTab("patients");
+                      setPatientForm({
+                        id: "", patientCode: "", name: "", phone: "", tc: "", age: "",
+                        gender: "Belirtilmemiş", anamnesis: "", isEmergency: false,
+                        payments: [], plannedTreatments: [],
+                      });
+                      setPatientModalTab("info");
+                      setIsPatientModalOpen(true);
+                    }}
+                    className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-black text-white shadow-sm transition hover:bg-indigo-700"
+                  >
+                    <i className="fa-solid fa-user-plus mr-1.5"></i>Yeni hasta
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("calendar")}
+                    className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-700"
+                  >
+                    <i className="fa-regular fa-calendar-check mr-1.5"></i>Randevular
+                  </button>
+                </div>
+              </div>
 
-          // YENİ: Sadece currentUser değil, yetkili olunan TÜM hekimlerin bugünkü randevularını topla
-          if (globalData.appointments) {
-            allDoctors.forEach((docId) => {
-              if (globalData.appointments[docId]) {
-                Object.entries(globalData.appointments[docId]).forEach(
-                  ([key, apt]) => {
-                    if (key.startsWith(todayStr)) {
-                      // docId artık dışarıdaki döngüden geliyor, o yüzden içeride tekrar tanımlamıyoruz!
-                      const dateKey = key.split("-").slice(0, 3).join("-");
-                      const timeStr = key.split("-").slice(3).join(":");
-                      const aptKey = dateKey + "-" + key.split("-")[3];
-                      const endTime = calculateEndTime(
-                        timeStr,
-                        apt.duration || "30"
-                      );
-                      todaysApts.push({
-                        ...apt,
-                        docId: docId,
-                        timeStr: `${timeStr} - ${endTime}`,
-                        sortTime: timeStr,
-                        originalKey: aptKey,
-                        dateKey: dateKey,
-                      });
-                      totalApts++;
-                      if (apt.status === "Yeni Kayıt" || apt.status === "Bekliyor")
-                        waitingCount++;
-                    }
-                  }
-                );
-              }
-            }); // Yeni açtığımız döngüyü burada düzgünce kapattık
-          }
-          todaysApts.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+              <section className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4 shrink-0" aria-label="Klinik özeti">
+                {[
+                  { label: "Toplam tahsilat", value: dashboardMoney(dashboardRevenue), detail: dashboardPeriodLabel, icon: "fa-wallet", color: "blue" },
+                  { label: "Toplam tedavi", value: periodPlans.length, detail: `${completedPeriodPlans.length} tamamlandı`, icon: "fa-tooth", color: "emerald" },
+                  { label: "Hasta sayısı", value: dashboardPatients.length, detail: "Kliniğinizde kayıtlı", icon: "fa-users", color: "amber" },
+                  { label: "Toplam indirim", value: dashboardMoney(dashboardDiscount), detail: dashboardPeriodLabel, icon: "fa-percent", color: "rose" },
+                ].map((card) => (
+                  <div key={card.label} className="flex items-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 shadow-sm">
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm ${
+                      card.color === "blue" ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
+                      card.color === "emerald" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                      card.color === "amber" ? "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" :
+                      "bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400"
+                    }`}>
+                      <i className={`fa-solid ${card.icon}`}></i>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{card.label}</div>
+                      <div className="mt-0.5 truncate text-lg font-black leading-tight text-slate-800 dark:text-white">{card.value}</div>
+                      <div className="text-[10px] text-slate-400">{card.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </section>
 
-          return (
-            <div
-              className={`flex flex-col gap-3 pb-8 animate-pop w-full h-full ${
-                isDocChanging ? "refreshing" : ""
-              }`}
-            >
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between bg-gradient-to-r from-indigo-600 to-purple-700 rounded-xl p-2.5 text-white shadow-lg overflow-hidden relative shrink-0 gap-2">
-                <div className="absolute right-0 top-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-10 -mt-20 blur-2xl pointer-events-none"></div>
+              <section className="grid grid-cols-1 gap-2 md:grid-cols-3 shrink-0">
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-sm md:col-span-2">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <h2 className="text-sm font-black text-slate-800 dark:text-white">Tedavi trendi</h2>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">Son 7 gündeki tamamlanan işlemler</p>
+                    </div>
+                    <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
+                      {trendDays.reduce((sum, day) => sum + day.count, 0)} işlem
+                    </span>
+                  </div>
+                  <div className="h-20 w-full">
+                    <svg viewBox="0 0 600 100" preserveAspectRatio="none" className="h-full w-full" role="img" aria-label="Son yedi günün tedavi trendi">
+                      <line x1="0" y1="92" x2="600" y2="92" stroke="currentColor" className="text-slate-200 dark:text-slate-700" strokeWidth="1" />
+                      <polyline points={trendPoints} fill="none" stroke="#4f46e5" strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div className="mt-1 grid grid-cols-7 text-center text-[9px] text-slate-400">
+                    {trendDays.map((day) => <span key={day.date.toISOString()}>{day.date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" })}</span>)}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-sm">
+                  <h2 className="text-sm font-black text-slate-800 dark:text-white">En çok yapılan işlemler</h2>
+                  <p className="mb-2 text-[10px] text-slate-500 dark:text-slate-400">Tamamlanan tedavilere göre</p>
+                  <div className="space-y-2">
+                    {rankedTreatments.length ? rankedTreatments.map((treatment, index) => (
+                      <div key={treatment.name}>
+                        <div className="mb-1 flex items-center justify-between gap-2 text-[10px]">
+                          <span className="truncate font-bold text-slate-700 dark:text-slate-200">{treatment.name}</span>
+                          <span className="shrink-0 text-slate-400">{treatment.count} adet</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+                          <div className={`h-full rounded-full ${["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-fuchsia-500", "bg-sky-500"][index]}`} style={{ width: `${Math.max(8, (treatment.count / rankedTreatments[0].count) * 100)}%` }} />
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="py-5 text-center text-[11px] text-slate-400">Bu aralıkta tamamlanan tedavi yok.</div>
+                    )}
+                  </div>
+                </div>
+              </section>
 
-                <div className="z-10">
-                  <h1 className="text-base font-black mb-0.5">
-                    {new Date().getHours() >= 6 && new Date().getHours() < 12
-                      ? "Günaydın ☀️"
-                      : new Date().getHours() >= 12 &&
-                        new Date().getHours() < 18
-                      ? "İyi Günler 🌤️"
-                      : new Date().getHours() >= 18 &&
-                        new Date().getHours() < 24
-                      ? "İyi Akşamlar 🌙"
-                      : "İyi Geceler 🌜"}
-                    ,{" "}
-                    {globalData.systemUsers?.[currentUser]?.displayName ||
-                      currentUser}
-                  </h1>
-
-                  <RealtimeClock />
-                </div>
-
-                {/* YENİ: Akıllı Sistem Bilgi Barı (Sıradaki Hasta & Hızlı Kısayollar) */}
-                <div className="z-10 flex bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1.5 gap-1.5 shadow-inner w-full lg:w-auto overflow-x-auto custom-scrollbar">
-                  <div className="flex flex-col pr-4 border-r border-white/20 shrink-0 justify-center">
-                    <span className="text-[10px] uppercase font-bold opacity-75 tracking-wider mb-0.5">
-                      <i className="fa-solid fa-bolt text-amber-300 mr-1"></i>{" "}
-                      Hızlı İşlemler
-                    </span>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => {
-                          setActiveTab("patients");
-                          setPatientForm({
-                            id: "",
-                            patientCode: "",
-                            name: "",
-                            phone: "",
-                            tc: "",
-                            age: "",
-                            gender: "Belirtilmemiş",
-                            anamnesis: "",
-                            isEmergency: false,
-                            payments: [],
-                            plannedTreatments: [],
-                          });
-                          setPatientModalTab("info");
-                          setIsPatientModalOpen(true);
-                        }}
-                        className="text-[11px] bg-white text-indigo-600 px-2.5 py-1 rounded-lg font-black hover:bg-slate-100 transition shadow-sm"
-                      >
-                        Yeni Hasta
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab("calendar");
-                        }}
-                        className="text-[11px] bg-indigo-900/50 text-white px-2.5 py-1 rounded-lg font-black hover:bg-indigo-900/70 border border-indigo-300/30 transition shadow-sm"
-                      >
-                        Takvime Git
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col shrink-0 justify-center min-w-[120px]">
-                    <span className="text-[10px] uppercase font-bold opacity-75 tracking-wider mb-0.5">
-                      <i className="fa-regular fa-clock text-rose-300 mr-1"></i>{" "}
-                      Sıradaki Randevu
-                    </span>
-                    {(() => {
-                      const nextApt = todaysApts.find(
-                        (a) =>
-                          a.status === "Yeni Kayıt" || a.status === "Bekliyor"
-                      );
-                      if (nextApt) {
-                        return (
-                          <span
-                            className="text-[13px] font-black text-white truncate max-w-[150px]"
-                            title={nextApt.patientName}
-                          >
-                            {nextApt.sortTime} -{" "}
-                            {nextApt.patientName.split(" ")[0]}
-                          </span>
-                        );
-                      }
-                      return (
-                        <span className="text-[13px] font-bold text-indigo-200">
-                          Bekleyen Hasta Yok
-                        </span>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 shrink-0">
-                <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5">
-                  <div className="w-14 h-9 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center text-lg">
-                    <i className="fa-regular fa-calendar-check"></i>
-                  </div>
-
-                  <div>
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">
-                      Bugünkü Toplam Randevu
-                    </div>
-
-                    <div className="text-lg font-black text-slate-800 dark:text-white">
-                      {totalApts}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5">
-                  <div className="w-14 h-9 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl flex items-center justify-center text-lg">
-                    <i className="fa-solid fa-hourglass-half"></i>
-                  </div>
-
-                  <div>
-                    <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">
-                      Bekleyen Hastalar
-                    </div>
-
-                    <div className="text-lg font-black text-slate-800 dark:text-white">
-                      {waitingCount}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-2.5 flex flex-col">
-                <h3 className="text-base font-black text-slate-800 dark:text-white mb-2 border-b border-slate-100 dark:border-slate-700 pb-2 flex items-center gap-1.5">
-                  <i className="fa-regular fa-clock text-indigo-500"></i>{" "}
-                  Yaklaşan Randevularınız
-                </h3>
-
-                <div className="space-y-1.5 pr-1.5">
-                  {todaysApts.length > 0 ? (
-                    todaysApts.map((apt, i) => {
-                      let pId = apt.patientId;
-                      if (!pId) {
-                        const match = Object.values(globalData.patientsDb || {}).find(p => p.name.toLowerCase() === apt.patientName.toLowerCase().trim());
-                        if (match) pId = match.id;
-                      }
-                      const anamnesis = pId ? globalData.patientsDb?.[pId]?.anamnesis : null;
-
-                      return (
-                        <div
-                          key={i}
-                          onClick={() =>
-                            jumpToAppointment(
-                              apt.dateKey,
-                              apt.originalKey,
-                              "list",
-                              apt.docId
-                            )
-                          }
-                          onContextMenu={(e) =>
-                            handleContextMenu(e, "appointment", {
-                              slot: apt.sortTime,
-                              date: new Date(
-                                apt.dateKey.split("-")[0],
-                                apt.dateKey.split("-")[1] - 1,
-                                apt.dateKey.split("-")[2]
-                              ),
-                              docId: apt.docId,
-                              fullKey: apt.originalKey,
-                              apt,
-                            })
-                          }
-                          className={`flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl border-y border-r border-l-4 hover:shadow-md transition cursor-pointer group relative ${
-                            apt.status === "Geldi"
-                              ? "border-l-emerald-500 border-y-slate-200 border-r-slate-200 dark:border-y-slate-700 dark:border-r-slate-700 hover:border-emerald-400"
-                              : apt.status === "Gelmedi"
-                              ? "border-l-rose-500 border-y-slate-200 border-r-slate-200 dark:border-y-slate-700 dark:border-r-slate-700 hover:border-rose-400"
-                              : "border-l-sky-500 border-y-slate-200 border-r-slate-200 dark:border-y-slate-700 dark:border-r-slate-700 hover:border-sky-400"
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <div className="bg-white dark:bg-slate-800 font-black text-indigo-600 dark:text-indigo-400 px-2.5 py-1.5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 text-[11px] w-28 text-center group-hover:bg-indigo-600 group-hover:text-white transition">
-                              {apt.timeStr}
-                            </div>
-
-                            <div>
-                              <div className="font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-[13px]">
-                                {apt.patientName}{" "}
-                                {anamnesis && (
-                                  <i className="fa-solid fa-triangle-exclamation text-rose-500"></i>
-                                )}
-                              </div>
-
-                              <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 max-w-[160px] truncate">
-                                <i className="fa-solid fa-stethoscope mr-1"></i>{" "}
-                                {renderTreatmentText(apt)}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded-lg hidden sm:block">
-                            {globalData.systemUsers?.[apt.docId]?.displayName || apt.docId}
-                          </span>
-
-                            {/* YENİ: Tıklanabilir Anasayfa Rozeti */}
-                            {getStatusBadge(apt.status, (e) =>
-                              handleStatusCycle(
-                                e,
-                                apt.docId,
-                                apt.originalKey,
-                                apt
-                              )
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8 text-slate-400 font-medium">
-                      Bugün için planlanmış bir randevu bulunmuyor.
-                    </div>
-                  )}
-                </div>
-              </div>
+              <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm shrink-0">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-3 py-2">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-800 dark:text-white">İşlem bazlı gelir</h2>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Tamamlanan tedavilerin özeti · {dashboardPeriodLabel}</p>
+                  </div>
+                  <button onClick={() => setActiveTab("finance")} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">
+                    Finans raporuna git <i className="fa-solid fa-arrow-right ml-1"></i>
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-left text-[11px]">
+                    <thead className="bg-slate-50 text-[9px] uppercase tracking-wide text-slate-500 dark:bg-slate-900/60 dark:text-slate-400">
+                      <tr><th className="px-3 py-2">#</th><th className="px-3 py-2">İşlem adı</th><th className="px-3 py-2 text-center">Adet</th><th className="px-3 py-2 text-right">Gelir</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                      {rankedTreatments.length ? rankedTreatments.map((treatment, index) => (
+                        <tr key={treatment.name} className="text-slate-700 dark:text-slate-200">
+                          <td className="px-3 py-2 text-slate-400">{index + 1}</td>
+                          <td className="px-3 py-2 font-bold">{treatment.name}</td>
+                          <td className="px-3 py-2 text-center"><span className="rounded-full bg-blue-50 px-2 py-0.5 font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">{treatment.count}</span></td>
+                          <td className="px-3 py-2 text-right font-black">{dashboardMoney(treatment.revenue)}</td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan="4" className="px-3 py-5 text-center text-slate-400">Gösterilecek tamamlanmış işlem bulunmuyor.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
 
               {/* ========================================================= */}
               {/* YENİ MODÜL: KLİNİK DOSYA MASASI (VERİYE BAĞLANDI) */}
               {/* ========================================================= */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-3 flex flex-col shrink-0 mt-2 animate-pop min-h-[400px]">
-                {(() => {
+             <div className="hidden">
+               {false && (() => {
                   const allPats = Object.values(globalData.patientsDb || {}).filter(p => {
                       if (p.isDeleted) return false;
                       if (currentUserProfile?.role === "assistant") return (currentUserProfile.assignedDoctors || []).includes(p.addedBy) && resolveClinicId(p.addedBy) === currentClinicId;
@@ -5620,6 +5021,7 @@ return (
                     if (globalData.appointments) {
                       Object.values(globalData.appointments).forEach(docApts => {
                         Object.entries(docApts).forEach(([k, apt]) => {
+if (!apt || isAgendaBlock(apt)) return;
                           if (apt.patientName.toLowerCase() === pName.toLowerCase()) {
                             const [y, m, d] = k.split("-");
                             const timeStr = k.split("-").slice(3).join(":");
@@ -5712,6 +5114,7 @@ return (
                       if(globalData.appointments) {
                         Object.values(globalData.appointments).forEach(apts => {
                           Object.values(apts).forEach(apt => {
+if (!apt || isAgendaBlock(apt)) return;
                             if(apt.patientId === p.id || apt.patientName === p.name) hasApt = true;
                           });
                         });
@@ -6039,1113 +5442,11 @@ return (
           );
         };
 
-        const renderCalendarView = () => {
-          const targetDoc = calendarDoctor || currentUser;
+        const renderCalendarView = () => renderAgenda();
 
-          const renderDaily = () => {
-            const currentYear = selectedDate.getFullYear(),
-              currentMonth = selectedDate.getMonth();
+        const renderGridList = () => renderAgenda('list');
 
-            const daysInMonth = new Date(
-              currentYear,
-
-              currentMonth + 1,
-
-              0
-            ).getDate();
-
-            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-
-            const startingDay = firstDay === 0 ? 6 : firstDay - 1;
-
-            const calendarDays = [];
-
-            for (let i = 0; i < startingDay; i++) calendarDays.push(null);
-
-            for (let i = 1; i <= daysInMonth; i++)
-              calendarDays.push(new Date(currentYear, currentMonth, i));
-
-            return (
-              <div className="flex h-full gap-1.5 relative">
-                <div className="w-[260px] shrink-0 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-2 hidden lg:flex flex-col">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-black text-slate-800 dark:text-white text-base">
-                      Takvim
-                    </h3>
-
-                    <button
-                      onClick={() => setSelectedDate(new Date())}
-                      className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition"
-                    >
-                      Bugün
-                    </button>
-                  </div>
-
-                  <div className="flex justify-between items-center mb-2 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl border border-slate-100 dark:border-slate-700">
-                    <button
-                      onClick={() =>
-                        setSelectedDate(
-                          new Date(currentYear, currentMonth - 1, 1)
-                        )
-                      }
-                      className="w-7 h-7 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-500 shadow-sm flex justify-center items-center"
-                    >
-                      <i className="fa-solid fa-chevron-left text-[11px]"></i>
-                    </button>
-
-                    <div className="font-bold text-slate-700 dark:text-slate-200 text-[13px]">
-                      {MONTHS[currentMonth]} {currentYear}
-                    </div>
-
-                    <button
-                      onClick={() =>
-                        setSelectedDate(
-                          new Date(currentYear, currentMonth + 1, 1)
-                        )
-                      }
-                      className="w-7 h-7 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-500 shadow-sm flex justify-center items-center"
-                    >
-                      <i className="fa-solid fa-chevron-right text-[11px]"></i>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-wider">
-                    {DAYS.map((d) => (
-                      <div key={d}>{d}</div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-7 gap-1">
-                    {calendarDays.map((d, i) => {
-                      if (!d) return <div key={i}></div>;
-
-                      const isSel =
-                        d.getDate() === selectedDate.getDate() &&
-                        d.getMonth() === selectedDate.getMonth() &&
-                        d.getFullYear() === selectedDate.getFullYear();
-
-                      const isTod =
-                        d.getDate() === new Date().getDate() &&
-                        d.getMonth() === new Date().getMonth() &&
-                        d.getFullYear() === new Date().getFullYear();
-
-                      const hasApt =
-                        globalData.appointments?.[targetDoc] &&
-                        Object.keys(globalData.appointments[targetDoc]).some(
-                          (k) => k.startsWith(formatDateKey(d))
-                        );
-
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => setSelectedDate(d)}
-                          className={`aspect-square rounded-xl text-[11px] font-bold flex flex-col items-center justify-center relative transition-all ${
-                            isSel
-                              ? "bg-indigo-600 text-white shadow-md"
-                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          } ${
-                            isTod && !isSel
-                              ? "border border-indigo-300 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                              : ""
-                          }`}
-                        >
-                          {d.getDate()}
-
-                          {hasApt && (
-                            <div
-                              className={`w-1 h-1 rounded-full absolute bottom-1.5 ${
-                                isSel ? "bg-white" : "bg-rose-500"
-                              }`}
-                            ></div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-                  <div className="flex-1 overflow-y-auto p-2 space-y-1.5 bg-slate-50/50 dark:bg-slate-900/50">
-                    {TIME_SLOTS.map((slot) => {
-                      const fullKey = `${formatDateKey(selectedDate)}-${slot}`;
-                      const apt =
-                        globalData.appointments?.[targetDoc]?.[fullKey];
-
-                      // YENİ: Geçmiş Zaman ve Tarih Hesaplama
-                      const now = new Date();
-                      const todayStart = new Date(
-                        now.getFullYear(),
-                        now.getMonth(),
-                        now.getDate()
-                      ).getTime();
-                      const selectedStart = new Date(
-                        selectedDate.getFullYear(),
-                        selectedDate.getMonth(),
-                        selectedDate.getDate()
-                      ).getTime();
-                      const isPastDate = selectedStart < todayStart;
-                      const isToday = selectedStart === todayStart;
-                      const slotHour = parseInt(slot.split(":")[0]);
-                      const slotMin = parseInt(slot.split(":")[1]);
-let isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slotHour === now.getHours() && slotMin < now.getMinutes())));
-                      const slotAvailability = getDoctorScheduleStatus(
-                        globalData.doctorProfiles?.[targetDoc],
-                        selectedDate,
-                        slot,
-                        Number(settings?.randevu?.slotAraligi || 15)
-                      );
-                      const isUnavailableBySchedule = !slotAvailability.available;
-                      if (isUnavailableBySchedule) isPastSlot = true;
-                      
-                      // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Günlük)
-                      const dayName = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
-                      const yyyy_mm_dd = formatDateKey(selectedDate);
-                      const dd_mm_yyyy = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
-                      
-                      const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || 
-  (settings?.calisma?.ozelGunler || []).some(og => og.tarih === yyyy_mm_dd || og.tarih === dd_mm_yyyy);
-
-// SİHİRLİ SATIR: Eğer gün kapalıysa, o günün tüm saatlerini "geçmiş/pasif" olarak işaretle!
-if (isDayClosed) isPastSlot = true;
-
-                      let pId = apt?.patientId;
-                      if (apt && !pId) {
-                        const match = Object.values(globalData.patientsDb || {}).find(p => p.name.toLowerCase() === apt.patientName.toLowerCase().trim());
-                        if (match) pId = match.id;
-                      }
-                      let anamnesis = pId ? globalData.patientsDb?.[pId]?.anamnesis : null;
-
-                      const isHighlighted = highlightedAptId === fullKey;
-
-                      const dropTargetKey = `${targetDoc}-${fullKey}`;
-
-                      const tColor = getTreatmentColor(apt);
-
-                      return (
-                        <div
-                          key={slot}
-                          onDragOver={(e) => {
-                            if (!isPastSlot) handleDragOver(e, dropTargetKey);
-                          }}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => {
-                            if (!isPastSlot)
-                              handleDrop(e, targetDoc, selectedDate, slot);
-                          }}
-                          onClick={() => {
-                            if (!apt && !isPastSlot)
-                              openAppointmentModal(
-                                slot,
-                                selectedDate,
-                                targetDoc
-                              );
-                          }}
-title={!apt && isUnavailableBySchedule ? slotAvailability.reason : undefined}
-className={`flex rounded-xl overflow-visible slot-cell grid-row-h transition-all duration-300 ${
-                            isHighlighted ? "flash-highlight" : ""
-                          } ${
-                            apt
-                              ? "border border-indigo-200 dark:border-indigo-800 shadow-md bg-white dark:bg-slate-800"
-: isPastSlot
-? isUnavailableBySchedule
-  ? "border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/60 opacity-60 grayscale cursor-not-allowed pointer-events-none"
-  : "border border-rose-100 dark:border-rose-900/30 bg-rose-50/30 dark:bg-rose-900/10 opacity-60 grayscale cursor-not-allowed pointer-events-none"
-                              : "border border-dashed border-emerald-300 dark:border-emerald-700/50 hover:border-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20 bg-emerald-50/30 dark:bg-emerald-900/10 cursor-pointer shadow-[inset_0_0_8px_rgba(16,185,129,0.05)]"
-                          } ${
-                            dragOverTargetKey === dropTargetKey
-                              ? "drag-over"
-                              : ""
-                          }`}
-                        >
-                          <div
-                            className={`w-14 shrink-0 flex items-center justify-center font-black text-[13px] ${
-                              apt
-                                ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-r border-indigo-100"
-                                : "bg-slate-50 dark:bg-slate-900/50 text-slate-400 border-r border-slate-100 dark:border-slate-700"
-                            }`}
-                          >
-                            {slot}
-                          </div>
-
-                          <div className="flex-1 px-2.5 flex justify-between items-center relative">
-                            {apt ? (
-                              <div className="relative apt-card-wrapper w-full h-full flex items-center group z-40">
-                                <div className="glass-tooltip flex flex-col gap-1 text-left pointer-events-none">
-                                  <div className="font-black text-[13px] border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
-                                    {apt.patientName}
-                                  </div>
-                                  {apt.treatment && (
-                                    <div className="text-[11px] flex items-center gap-1.5 font-bold">
-                                      <i className="fa-solid fa-stethoscope"></i>{" "}
-                                      {renderTreatmentText(apt)}
-                                    </div>
-                                  )}
-                                  <div className="text-[10px] font-bold opacity-80 flex items-center gap-1.5">
-                                    <i className="fa-regular fa-clock"></i>{" "}
-                                    Süre: {apt.duration} Dk
-                                  </div>
-                                  {apt.price && (
-                                    <div className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 mt-1 pt-1 border-t border-black/10 dark:border-white/10">
-                                      Ücret: {renderMoney(apt.price)} ₺
-                                    </div>
-                                  )}
-                                  {apt.notes && (
-                                    <div className="text-[11px] mt-1 p-2 bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-300 rounded-md italic font-semibold max-w-[200px] whitespace-normal shadow-sm">
-                                      <i className="fa-solid fa-thumbtack text-amber-500 mr-1"></i>{" "}
-                                      {apt.notes}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div
-                                  draggable
-                                  onDragStart={(e) =>
-                                    handleDragStart(
-                                      e,
-                                      targetDoc,
-                                      selectedDate,
-                                      slot,
-                                      apt,
-                                      fullKey
-                                    )
-                                  }
-                                  onDragEnd={handleDragEnd}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openAppointmentModal(
-                                      slot,
-                                      selectedDate,
-                                      targetDoc
-                                    );
-                                  }}
-                                  onContextMenu={(e) =>
-                                    handleContextMenu(e, "appointment", {
-                                      slot,
-                                      date: selectedDate,
-                                      docId: targetDoc,
-                                      fullKey,
-                                      apt,
-                                    })
-                                  }
-className="apt-card !static !overflow-visible !border-l-4 !shadow-sm hover:!shadow-md hover:!-translate-y-0.5 !rounded-lg w-full flex justify-between items-center cursor-pointer transition-all ml-1"
-                                  style={{
-                                    backgroundColor: tColor.bg,
-                                    color: tColor.text,
-                                    borderLeftColor: tColor.border,
-                                  }}
-                                >
-                                  <div className="flex items-center gap-1.5 overflow-hidden">
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-0.5 gap-0.5 overflow-hidden">
-<div className="flex min-w-0 flex-col items-start gap-0.5 overflow-visible">
-    <span className="font-black text-slate-800 dark:text-white text-[11px] sm:text-[13px] flex items-center gap-1.5 truncate">
-      <span className="truncate">{apt.patientName}</span>
-      {anamnesis && (
-        <div className="relative group/tooltip flex items-center shrink-0">
-          <i className="fa-solid fa-triangle-exclamation text-rose-500 cursor-help animate-pulse"></i>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2.5 bg-rose-600 text-white text-[11px] font-bold rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[99999] shadow-2xl whitespace-normal pointer-events-none">
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-rose-600"></div>
-            <div className="flex items-start gap-1.5">
-              <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
-              <span className="leading-tight">{anamnesis}</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </span>
-<div className="flex flex-wrap items-center gap-1.5">
-{renderAppointmentStatusControl(apt.status, targetDoc, fullKey, apt)}
-<span className="text-[10px] sm:text-[11px] font-bold opacity-80 truncate">
-{renderTreatmentText(apt)} {apt.duration ? `(${apt.duration} Dk)` : ""}
-</span>
-</div>
-  </div>
-</div>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-emerald-500/50 dark:text-emerald-400/50 font-bold text-[11px] flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-all cursor-pointer">
-                                <i className="fa-solid fa-plus bg-emerald-100/50 dark:bg-emerald-900/50 rounded p-1"></i> Yeni
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          };
-
-          const renderWeekly = () => {
-            const weekDays = getWeekDays(selectedDate);
-
-            return (
-              <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
-                <div className="flex items-center justify-between p-1.5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
-                  <button
-                    onClick={() =>
-                      setSelectedDate(
-                        new Date(
-                          selectedDate.setDate(selectedDate.getDate() - 7)
-                        )
-                      )
-                    }
-                    className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200"
-                  >
-                    <i className="fa-solid fa-chevron-left"></i> Önceki Hafta
-                  </button>
-
-                  <span className="font-black text-[13px] text-slate-700 dark:text-slate-200">
-                    Haftalık Görünüm
-                  </span>
-
-                  <button
-                    onClick={() =>
-                      setSelectedDate(
-                        new Date(
-                          selectedDate.setDate(selectedDate.getDate() + 7)
-                        )
-                      )
-                    }
-                    className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200"
-                  >
-                    Sonraki Hafta <i className="fa-solid fa-chevron-right"></i>
-                  </button>
-                </div>
-
-                {/* custom-scrollbar eklendi */}
-                <div className="flex-1 overflow-auto bg-slate-100/50 dark:bg-slate-900/50 w-full relative custom-scrollbar">
-                  {/* YENİ: min-w-[800px] ile mobilde sütunların sıkışması engellendi */}
-                  <div className="weekly-grid h-full min-w-[800px] lg:min-w-full">
-                    <div className="sticky top-0 left-0 bg-white dark:bg-slate-800 z-30 border-b border-slate-200 dark:border-slate-700 time-col h-8 shadow-sm"></div>
-
-                    {weekDays.map((d, i) => (
-                      <div
-                        key={i}
-                        className="sticky top-0 bg-white dark:bg-slate-800 z-20 border-b border-slate-200 dark:border-slate-700 day-col h-8 flex flex-col items-center justify-center shadow-sm overflow-hidden"
-                      >
-                        <div className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">
-                          {DAYS[i]}
-                        </div>
-
-                        <div className="text-[13px] font-black text-slate-800 dark:text-white">
-                          {d.getDate()} {MONTHS[d.getMonth()]}
-                        </div>
-                      </div>
-                    ))}
-
-                    {TIME_SLOTS.map((time) => (
-                      <React.Fragment key={time}>
-                        <div className="time-col flex items-center justify-center text-[11px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 grid-row-h">
-                          {time}
-                        </div>
-
-                        {weekDays.map((d, i) => {
-                          const fullKey = `${formatDateKey(d)}-${time}`;
-
-                          const apt =
-                            globalData.appointments?.[targetDoc]?.[fullKey];
-
-                          const tColor = getTreatmentColor(apt?.treatment);
-
-                          const dropTargetKey = `${targetDoc}-${fullKey}`;
-
-                          const now = new Date();
-                          const todayStart = new Date(
-                            now.getFullYear(),
-                            now.getMonth(),
-                            now.getDate()
-                          ).getTime();
-                          const dayStart = new Date(
-                            d.getFullYear(),
-                            d.getMonth(),
-                            d.getDate()
-                          ).getTime();
-                          const isPastDate = dayStart < todayStart;
-                          const isToday = dayStart === todayStart;
-                          const slotHour = parseInt(time.split(":")[0]);
-                          const slotMin = parseInt(time.split(":")[1]);
-let isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slotHour === now.getHours() && slotMin < now.getMinutes())));
-                          const slotAvailability = getDoctorScheduleStatus(
-                            globalData.doctorProfiles?.[targetDoc],
-                            d,
-                            time,
-                            Number(settings?.randevu?.slotAraligi || 15)
-                          );
-                          const isUnavailableBySchedule = !slotAvailability.available;
-                          if (isUnavailableBySchedule) isPastSlot = true;
-                          
-                          // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Haftalık)
-                          const dayName = DAYS[d.getDay() === 0 ? 6 : d.getDay() - 1];
-                          const yyyy_mm_dd = formatDateKey(d);
-                          const dd_mm_yyyy = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-                          
-                          const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || 
-  (settings?.calisma?.ozelGunler || []).some(og => og.tarih === yyyy_mm_dd || og.tarih === dd_mm_yyyy);
-
-// SİHİRLİ SATIR: Eğer gün kapalıysa, o günün tüm saatlerini "geçmiş/pasif" olarak işaretle!
-if (isDayClosed) isPastSlot = true;
-
-                          let anamnesis = apt
-                            ? globalData.patientsDb?.[
-                                apt.patientName
-                                  .toLowerCase()
-                                  .replace(/\s+/g, "")
-                              ]?.anamnesis
-                            : null;
-
-                          return (
-                            <div
-                              key={i}
-                              onDragOver={(e) => {
-                                if (!isPastSlot)
-                                  handleDragOver(e, dropTargetKey);
-                              }}
-                              onDragLeave={handleDragLeave}
-                              onDrop={(e) => {
-                                if (!isPastSlot)
-                                  handleDrop(e, targetDoc, d, time);
-                              }}
-                              onClick={() => {
-                                if (!apt && !isPastSlot)
-                                  openAppointmentModal(time, d, targetDoc);
-                              }}
-title={!apt && isUnavailableBySchedule ? slotAvailability.reason : undefined}
-                              className={`day-col slot-cell grid-row-h flex items-center px-1 transition-all duration-300 ${
-                                apt
-                                  ? "has-apt bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm"
-                                  : isPastSlot
-? isUnavailableBySchedule
-  ? "border-b border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/60 opacity-60 grayscale cursor-not-allowed pointer-events-none"
-  : "border-b border-rose-100 dark:border-rose-900/30 bg-rose-50/30 dark:bg-rose-900/10 opacity-60 grayscale cursor-not-allowed pointer-events-none"
-                                  : "border-b border-dashed border-emerald-300 dark:border-emerald-700/50 hover:border-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20 bg-emerald-50/30 dark:bg-emerald-900/10 cursor-pointer"
-                              } ${
-                                dragOverTargetKey === dropTargetKey
-                                  ? "drag-over"
-                                  : ""
-                              }`}
-                            >
-                              {apt && (
-                                <div className="relative apt-card-wrapper w-full h-full flex flex-col justify-center items-start group">
-                                  <div className="glass-tooltip flex flex-col gap-1 text-left pointer-events-none">
-                                    <div className="font-black text-[13px] border-b border-black/10 dark:border-white/20 pb-1 mb-1 text-indigo-700 dark:text-indigo-300">
-                                      {apt.patientName}
-                                    </div>
-                                    {apt.treatment && (
-                                      <div className="text-[11px] flex items-center gap-1.5 font-bold">
-                                        <i className="fa-solid fa-stethoscope"></i>{" "}
-                                        {renderTreatmentText(apt)}
-                                      </div>
-                                    )}
-                                    <div className="text-[10px] font-bold opacity-80 flex items-center gap-1.5">
-                                      <i className="fa-regular fa-clock"></i>{" "}
-                                      Süre: {apt.duration} Dk
-                                    </div>
-                                    {apt.notes && (
-                                      <div className="text-[10px] mt-1 p-1.5 bg-black/5 dark:bg-white/5 rounded-md italic font-semibold max-w-[200px] whitespace-normal">
-                                        <i className="fa-solid fa-note-sticky text-amber-500 mr-1"></i>{" "}
-                                        {apt.notes}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div
-                                    draggable
-                                    onDragStart={(e) =>
-                                      handleDragStart(
-                                        e,
-                                        targetDoc,
-                                        d,
-                                        time,
-                                        apt,
-                                        fullKey
-                                      )
-                                    }
-                                    onDragEnd={handleDragEnd}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openAppointmentModal(time, d, targetDoc);
-                                    }}
-                                    onContextMenu={(e) =>
-                                      handleContextMenu(e, "appointment", {
-                                        slot: time,
-                                        date: d,
-                                        docId: targetDoc,
-                                        fullKey,
-                                        apt,
-                                      })
-                                    }
-                                    className="apt-card w-full flex flex-col justify-center items-start cursor-pointer transition-all hover:-translate-y-0.5"
-                                    style={{
-                                      backgroundColor: tColor.bg,
-                                      color: tColor.text,
-                                      borderLeftColor: tColor.border,
-                                    }}
-                                  >
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full h-full p-0.5 gap-0.5 overflow-hidden">
-  <div className="flex flex-wrap items-center gap-1 truncate overflow-visible">
-    <span className="font-black text-slate-800 dark:text-white text-[11px] sm:text-[13px] flex items-center gap-1.5 truncate">
-      <span className="truncate">{apt.patientName}</span>
-      {anamnesis && (
-        <div className="relative group/tooltip flex items-center shrink-0">
-          <i className="fa-solid fa-triangle-exclamation text-rose-500 cursor-help animate-pulse"></i>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2.5 bg-rose-600 text-white text-[11px] font-bold rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[99999] shadow-2xl whitespace-normal pointer-events-none">
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-rose-600"></div>
-            <div className="flex items-start gap-1.5">
-              <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
-              <span className="leading-tight">{anamnesis}</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </span>
-    <span className="text-[10px] font-bold opacity-80 truncate">
-      • {renderTreatmentText(apt)} {apt.duration ? `(${apt.duration} Dk)` : ""}
-    </span>
-  </div>
-</div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          };
-
-          return (
-            <div
-              className={`flex flex-col h-full animate-pop w-full ${
-                isDocChanging ? "refreshing" : ""
-              }`}
-            >
-              <div className="flex flex-wrap lg:flex-nowrap justify-between items-center mb-2 bg-white dark:bg-slate-800 p-2 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 shrink-0 gap-1.5">
-                <div className="font-black text-slate-800 dark:text-white text-[13px] sm:text-base ml-1.5 whitespace-nowrap flex items-center gap-1.5">
-                  <CalendarDatePicker
-                    value={selectedDate}
-                    onChange={setSelectedDate}
-                  />
-                  <button
-                    onClick={() => setSelectedDate(new Date())}
-                    className="text-[9px] sm:text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 sm:px-2 py-0.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition align-middle"
-                  >
-                    Bugün
-                  </button>
-                </div>
-
-                <div className="w-full lg:w-auto flex-1 flex justify-center min-w-[220px] order-last lg:order-none">
-                  {renderAppointmentSearchBox()}
-                </div>
-
-                <div className="flex items-center gap-1.5 lg:gap-1.5 justify-end">
-                  <div className="relative">
-                    <i className="fa-solid fa-user-doctor absolute left-3 top-2 text-slate-400 text-[11px]"></i>
-
-                    <select
-                      value={calendarDoctor}
-                      onChange={(e) => setCalendarDoctor(e.target.value)}
-                      className="pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 appearance-none cursor-pointer"
-                    >
-                      {allDoctors.map((doc) => (
-                        <option key={doc} value={doc}>
-                          {globalData.systemUsers?.[doc]?.displayName || doc}
-                        </option>
-                      ))}
-                    </select>
-
-                    <i className="fa-solid fa-chevron-down absolute right-3 top-1.5 text-slate-400 text-[11px] pointer-events-none"></i>
-                  </div>
-
-                  <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl justify-end overflow-hidden shrink-0">
-                    <button
-                      onClick={() => setCalendarViewMode("daily")}
-                      className={`px-2 sm:px-2.5 py-1 font-bold text-[10px] sm:text-[11px] rounded-lg transition-all ${
-                        calendarViewMode === "daily"
-                          ? "bg-white dark:bg-slate-700 text-indigo-600"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      Günlük
-                    </button>
-
-                    <button
-                      onClick={() => setCalendarViewMode("weekly")}
-                      className={`px-2 sm:px-2.5 py-1 font-bold text-[10px] sm:text-[11px] rounded-lg transition-all ${
-                        calendarViewMode === "weekly"
-                          ? "bg-white dark:bg-slate-700 text-indigo-600"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      Haftalık
-                    </button>
-
-                    <button
-                      onClick={() => setCalendarViewMode("monthly")}
-                      className={`px-2 sm:px-2.5 py-1 font-bold text-[10px] sm:text-[11px] rounded-lg transition-all ${
-                        calendarViewMode === "monthly"
-                          ? "bg-white dark:bg-slate-700 text-indigo-600"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      Aylık
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {(() => {
-                const renderMonthly = () => {
-                  const currentYear = selectedDate.getFullYear();
-                  const currentMonth = selectedDate.getMonth();
-                  const daysInMonth = new Date(
-                    currentYear,
-                    currentMonth + 1,
-                    0
-                  ).getDate();
-                  const firstDay = new Date(
-                    currentYear,
-                    currentMonth,
-                    1
-                  ).getDay();
-                  const startingDay = firstDay === 0 ? 6 : firstDay - 1;
-
-                  const calendarDays = [];
-                  for (let i = 0; i < startingDay; i++) calendarDays.push(null);
-                  for (let i = 1; i <= daysInMonth; i++)
-                    calendarDays.push(new Date(currentYear, currentMonth, i));
-
-                  return (
-                    <div className="flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
-                      <div className="flex items-center justify-between p-1.5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
-                        <button
-                          onClick={() =>
-                            setSelectedDate(
-                              new Date(currentYear, currentMonth - 1, 1)
-                            )
-                          }
-                          className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200 transition hover:bg-slate-100"
-                        >
-                          <i className="fa-solid fa-chevron-left mr-1"></i>{" "}
-                          Önceki Ay
-                        </button>
-                        <span className="font-black text-[13px] text-slate-700 dark:text-slate-200">
-                          {MONTHS[currentMonth]} {currentYear}
-                        </span>
-                        <button
-                          onClick={() =>
-                            setSelectedDate(
-                              new Date(currentYear, currentMonth + 1, 1)
-                            )
-                          }
-                          className="px-2.5 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded shadow-sm text-[11px] font-bold dark:text-slate-200 transition hover:bg-slate-100"
-                        >
-                          Sonraki Ay{" "}
-                          <i className="fa-solid fa-chevron-right ml-1"></i>
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 shrink-0">
-                        {DAYS.map((d) => (
-                          <div
-                            key={d}
-                            className="text-center text-[10px] font-black text-slate-500 py-1.5 uppercase tracking-wider"
-                          >
-                            {d}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex-1 overflow-hidden">
-                        <div className="grid grid-cols-7 bg-slate-200 dark:bg-slate-700 gap-px h-full auto-rows-fr">
-                          {calendarDays.map((d, i) => {
-                            if (!d)
-                              return (
-                                <div
-                                  key={i}
-                                  className="bg-slate-50 dark:bg-slate-800"
-                                ></div>
-                              );
-
-                            let total = 0;
-                            let canceled = 0;
-                            const dateKey = formatDateKey(d);
-
-                            if (
-                              globalData.appointments &&
-                              globalData.appointments[targetDoc]
-                            ) {
-                              Object.entries(
-                                globalData.appointments[targetDoc]
-                              ).forEach(([key, apt]) => {
-                                if (key.startsWith(dateKey)) {
-                                  total++;
-                                  if (apt.status === "İptal") canceled++;
-                                }
-                              });
-                            }
-
-                            const emptySlots = TIME_SLOTS.length - total;
-                            const activeApts = total - canceled;
-                            const isTod =
-                              d.getDate() === new Date().getDate() &&
-                              d.getMonth() === new Date().getMonth() &&
-                              d.getFullYear() === new Date().getFullYear();
-
-                            return (
-                              <div
-                                key={i}
-                                onClick={() => {
-                                  setSelectedDate(d);
-                                  setCalendarViewMode("daily");
-                                }}
-                                className={`bg-white dark:bg-slate-800 p-1.5 flex flex-col overflow-y-auto custom-scrollbar min-h-0 hover:bg-indigo-50/50 dark:hover:bg-slate-750 cursor-pointer transition-colors relative ${
-                                  isTod
-                                    ? "ring-2 ring-inset ring-indigo-500 z-10"
-                                    : ""
-                                }`}
-                              >
-                                <div
-                                  className={`text-[11px] font-black mb-0.5 ${
-                                    isTod
-                                      ? "text-indigo-600 dark:text-indigo-400"
-                                      : "text-slate-700 dark:text-slate-200"
-                                  }`}
-                                >
-                                  {d.getDate()}
-                                </div>
-                                <div className="flex flex-col gap-0.5 mt-auto">
-                                  {activeApts > 0 && (
-                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm"></div>{" "}
-                                      {activeApts} Randevu
-                                    </div>
-                                  )}
-                                  {canceled > 0 && (
-                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-sm"></div>{" "}
-                                      {canceled} İptal
-                                    </div>
-                                  )}
-                                  {emptySlots > 0 && (
-                                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm"></div>{" "}
-                                      {emptySlots} Boş
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                };
-
-                return calendarViewMode === "daily"
-                  ? renderDaily()
-                  : calendarViewMode === "weekly"
-                  ? renderWeekly()
-                  : renderMonthly();
-              })()}
-            </div>
-          );
-        };
-
-        const renderGridList = () => {
-          return (
-            <div
-              className={`flex flex-col h-full bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden animate-pop w-full ${
-                isDocChanging ? "refreshing" : ""
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between p-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 gap-1.5 shrink-0">
-                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative shrink-0">
-                  <button
-                    onClick={() =>
-                      setSelectedDate(
-                        new Date(
-                          selectedDate.setDate(selectedDate.getDate() - 1)
-                        )
-                      )
-                    }
-                    className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-                  >
-                    <i className="fa-solid fa-chevron-left text-[11px]"></i>
-                  </button>
-
-                  <CalendarDatePicker
-                    value={selectedDate}
-                    onChange={setSelectedDate}
-                    compact
-                  />
-
-                  <button
-                    onClick={() =>
-                      setSelectedDate(
-                        new Date(
-                          selectedDate.setDate(selectedDate.getDate() + 1)
-                        )
-                      )
-                    }
-                    className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
-                  >
-                    <i className="fa-solid fa-chevron-right text-[11px]"></i>
-                  </button>
-                </div>
-
-                <div className="w-full md:w-auto flex-1 flex justify-center min-w-[220px] order-last md:order-none">
-                  {renderAppointmentSearchBox()}
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <div className="relative">
-                    <i className="fa-solid fa-user-doctor absolute left-3 top-1.5 text-slate-400 text-[11px]"></i>
-
-                    <select
-                      value={listDoctorFilter}
-                      onChange={(e) => setListDoctorFilter(e.target.value)}
-                      className="pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 appearance-none dark:text-white cursor-pointer"
-                    >
-                      <option value="all">Tüm Hekimler (Izgara)</option>
-
-                      {allDoctors.map((doc) => (
-                        <option key={doc} value={doc}>
-                          {globalData.systemUsers?.[doc]?.displayName || doc}
-                        </option>
-                      ))}
-                    </select>
-
-                    <i className="fa-solid fa-chevron-down absolute right-3 top-1.5 text-slate-400 text-[11px] pointer-events-none"></i>
-                  </div>
-
-                  <button
-                    onClick={() => setSelectedDate(new Date())}
-                    className="text-[11px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2.5 py-1.5 rounded-xl border border-indigo-100 shadow-sm transition"
-                  >
-                    Bugün
-                  </button>
-                </div>
-              </div>
-
-              <div
-                className="flex-1 overflow-y-auto overflow-x-auto relative bg-slate-100/50 dark:bg-slate-900/50 w-full custom-scrollbar"
-                style={{ "--doctor-count": visibleListDoctors.length }}
-              >
-                {/* YENİ: min-w-[600px] veya lg:min-w-full ekleyerek mobilde sütun sıkışmasını engelliyoruz */}
-                <div className="calendar-grid min-w-[600px] lg:min-w-full h-full">
-                  <div className="sticky top-0 left-0 bg-white dark:bg-slate-800 z-30 border-b border-slate-200 dark:border-slate-700 time-col h-8 shadow-sm"></div>
-
-                  {visibleListDoctors.map((docId) => (
-                    <div
-                      key={`header-${docId}`}
-                      className="sticky top-0 bg-white dark:bg-slate-800 z-20 border-b border-slate-200 dark:border-slate-700 doc-col h-8 flex flex-col items-center justify-center shadow-sm overflow-hidden px-1.5"
-                    >
-                      <div className="flex items-center gap-1">
-                        <div className="w-4 h-4 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[9px] shrink-0">
-                          <i className="fa-solid fa-user-doctor"></i>
-                        </div>
-
-                        <span className="font-black text-slate-800 dark:text-white text-[10px] sm:text-[13px] truncate w-full text-center">
-                            {globalData.systemUsers?.[docId]?.displayName || docId}
-                          </span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {TIME_SLOTS.map((time) => (
-                    <React.Fragment key={time}>
-                      <div className="time-col flex items-center justify-center text-[11px] font-black text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 grid-row-h shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                        {time}
-                      </div>
-
-                      {visibleListDoctors.map((docId) => {
-                        const fullKey = `${formatDateKey(
-                          selectedDate
-                        )}-${time}`;
-
-                        const apt = globalData.appointments?.[docId]?.[fullKey];
-
-                        const tColor = getTreatmentColor(apt?.treatment);
-
-                        const isHighlighted = highlightedAptId === fullKey;
-
-                        const dropTargetKey = `${docId}-${fullKey}`;
-
-                        const now = new Date();
-                        const todayStart = new Date(
-                          now.getFullYear(),
-                          now.getMonth(),
-                          now.getDate()
-                        ).getTime();
-                        const selectedStart = new Date(
-                          selectedDate.getFullYear(),
-                          selectedDate.getMonth(),
-                          selectedDate.getDate()
-                        ).getTime();
-                        const isPastDate = selectedStart < todayStart;
-                        const isToday = selectedStart === todayStart;
-                        const slotHour = parseInt(time.split(":")[0]);
-                        const slotMin = parseInt(time.split(":")[1]);
-let isPastSlot = isPastDate || (isToday && (slotHour < now.getHours() || (slotHour === now.getHours() && slotMin < now.getMinutes())));
-                        const slotAvailability = getDoctorScheduleStatus(
-                          globalData.doctorProfiles?.[docId],
-                          selectedDate,
-                          time,
-                          Number(settings?.randevu?.slotAraligi || 15)
-                        );
-                        const isUnavailableBySchedule = !slotAvailability.available;
-                        if (isUnavailableBySchedule) isPastSlot = true;
-                        
-                        // GÜÇLENDİRİLMİŞ ÇALIŞMA GÜNÜ MOTORU (Liste)
-                        const dayName = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
-                        const yyyy_mm_dd = formatDateKey(selectedDate);
-                        const dd_mm_yyyy = `${String(selectedDate.getDate()).padStart(2, '0')}.${String(selectedDate.getMonth() + 1).padStart(2, '0')}.${selectedDate.getFullYear()}`;
-                        
-                        const isDayClosed = settings?.calisma?.gunler?.[dayName] === false || 
-  (settings?.calisma?.ozelGunler || []).some(og => og.tarih === yyyy_mm_dd || og.tarih === dd_mm_yyyy);
-
-// SİHİRLİ SATIR: Eğer gün kapalıysa, o günün tüm saatlerini "geçmiş/pasif" olarak işaretle!
-if (isDayClosed) isPastSlot = true;
-
-                        let pId = apt
-                          ? apt.patientName.toLowerCase().replace(/\s+/g, "")
-                          : null;
-
-                        let anamnesis = pId
-                          ? globalData.patientsDb?.[pId]?.anamnesis
-                          : null;
-
-                        return (
-                          <div
-                            key={`${docId}-${time}`}
-                            onDragOver={(e) => {
-                              if (!isPastSlot) handleDragOver(e, dropTargetKey);
-                            }}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => {
-                              if (!isPastSlot)
-                                handleDrop(e, docId, selectedDate, time);
-                            }}
-                            onClick={() => {
-                              if (!apt && !isPastSlot)
-                                openAppointmentModal(time, selectedDate, docId);
-                            }}
-title={!apt && isUnavailableBySchedule ? slotAvailability.reason : undefined}
-                            className={`doc-col slot-cell grid-row-h flex items-center px-1 transition-all duration-300 group ${
-                                isHighlighted ? "flash-highlight" : ""
-                              } ${
-                                apt
-                                  ? "has-apt bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm"
-                                  : isPastSlot
-                                  ? isUnavailableBySchedule
-                                    ? "border-b border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/60 opacity-60 grayscale cursor-not-allowed pointer-events-none"
-                                    : "border-b border-rose-100 dark:border-rose-900/30 bg-rose-50/30 dark:bg-rose-900/10 opacity-60 grayscale cursor-not-allowed pointer-events-none"
-                                  : "border-b border-dashed border-emerald-300 dark:border-emerald-700/50 hover:border-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/20 bg-emerald-50/30 dark:bg-emerald-900/10 cursor-pointer"
-                              } ${
-                                dragOverTargetKey === dropTargetKey
-                                  ? "drag-over"
-                                  : ""
-                              }`}
-                            >
-                              {!apt && !isPastSlot && (
-                                <div className="text-emerald-500/50 dark:text-emerald-400/50 font-bold text-[11px] flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-all cursor-pointer w-full">
-                                  <i className="fa-solid fa-plus bg-emerald-100/50 dark:bg-emerald-900/50 rounded p-0.5"></i> Yeni
-                                </div>
-                              )}
-                              {apt && (
-                                <div
-                                  draggable
-                                onDragStart={(e) =>
-                                  handleDragStart(
-                                    e,
-                                    docId,
-                                    selectedDate,
-                                    time,
-                                    apt,
-                                    fullKey
-                                  )
-                                }
-                                onDragEnd={handleDragEnd}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openAppointmentModal(
-                                    time,
-                                    selectedDate,
-                                    docId
-                                  );
-                                }}
-                                onContextMenu={(e) =>
-                                  handleContextMenu(e, "appointment", {
-                                    slot: time,
-                                    date: selectedDate,
-                                    docId,
-                                    fullKey,
-                                    apt,
-                                  })
-                                }
-className={`apt-card !overflow-visible w-full flex items-center justify-between cursor-pointer transition-all hover:-translate-y-0.5 ${
-                                  apt.status === "Gelmedi"
-                                    ? "opacity-50 grayscale hover:grayscale-0 hover:opacity-100"
-                                    : ""
-                                }`}
-                                style={{
-                                  backgroundColor: tColor.bg,
-                                  color: tColor.text,
-                                  borderLeftColor: tColor.border,
-                                }}
-                              >
-<div className="flex min-w-0 flex-col items-start gap-0.5">
-<div className="font-black truncate flex items-center gap-1.5 text-[10px] sm:text-[11px] overflow-visible">
-                                  <span className="truncate">{apt.patientName}</span>
-                                  {anamnesis && (
-                                    <div className="relative group/tooltip flex items-center shrink-0">
-                                      <i className="fa-solid fa-triangle-exclamation text-rose-500 cursor-help animate-pulse"></i>
-                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2.5 bg-rose-600 text-white text-[11px] font-bold rounded-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-[99999] shadow-2xl whitespace-normal pointer-events-none">
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-rose-600"></div>
-                                        <div className="flex items-start gap-1.5">
-                                          <i className="fa-solid fa-circle-exclamation mt-0.5"></i>
-                                          <span className="leading-tight">{anamnesis}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {apt.notes && (
-                                    <i
-                                      className="fa-regular fa-note-sticky text-amber-600 dark:text-amber-500 ml-0.5"
-                                      title="Randevu Notu Var"
-                                    ></i>
-                                  )}
-                                </div>
-{renderAppointmentStatusControl(apt.status, docId, fullKey, apt)}
-</div>
-
-                                <div className="flex gap-1 items-center shrink-0 ml-0.5">
-                                  <span className="text-[9px] sm:text-[10px] font-bold opacity-80 hidden md:inline truncate max-w-[80px]">
-                                    {renderTreatmentText(apt)}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        };
-
-        const renderPatients = () => {
+        const renderPatients = () => {
           // KLİNİK İZOLASYONU: Hasta ekleyenin clinicId'si, benim clinicId'me eşit mi?
           let patientsList = Object.values(globalData.patientsDb || {}).filter(
             (p) => resolveClinicId(p.addedBy) === currentClinicId && !p.isDeleted
@@ -7651,7 +5952,7 @@ y: details.y ?? existingProfile.y ?? 50,
 diplomaNumber: details.diplomaNumber || "",
 phone: details.phone || "",
 availabilityStatus: details.availabilityStatus || "active",
-calendarColor: details.calendarColor || "#4f46e5",
+calendarColor: details.calendarColor || DOCTOR_COLORS[Math.max(0, allDoctors.indexOf(docUsername)) % DOCTOR_COLORS.length],
 specialties: Array.isArray(details.specialties) ? details.specialties : [],
 payoutModel: details.payoutModel || "gross",
 deductionMode: details.deductionMode || "percent",
@@ -7796,7 +6097,15 @@ const profileRecord = {
   title: doctorRecord.title,
   specialties: newDoctorForm.specialties || [],
   commissionRate: rate,
-  calendarColor: newDoctorForm.calendarColor || "#4f46e5",
+  calendarColor:
+    newDoctorForm.calendarColor ||
+    DOCTOR_COLORS.find(
+      (color) =>
+        !Object.values(globalData.doctorProfiles || {}).some(
+          (profile) => profile?.calendarColor === color
+        )
+    ) ||
+    DOCTOR_COLORS[allDoctors.length % DOCTOR_COLORS.length],
   availabilityStatus: "active",
   payoutModel: "gross",
   deductionMode: "percent",
@@ -7810,7 +6119,7 @@ saveGlobalData({
   systemUsers: { ...(globalData.systemUsers || {}), [username]: doctorRecord },
   doctorProfiles: { ...(globalData.doctorProfiles || {}), [username]: profileRecord },
 }).then(() => {
-  setNewDoctorForm({ name: "", title: "Diş Hekimi", specialties: [], commissionRate: "", calendarColor: "#4f46e5" });
+  setNewDoctorForm({ name: "", title: "Diş Hekimi", specialties: [], commissionRate: "", calendarColor: "" });
   setIsAddDoctorModalOpen(false);
   showNotification("Yeni hekim kliniğe eklendi.");
 }).catch((error) => {
@@ -7862,6 +6171,7 @@ treatmentRevenue: {},
             const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
 
             Object.entries(apts).forEach(([key, a]) => {
+if (!a || isAgendaBlock(a)) return;
               const parts = key.split("-");
               const y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
               const aptDateStr = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -7872,7 +6182,7 @@ treatmentRevenue: {},
 
               if (inRange) {
                 stats.total++;
-                if (a.status === "Yeni Kayıt" || a.status === "Bekliyor") stats.waiting++;
+if (a.status === "Yeni Kayıt" || a.status === "Bekliyor" || a.status === "Onaylandı") stats.waiting++;
                 if (a.status === "Geldi") stats.done++;
 if (a.status === "İptal") stats.cancelled++;
 if (a.status === "Gelmedi") stats.noShow++;
@@ -8382,6 +6692,7 @@ Bu filtrede hekim bulunmuyor.
               <button key={color} type="button" aria-label={`Takvim rengi ${color}`} onClick={() => setNewDoctorForm({ ...newDoctorForm, calendarColor: color })} className={`h-6 w-6 rounded-full border-2 ${newDoctorForm.calendarColor === color ? "border-slate-900 ring-2 ring-indigo-300 dark:border-white" : "border-white dark:border-slate-700"}`} style={{ backgroundColor: color }} />
             ))}
           </div>
+          <p className="mt-1 text-[9px] font-medium text-slate-400">Seçim yapmazsanız kullanılmayan bir renk otomatik atanır.</p>
         </div>
         <div className="sm:col-span-2">
           <div className="mb-1 text-[10px] font-bold text-slate-500">Uzmanlık Alanları</div>
@@ -8567,7 +6878,7 @@ objectPosition: `${selectedDoctorProfile.x || 50}% ${selectedDoctorProfile.y || 
                           const oneWeekLaterMs = nowMs + 7 * 24 * 60 * 60 * 1000;
 
                           Object.entries(docApts).forEach(([k, apt]) => {
-                             if(!apt || apt.status === "İptal") return; 
+                             if(!apt || isAgendaBlock(apt) || apt.status === "İptal") return; 
                              
                              const parts = k.split("-");
                              const y = parts[0] || "";
@@ -8622,13 +6933,13 @@ objectPosition: `${selectedDoctorProfile.x || 50}% ${selectedDoctorProfile.y || 
                           pastAptsList.sort((a, b) => b.aptTimeMs - a.aptTimeMs); 
 
                           const totalToday = todaysAptsList.length;
-                          const waitingToday = todaysAptsList.filter(a => a.status === "Yeni Kayıt" || a.status === "Bekliyor").length;
+                          const waitingToday = todaysAptsList.filter(a => a.status === "Yeni Kayıt" || a.status === "Bekliyor" || a.status === "Onaylandı").length;
                           const doneToday = todaysAptsList.filter(a => a.status === "Geldi").length;
                           const cancelledToday = todaysAptsList.filter(a => a.status === "İptal" || a.status === "Gelmedi").length;
 
                           const displayedApts = todaysAptsList.filter(a => {
                              if(docStatsActiveFilter === "all") return true;
-                             if(docStatsActiveFilter === "waiting") return a.status === "Yeni Kayıt" || a.status === "Bekliyor";
+                             if(docStatsActiveFilter === "waiting") return a.status === "Yeni Kayıt" || a.status === "Bekliyor" || a.status === "Onaylandı";
                              if(docStatsActiveFilter === "done") return a.status === "Geldi";
                              if(docStatsActiveFilter === "cancelled") return a.status === "İptal" || a.status === "Gelmedi";
                              return true;
@@ -8836,6 +7147,7 @@ objectPosition: `${selectedDoctorProfile.x || 50}% ${selectedDoctorProfile.y || 
                                            allDoctors.forEach(docId => {
                                               if(globalData.appointments[docId]) {
                                                  Object.entries(globalData.appointments[docId]).forEach(([k, apt]) => {
+if (!apt || isAgendaBlock(apt)) return;
                                                     const parts = k.split("-");
                                                     const aptTimeMs = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T${parts.slice(3).join(":")}:00`).getTime();
                                                     // Sadece İptal olmayan ve seçili aralığa girenleri al
@@ -10598,7 +8910,7 @@ const renderSettings = () => {
                                         if (globalData.appointments) {
                                            Object.values(globalData.appointments).forEach(docApts => {
                                               Object.values(docApts).forEach(apt => {
-                                                 if(apt.treatment && apt.treatment.includes(tx)) usageCount++;
+if(!isAgendaBlock(apt) && apt?.treatment && apt.treatment.includes(tx)) usageCount++;
                                               });
                                            });
                                         }
@@ -10852,6 +9164,7 @@ const renderSettings = () => {
                                           if (docApts && typeof docApts === 'object') {
                                               Object.entries(docApts).forEach(([aptKey, apt]) => {
                                                  if (!apt) return; // Boş/silinmiş kaydı atla
+if (isAgendaBlock(apt)) return;
                                                  aCount++;
                                                  
                                                  if(!apt.patientName) {
@@ -11337,6 +9650,7 @@ const renderSettings = () => {
               if (docId !== currentUser && globalData.doctorProfiles?.[docId]?.addedBy !== currentUser) return;
               
               Object.entries(docApts).forEach(([key, apt]) => {
+if (!apt || isAgendaBlock(apt)) return;
                 const dateStr = key.split("-").slice(0, 3).join("-");
                 if (isDateInRange(dateStr, financePeriod, financeCustomStart, financeCustomEnd)) {
                   
@@ -12073,39 +10387,220 @@ const renderSettings = () => {
           );
         };
 
-        const SidebarItem = ({ icon, label, id }) => (
-          <div className="relative group px-1.5">
-            {/* YENİ: Aktif Sekme Göstergesi (Indicator) */}
-            {activeTab === id && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r-full shadow-[2px_0_8px_rgba(79,70,229,0.5)] z-10"></div>
-            )}
-            <button
-              onClick={() => {
-                setActiveTab(id);
-                setIsSidebarOpen(false);
-              }}
-              className={`w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-300 ${
-                activeTab === id
-                  ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 font-bold shadow-sm ring-1 ring-indigo-100 dark:ring-indigo-800"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
-              }`}
-            >
-              <i
-                className={`fa-solid ${icon} w-5 text-center text-base transition-transform duration-300 ${
-                  activeTab === id ? "scale-110" : "group-hover:scale-110"
-                }`}
-              ></i>
+       const createAgendaBlock = async (block) => {
+         if (!hasPermission("appointments.create")) {
+           showNotification("Blokaj ekleme yetkiniz bulunmuyor.", "error");
+           return false;
+         }
+         if (
+           !db ||
+           !currentClinicId ||
+           !block.doctorId ||
+           !allDoctors.includes(block.doctorId) ||
+           resolveClinicId(block.doctorId) !== currentClinicId
+         ) {
+           showNotification("Hekim veya klinik bilgisi doğrulanamadı.", "error");
+           return false;
+         }
 
-              <span
-                className={`text-[13px] whitespace-nowrap transition-opacity duration-200 ${
-                  isSidebarOpen ? "opacity-100" : "opacity-0 hidden"
-                }`}
-              >
-                {label}
-              </span>
-            </button>
-          </div>
-        );
+         const dateKey = formatDateKey(block.date);
+         const start = timeToMinutes(block.time);
+         const duration = Number.parseInt(block.duration, 10);
+         if (
+           !dateKey ||
+           start === null ||
+           !Number.isFinite(duration) ||
+           duration <= 0 ||
+           !block.title?.trim()
+         ) {
+           showNotification("Blokaj bilgilerini kontrol edin.", "error");
+           return false;
+         }
+
+         const appointmentKey = `${dateKey}-${block.time}`;
+         let conflict = null;
+         let targetOccupied = false;
+         try {
+           const result = await runTransaction(
+             ref(
+               db,
+               `KlinikAnaVeritabani/clinics/${currentClinicId}/appointments/${block.doctorId}`
+             ),
+             (currentAppointments) => {
+               conflict = null;
+               targetOccupied = false;
+               const appointments = currentAppointments || {};
+               if (appointments[appointmentKey]) {
+                 targetOccupied = true;
+                 return;
+               }
+               conflict = findAppointmentConflict(
+                 appointments,
+                 dateKey,
+                 block.time,
+                 duration
+               );
+               if (conflict) return;
+               return {
+                 ...appointments,
+                 [appointmentKey]: {
+                   type: "block",
+                   blockType: block.blockType,
+                   title: block.title.trim(),
+                   duration: String(duration),
+                   status: "Blokaj",
+                   createdBy: currentUser,
+                   createdAt: Date.now(),
+                 },
+               };
+             }
+           );
+           if (!result.committed) {
+             if (conflict) {
+               showAppointmentConflict(conflict);
+             } else {
+               showNotification(
+                 targetOccupied
+                   ? "Bu başlangıç saatinde zaten bir kayıt var."
+                   : "Blokaj kaydedilemedi.",
+                 "error"
+               );
+             }
+             return false;
+           }
+           showNotification("Blokaj ajandaya eklendi.");
+           return true;
+         } catch (error) {
+           console.error("Ajanda blokajı kaydetme hatası:", error);
+           showNotification("Blokaj kaydedilirken hata oluştu.", "error");
+           return false;
+         }
+       };
+
+       const deleteAgendaBlock = async (doctorId, appointmentKey) => {
+         if (!hasPermission("appointments.edit")) {
+           showNotification("Blokaj kaldırma yetkiniz bulunmuyor.", "error");
+           return false;
+         }
+         if (
+           !db ||
+           !currentClinicId ||
+           !allDoctors.includes(doctorId) ||
+           resolveClinicId(doctorId) !== currentClinicId
+         ) {
+           showNotification("Hekim veya klinik bilgisi doğrulanamadı.", "error");
+           return false;
+         }
+
+         try {
+           const result = await runTransaction(
+             ref(
+               db,
+               `KlinikAnaVeritabani/clinics/${currentClinicId}/appointments/${doctorId}/${appointmentKey}`
+             ),
+             (appointment) => (isAgendaBlock(appointment) ? null : undefined)
+           );
+           if (!result.committed) {
+             showNotification("Blokaj kaydı bulunamadı veya değiştirildi.", "error");
+             return false;
+           }
+           showNotification("Blokaj ajandadan kaldırıldı.");
+           return true;
+         } catch (error) {
+           console.error("Ajanda blokajı silme hatası:", error);
+           showNotification("Blokaj kaldırılırken hata oluştu.", "error");
+           return false;
+         }
+       };
+
+       const openAgendaPatient = (appointment) => {
+         if (!hasPermission("patients.view")) {
+           showNotification("Hasta kartını görüntüleme yetkiniz bulunmuyor.", "error");
+           return;
+         }
+         const patient =
+           (appointment.patientId && globalData.patientsDb?.[appointment.patientId]) ||
+           Object.values(globalData.patientsDb || {}).find(
+             (item) =>
+               item?.name === appointment.patientName &&
+               resolveClinicId(item.addedBy) === currentClinicId
+           );
+         if (!patient) {
+           if (appointment.patientName) openPatientByName(appointment.patientName);
+           else showNotification("Bu randevuya bağlı hasta kaydı bulunamadı.", "error");
+           return;
+         }
+         const assignedToAssistant =
+           currentUserProfile?.role !== "assistant" ||
+           (currentUserProfile.assignedDoctors || []).includes(patient.addedBy);
+         if (
+           patient.isDeleted ||
+           resolveClinicId(patient.addedBy) !== currentClinicId ||
+           !assignedToAssistant
+         ) {
+           showNotification("Bu hasta kartına erişim yetkiniz bulunmuyor.", "error");
+           return;
+         }
+         setPatientForm(patient);
+         setPatientModalTab("info");
+         setIsPatientModalOpen(true);
+       };
+
+       const renderAgenda = (initialView = "calendar") => (
+         <ClinicAgenda
+           globalData={globalData}
+           doctors={allDoctors}
+           doctorColors={DOCTOR_COLORS}
+           specialties={DOCTOR_SPECIALTIES}
+           settings={settings}
+           currentUser={currentUser}
+           selectedDate={selectedDate}
+           setSelectedDate={setSelectedDate}
+           draggedAptInfo={draggedAptInfo}
+           dragOverTargetKey={dragOverTargetKey}
+           canCreateAppointments={hasPermission("appointments.create")}
+           canEditAppointments={hasPermission("appointments.edit")}
+           getDoctorScheduleStatus={getDoctorScheduleStatus}
+           onOpenAppointment={openAppointmentModal}
+           onDragStart={handleDragStart}
+           onDragEnd={handleDragEnd}
+           onDragOver={handleDragOver}
+           onDragLeave={handleDragLeave}
+           onDrop={handleDrop}
+           onChangeStatus={handleStatusCycle}
+           onOpenPatient={openAgendaPatient}
+           onCreateBlock={createAgendaBlock}
+           onDeleteBlock={deleteAgendaBlock}
+           onNotify={showNotification}
+           initialView={initialView}
+         />
+       );
+
+       const SidebarItem = ({ icon, label, id }) => (
+         <div className="relative group">
+           {activeTab === id && (
+             <span className="absolute inset-y-1 left-0 w-1 rounded-r-full bg-indigo-600" />
+           )}
+           <button
+             type="button"
+             aria-current={activeTab === id ? "page" : undefined}
+             onClick={() => {
+               setActiveTab(id);
+               if (window.innerWidth < 640) setIsSidebarOpen(false);
+             }}
+             className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors ${
+               activeTab === id
+                 ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-bold"
+                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium"
+             } ${isSidebarOpen ? "" : "justify-center px-1"}`}
+           >
+             <i className={`fa-solid ${icon} w-4 shrink-0 text-center text-[13px] ${
+               activeTab === id ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400 group-hover:text-indigo-500"
+             }`} />
+             <span className={`min-w-0 text-[11px] leading-tight ${isSidebarOpen ? "" : "hidden"}`}>{label}</span>
+           </button>
+         </div>
+       );
 
         return (
           <div className="h-screen w-full flex bg-slate-50 dark:bg-[#0f172a] overflow-hidden text-slate-800 dark:text-slate-200 relative transition-colors duration-300">
@@ -12470,68 +10965,62 @@ const renderSettings = () => {
             )}
 
             <aside
+id="app-sidebar"
               ref={sidebarRef}
-              className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full sm:relative sm:h-auto ${
-                isSidebarOpen ? "w-56" : "w-[68px] hidden sm:flex"
-              } no-print`}
+             className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full sm:relative sm:h-auto ${
+               isSidebarOpen ? "w-56 sm:w-[168px]" : "w-[68px] hidden sm:flex"
+             } no-print`}
             >
               <div
-                className="h-16 flex items-center px-2.5 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-1.5 overflow-hidden bg-slate-50/50 dark:bg-slate-900 cursor-pointer"
+               className={`h-14 flex items-center px-3 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-2 overflow-hidden bg-white dark:bg-slate-900 cursor-pointer ${isSidebarOpen ? "" : "justify-center"}`}
                 onClick={() => {
                   setActiveTab("home");
-
-                  setIsSidebarOpen(false);
+if (window.innerWidth < 640) setIsSidebarOpen(false);
                 }}
               >
-                <div className="w-8 h-7 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-[13px] shadow-md">
+               <div className="w-8 h-8 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm shadow-sm">
                   <i className="fa-solid fa-tooth"></i>
                 </div>
 
-                <span
-                  className={`font-black text-base text-slate-800 dark:text-white tracking-tight transition-opacity whitespace-nowrap ${
-                    isSidebarOpen ? "opacity-100" : "opacity-0 hidden"
-                  }`}
-                >
-                  {settings.klinik.ad || "Klinik Randevu"}
-                </span>
+  <div className={`min-w-0 ${isSidebarOpen ? "" : "hidden"}`}>
+    <span className="block truncate text-[13px] font-black tracking-tight text-slate-800 dark:text-white">
+      {settings.klinik.ad || "Klinik Randevu"}
+    </span>
+    <span className="block text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+      Yönetim Paneli
+    </span>
+  </div>
               </div>
 
-              <div className="flex-1 px-2 py-1.5 flex flex-col gap-1 overflow-y-auto">
-                <SidebarItem icon="fa-chart-pie text-sky-500" label="Anasayfa (Özet)" id="home" />
+<nav aria-label="Ana menü" className="flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto">
+  {isSidebarOpen && <div className="px-2 pt-1 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Genel</div>}
+  <SidebarItem icon="fa-house" label="Ana Sayfa" id="home" />
 
-                {hasPermission("appointments.view") && (
-                  <>
-                    <SidebarItem icon="fa-calendar-days text-indigo-500" label="Randevu Takvimi" id="calendar" />
-                    <SidebarItem icon="fa-table-columns text-purple-500" label="Randevu Listesi" id="list" />
-                  </>
-                )}
+  {isSidebarOpen && <div className="px-2 pt-3 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Klinik</div>}
+  {hasPermission("patients.view") && (
+    <SidebarItem icon="fa-hospital-user" label="Hasta Yönetimi" id="patients" />
+  )}
+  {hasPermission("appointments.view") && (
+    <SidebarItem icon="fa-calendar-days" label="Ajanda & Randevular" id="calendar" />
+  )}
+  <SidebarItem icon="fa-tags" label="Tedavi ve Ücretler" id="pricing" />
+  {hasPermission("doctors.view") && (
+    <SidebarItem icon="fa-user-doctor" label="Hekim Yönetimi" id="doctors" />
+  )}
 
-                {hasPermission("patients.view") && (
-                  <SidebarItem icon="fa-hospital-user text-emerald-500" label="Hastalar & Veri" id="patients" />
-                )}
+  {isSidebarOpen && <div className="px-2 pt-3 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Yönetim</div>}
+  {hasPermission("finance.view") && (
+    <SidebarItem icon="fa-wallet" label="Ödeme ve Finans" id="finance" />
+  )}
+  {hasPermission("users.view") && (
+    <SidebarItem icon="fa-users-gear" label="Personel İşlemleri" id="users" />
+  )}
+</nav>
 
-                {/* YENİ: Fiyat listesini herkes görebilir, düzenleme yetkisi içeride kontrol edilecek */}
-                <SidebarItem icon="fa-tags text-pink-500" label="Ücretlendirme" id="pricing" />
-
-                {hasPermission("doctors.view") && (
-                  <SidebarItem icon="fa-user-doctor text-amber-500" label="Hekim Yönetimi" id="doctors" />
-                )}
-
-                {hasPermission("finance.view") && (
-                  <SidebarItem icon="fa-vault text-rose-500" label="Finans (Bilanço)" id="finance" />
-                )}
-
-                {/* YENİ: KLİNİK KULLANICILARI MENÜSÜ */}
-                {hasPermission("users.view") && (
-                  <SidebarItem icon="fa-users-gear text-teal-500" label="Klinik Kullanıcıları" id="users" />
-                )}
-              </div>
-              
-              {/* AYARLAR BUTONU ARTIK HERKESE AÇIK (Sekmeler içeride filtrelenir) */}
-              <div className="p-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-transparent">
-                <SidebarItem icon="fa-gear text-slate-500 dark:text-slate-400" label={currentUserProfile?.role === "clinic_owner" ? "Klinik Ayarları" : "Hesabım ve Güvenlik"} id="settings" />
-              </div>
-            </aside>
+<div className="p-2 border-t border-slate-100 dark:border-slate-800">
+  <SidebarItem icon="fa-gear" label={currentUserProfile?.role === "clinic_owner" ? "Klinik Ayarları" : "Hesabım ve Güvenlik"} id="settings" />
+</div>
+           </aside>
 
             {/* YENİ: Mobil için Pürüzsüz Glassmorphism Alt Menü */}
             <div
@@ -12545,7 +11034,6 @@ const renderSettings = () => {
               {[
                 "home",
                 hasPermission("appointments.view") && "calendar",
-                hasPermission("appointments.view") && "list",
                 hasPermission("patients.view") && "patients",
                 "pricing", // YENİ: Fiyat sekmesi mobilde herkes için açık
                 hasPermission("doctors.view") && "doctors",
@@ -12571,8 +11059,6 @@ const renderSettings = () => {
                         ? "fa-chart-pie"
                         : tab === "calendar"
                         ? "fa-calendar-days"
-                        : tab === "list"
-                        ? "fa-table-columns"
                         : tab === "patients"
                         ? "fa-hospital-user"
                         : tab === "pricing"
@@ -12594,9 +11080,7 @@ const renderSettings = () => {
                       {tab === "home"
                         ? "ÖZET"
                         : tab === "calendar"
-                        ? "TAKVİM"
-                        : tab === "list"
-                        ? "LİSTE"
+? "AJANDA"
                         : tab === "patients"
                         ? "HASTA"
                         : tab === "pricing"
@@ -12637,30 +11121,12 @@ const renderSettings = () => {
 ref={sidebarToggleRef}
                   aria-label={isSidebarOpen ? "Menüyü kapat" : "Menüyü aç"}
                   aria-expanded={isSidebarOpen}
+aria-controls="app-sidebar"
                   onClick={() => setIsSidebarOpen((open) => !open)}
-                  className="w-9 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:bg-indigo-100 transition mr-2 lg:hidden shrink-0"
+className="w-9 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:bg-indigo-100 transition mr-2 shrink-0"
                 >
                   <i className={`fa-solid ${isSidebarOpen ? "fa-xmark" : "fa-bars"} text-base`}></i>
                 </button>
-
-                {/* KLİNİK LOGO VE ADI (MASAÜSTÜNDE ARAMA ÇUBUĞUNUN SOLUNDA GÖRÜNÜR) */}
-                <div className="hidden lg:flex items-center gap-3 mr-6 shrink-0 select-none">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-lg shadow-md overflow-hidden border border-indigo-200 dark:border-indigo-800">
-                    {settings?.klinik?.logo ? (
-                      <img src={settings.klinik.logo} alt="Klinik Logo" className="w-full h-full object-cover" />
-                    ) : (
-                      <i className="fa-solid fa-tooth drop-shadow-md"></i>
-                    )}
-                  </div>
-                  <div className="flex flex-col justify-center">
-                    <span className="font-black text-slate-800 dark:text-white tracking-tight text-[15px] leading-tight truncate max-w-[200px]">
-                      {settings?.klinik?.ad || "Klinik Randevu"}
-                    </span>
-                    <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 leading-none mt-0.5">
-                      Yönetim Paneli
-                    </span>
-                  </div>
-                </div>
 
                 {/* ARAMA ÇUBUĞU */}
                 <div className="relative flex-1 max-w-sm mr-3" ref={searchRef}>
@@ -12890,7 +11356,6 @@ ref={sidebarToggleRef}
                               setIsUserMenuOpen(false);
                               setIsUsersSubmenuOpen(false);
                               setSearchDropdownOpen(false);
-                              setIsAptSearchOpen(false);
                               
                               // 2. Çıkış animasyonunu başlat
                               setIsLoggingOut(true); 
@@ -12925,7 +11390,11 @@ ref={sidebarToggleRef}
 
               <div
                 id="main-content-area"
-                className={`flex-1 p-1.5 sm:p-2 lg:p-2.5 overflow-x-hidden overflow-y-auto bg-slate-100/30 dark:bg-[#0f172a] relative w-full flex flex-col transition-all duration-300 ${
+className={`flex-1 min-h-0 ${
+  activeTab === "calendar" || activeTab === "list"
+    ? "overflow-hidden p-0"
+    : "overflow-x-hidden overflow-y-auto p-1.5 sm:p-2 lg:p-2.5"
+} bg-slate-100/30 dark:bg-[#0f172a] relative w-full flex flex-col transition-all duration-300 ${
                   activeTab !== "doctors"
                     ? "mt-16"
                     : isHeaderVisible
@@ -12939,9 +11408,9 @@ ref={sidebarToggleRef}
               >
                 {activeTab === "home" && renderHome()}
 
-                {activeTab === "calendar" && renderCalendarView()}
+               {activeTab === "calendar" && renderCalendarView()}
 
-                {activeTab === "list" && renderGridList()}
+               {activeTab === "list" && renderGridList()}
 
                 {activeTab === "patients" && renderPatients()}
 
