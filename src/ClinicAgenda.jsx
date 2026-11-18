@@ -1,19 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-
-const MONTHS = [
-  "Oca",
-  "Şub",
-  "Mar",
-  "Nis",
-  "May",
-  "Haz",
-  "Tem",
-  "Ağu",
-  "Eyl",
-  "Eki",
-  "Kas",
-  "Ara",
-];
+import React, { useMemo, useState } from "react";
 
 const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 
@@ -27,14 +12,46 @@ const STATUS_FILTERS = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: "Onaylandı", label: "Onaylandı" },
-  { value: "İşlemde", label: "İşlemde" },
-  { value: "Yeni Kayıt", label: "Yeni kayıt" },
-  { value: "Bekliyor", label: "Bekliyor" },
-  { value: "Geldi", label: "Tamamlandı (Geldi)" },
-  { value: "İptal", label: "İptal" },
-  { value: "Gelmedi", label: "Gelmedi" },
+  { value: "Yeni Kayıt", label: "Yeni Randevu Verildi", icon: "🆕" },
+  { value: "Onaylandı", label: "Onaylandı", icon: "✅" },
+  { value: "Bekliyor", label: "Geldi / Beklemede", icon: "🏥" },
+  { value: "İşlemde", label: "İşlemde", icon: "🦷" },
+  { value: "Geldi", label: "Tamamlandı", icon: "✔️" },
+  { value: "İptal", label: "İptal Edildi", icon: "❌" },
+  { value: "Gelmedi", label: "Gelmedi / No-Show", icon: "🚫" },
 ];
+
+const COMMUNICATION_OPTIONS = [
+  { value: "information_pending", label: "Hastaya Bilgi Verilecek", icon: "📢" },
+  { value: "phone_unanswered", label: "Telefon Açılmadı", icon: "📵" },
+  { value: "informed", label: "Bilgilendirildi / Teyit Alındı", icon: "📞" },
+];
+
+const getStatusIcon = (status) =>
+  STATUS_OPTIONS.find((option) => option.value === status)?.icon ||
+  (status === "Bekliyor" ? "🏥" : "🆕");
+
+const getCommunicationIcon = (value) =>
+  COMMUNICATION_OPTIONS.find((option) => option.value === value)?.icon || "";
+
+const normalizeStatus = (status) => {
+  const known = STATUS_OPTIONS.some((option) => option.value === status);
+  return known ? status : "Onaylandı";
+};
+
+const isLiveStatus = (status) =>
+  ["Onaylandı", "Geldi", "Tamamlandı", "İşlemde"].includes(status);
+
+const pastelDoctorColor = (color) => {
+  const normalized = String(color || "").replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return "#eef2ff";
+  const red = parseInt(normalized.slice(0, 2), 16);
+  const green = parseInt(normalized.slice(2, 4), 16);
+  const blue = parseInt(normalized.slice(4, 6), 16);
+  return `rgb(${Math.round(red + (255 - red) * 0.82)}, ${Math.round(
+    green + (255 - green) * 0.82
+  )}, ${Math.round(blue + (255 - blue) * 0.82)})`;
+};
 
 const toDateKey = (date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
@@ -82,6 +99,22 @@ const fromMinutes = (minutes) =>
     minutes % 60
   ).padStart(2, "0")}`;
 
+const formatTimeRange = (startTime, duration) => {
+  const start = toMinutes(startTime);
+  const minutes = Number.parseInt(duration, 10);
+  if (start === null || !Number.isFinite(minutes) || minutes <= 0) {
+    return String(startTime || "");
+  }
+  return `${fromMinutes(start)}-${fromMinutes(start + minutes)}`;
+};
+
+const formatHourCount = (duration) => {
+  const minutes = Number.parseInt(duration, 10);
+  if (!Number.isFinite(minutes) || minutes <= 0) return "";
+  const hours = minutes / 60;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} saat`;
+};
+
 const getDisplayStatus = (status) => {
   if (status === "Yeni Kayıt") return "Bekliyor";
   if (status === "Geldi") return "Tamamlandı";
@@ -97,12 +130,6 @@ const matchesStatusFilter = (status, filter) => {
   if (filter === "completed") return status === "Geldi" || status === "Tamamlandı";
   if (filter === "cancelled") return status === "İptal" || status === "Gelmedi";
   return true;
-};
-
-const formatDateRange = (start, end) => {
-  const first = `${start.getDate()} ${MONTHS[start.getMonth()]} ${start.getFullYear()}`;
-  if (toDateKey(start) === toDateKey(end)) return first;
-  return `${first} - ${end.getDate()} ${MONTHS[end.getMonth()]} ${end.getFullYear()}`;
 };
 
 const getDuration = (appointment) => {
@@ -170,6 +197,8 @@ export default function ClinicAgenda({
   onDragLeave,
   onDrop,
   onChangeStatus,
+  onChangeCommunication,
+  onChangeDoctorColor,
   onOpenPatient,
   onCreateBlock,
   onDeleteBlock,
@@ -182,12 +211,10 @@ export default function ClinicAgenda({
   const [specialtyFilter, setSpecialtyFilter] = useState("all");
   const [selectedDoctorIds, setSelectedDoctorIds] = useState(() => doctors);
   const [hideEmptySlots, setHideEmptySlots] = useState(false);
-  const [showOutsideHours, setShowOutsideHours] = useState(false);
-  const [showExtraOptions, setShowExtraOptions] = useState(false);
-  const [showDensityOptions, setShowDensityOptions] = useState(false);
+  const [workingStart, setWorkingStart] = useState("09:00");
+  const [workingEnd, setWorkingEnd] = useState("19:00");
   const [slotInterval, setSlotInterval] = useState(30);
   const [search, setSearch] = useState("");
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [blockForm, setBlockForm] = useState({
@@ -198,17 +225,6 @@ export default function ClinicAgenda({
     time: "09:00",
     duration: "60",
   });
-  const dateInputRef = useRef(null);
-  const [viewportHeight, setViewportHeight] = useState(() =>
-    typeof window === "undefined" ? 900 : window.innerHeight
-  );
-
-  useEffect(() => {
-    const updateViewportHeight = () => setViewportHeight(window.innerHeight);
-    window.addEventListener("resize", updateViewportHeight);
-    return () => window.removeEventListener("resize", updateViewportHeight);
-  }, []);
-
   const orderedDoctors = useMemo(
     () =>
       [...doctors].sort((a, b) =>
@@ -262,8 +278,10 @@ export default function ClinicAgenda({
   }, [calendarPeriod, selectedDate]);
 
   const dateKeys = useMemo(() => new Set(dates.map(toDateKey)), [dates]);
-  const startMinute = showOutsideHours ? 8 * 60 : 9 * 60;
-  const endMinute = showOutsideHours ? 21 * 60 : 19 * 60;
+  const startMinute = toMinutes(workingStart) ?? 9 * 60;
+  const selectedEndMinute = toMinutes(workingEnd) ?? 19 * 60;
+  const endMinute =
+    selectedEndMinute > startMinute ? selectedEndMinute : startMinute + 60;
 
   const allAppointments = useMemo(() => {
     const selected = new Set(visibleDoctors);
@@ -274,8 +292,11 @@ export default function ClinicAgenda({
           ([key, appointment]) => {
             if (!appointment) return [];
             const parsed = parseAppointmentKey(key);
-            if (!parsed || !dateKeys.has(parsed.dateKey)) return [];
-            const start = toMinutes(parsed.time);
+            if (!parsed) return [];
+            const effectiveDateKey = String(appointment.date || appointment.dateKey || parsed.dateKey);
+            const effectiveTime = String(appointment.time || parsed.time);
+            if (!dateKeys.has(effectiveDateKey)) return [];
+            const start = toMinutes(effectiveTime);
             if (start === null || start < startMinute || start >= endMinute) {
               return [];
             }
@@ -309,14 +330,18 @@ export default function ClinicAgenda({
             if (search && !searchable.includes(search.trim().toLocaleLowerCase("tr-TR"))) {
               return [];
             }
+            const effectiveDoctorId = appointment.doctorId || doctorId;
+            if (!selected.has(effectiveDoctorId)) return [];
             return [{
               key,
-              doctorId,
+              doctorId: effectiveDoctorId,
               appointment,
               patient,
-              date: parsed.date,
-              dateKey: parsed.dateKey,
-              time: parsed.time,
+              date: effectiveDateKey.includes("-")
+                ? fromDateInput(effectiveDateKey)
+                : parsed.date,
+              dateKey: effectiveDateKey,
+              time: effectiveTime,
             }];
           }
         );
@@ -350,16 +375,9 @@ export default function ClinicAgenda({
     return occupied.length ? occupied : allSegments;
   }, [allAppointments, endMinute, hideEmptySlots, slotInterval, startMinute]);
 
-  const baseRowHeight =
-    slotInterval === 15 ? 18 : slotInterval === 30 ? 30 : 48;
-  const rowHeight = hideEmptySlots
-    ? baseRowHeight
-    : Math.max(
-        baseRowHeight,
-        Math.floor(
-          Math.max(360, viewportHeight - 120) / Math.max(1, segments.length)
-        )
-      );
+  const baseRowHeight = 42;
+  const rowHeight =
+    slotInterval === 60 ? baseRowHeight : slotInterval === 30 ? 21 : 10.5;
   const timelineHeight = Math.max(rowHeight, segments.length * rowHeight);
   const timelinePosition = (minute) => {
     let position = 0;
@@ -427,7 +445,7 @@ export default function ClinicAgenda({
     onOpenAppointment(fromMinutes(segment.start), date, defaultDoctorId);
   };
 
-  const handleColumnDrop = (event, date, column) => {
+  const handleColumnDrop = (event, date, column, columnDoctorId = null) => {
     if (!canEditAppointments || !draggedAptInfo) return;
     event.preventDefault();
     const bounds = column.getBoundingClientRect();
@@ -442,7 +460,8 @@ export default function ClinicAgenda({
     const snappedTime = Math.round(segment.start / step) * step;
     const targetTime = fromMinutes(snappedTime);
     const targetDoctorId =
-      visibleDoctors.length === 1 ? visibleDoctors[0] : draggedAptInfo.docId;
+      columnDoctorId ||
+      (visibleDoctors.length === 1 ? visibleDoctors[0] : draggedAptInfo.docId);
     const availability = getDoctorScheduleStatus(
       globalData.doctorProfiles?.[targetDoctorId],
       date,
@@ -463,11 +482,14 @@ export default function ClinicAgenda({
       date: toDateKey(selectedDate),
     }));
     setBlockModalOpen(true);
-    setShowExtraOptions(false);
   };
 
   const submitBlock = async (event) => {
     event.preventDefault();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(blockForm.date)) {
+      onNotify("Tarihi YYYY-AA-GG formatında girin.", "error");
+      return;
+    }
     const created = await onCreateBlock({
       ...blockForm,
       date: fromDateInput(blockForm.date),
@@ -480,6 +502,31 @@ export default function ClinicAgenda({
     allAppointments.forEach((entry) => grouped.get(entry.dateKey)?.push(entry));
     return grouped;
   }, [allAppointments, dates]);
+
+  const dayColumns = useMemo(
+    () =>
+      calendarPeriod === "day"
+        ? visibleDoctors
+            .filter((doctorId) =>
+              getDoctorScheduleStatus(
+                globalData.doctorProfiles?.[doctorId],
+                dates[0],
+                `${startMinute / 60}:00`,
+                slotInterval
+              ).available
+            )
+            .map((doctorId) => ({ date: dates[0], doctorId }))
+        : dates.map((date) => ({ date, doctorId: null })),
+    [
+      calendarPeriod,
+      dates,
+      visibleDoctors,
+      globalData.doctorProfiles,
+      getDoctorScheduleStatus,
+      startMinute,
+      slotInterval,
+    ]
+  );
 
   const hourLabels = [];
   for (let minute = startMinute; minute <= endMinute; minute += 60) {
@@ -500,7 +547,7 @@ export default function ClinicAgenda({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
-      <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-200 bg-white px-2 py-1.5 dark:border-slate-800 dark:bg-slate-900 xl:flex-nowrap">
+      <header className="relative z-20 flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-2 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
@@ -525,35 +572,17 @@ export default function ClinicAgenda({
           >
             <i className="fa-solid fa-chevron-right text-[10px]"></i>
           </button>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setDatePickerOpen((open) => !open)}
-              className="min-w-[155px] rounded-md px-1.5 py-1 text-left text-[11px] font-black text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 sm:min-w-[180px]"
-            >
-              <i className="fa-regular fa-calendar mr-1.5 text-indigo-500"></i>
-              {formatDateRange(dates[0], dates[dates.length - 1])}
-            </button>
-            {datePickerOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1 rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-800">
-                <label className="block text-[9px] font-bold uppercase text-slate-400">
-                  Başlangıç tarihi
-                  <input
-                    ref={dateInputRef}
-                    type="date"
-                    value={toDateKey(selectedDate)}
-                    onChange={(event) => {
-                      if (event.target.value) {
-                        setSelectedDate(fromDateInput(event.target.value));
-                        setDatePickerOpen(false);
-                      }
-                    }}
-                    className="mt-1 block rounded-md border border-slate-200 px-2 py-1.5 text-[11px] font-bold dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="YYYY-AA-GG"
+            value={toDateKey(selectedDate)}
+            onChange={(event) => {
+              if (event.target.value) setSelectedDate(fromDateInput(event.target.value));
+            }}
+            aria-label="Tarih aralığı başlangıç tarihi"
+            className="h-7 min-w-[132px] rounded-md border border-slate-200 bg-white px-1.5 text-[10px] font-black text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          />
         </div>
 
         <div className="flex min-w-0 flex-1 items-center gap-1.5 xl:justify-center">
@@ -624,33 +653,6 @@ export default function ClinicAgenda({
           >
             <i className="fa-solid fa-list text-[11px]"></i>
           </button>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowDensityOptions((open) => !open)}
-              title="Saat aralığı ve yoğunluk"
-              aria-expanded={showDensityOptions}
-              className="h-7 w-7 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <i className="fa-solid fa-sliders text-[11px]"></i>
-            </button>
-            {showDensityOptions && (
-              <div className="absolute right-0 top-full z-40 mt-1 w-44 rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-800">
-                <label className="block text-[9px] font-bold uppercase text-slate-400">
-                  Saat aralığı
-                  <select
-                    value={slotInterval}
-                    onChange={(event) => setSlotInterval(Number(event.target.value))}
-                    className="mt-1 h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                  >
-                    <option value={15}>15 dakika · yoğun</option>
-                    <option value={30}>30 dakika · dengeli</option>
-                    <option value={60}>60 dakika · sıkı</option>
-                  </select>
-                </label>
-              </div>
-            )}
-          </div>
           <button
             type="button"
             disabled={!canCreateAppointments || !defaultDoctorId}
@@ -669,42 +671,205 @@ export default function ClinicAgenda({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-1.5 lg:flex-row">
-        <main className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex min-h-0 flex-1 flex-row gap-1 p-1">
+        <aside className="order-first flex min-h-0 w-[176px] min-w-[176px] shrink-0 flex-col overflow-y-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <div className="shrink-0 border-b border-slate-200 px-2 py-2 dark:border-slate-800">
+            <div className="mb-1.5 flex items-center justify-between">
+              <h2 className="text-[11px] font-black text-slate-800 dark:text-white">
+                Hekim Ajandaları
+              </h2>
+              <span className="text-[9px] font-bold text-slate-400">
+                {visibleDoctors.length}/{specialtyDoctors.length}
+              </span>
+            </div>
+            <label className="block text-[9px] font-bold uppercase text-slate-400">
+              Uzmanlık / Grup
+              <select
+                value={specialtyFilter}
+                onChange={(event) => setSpecialtyFilter(event.target.value)}
+                className="mt-1 h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold normal-case dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              >
+                <option value="all">Tüm uzmanlıklar</option>
+                {specialties.map((specialty) => (
+                  <option key={specialty} value={specialty}>
+                    {specialty}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={allSpecialtyDoctorsSelected}
+                onChange={toggleAllDoctors}
+                className="h-3.5 w-3.5 accent-indigo-600"
+              />
+              Tüm Ajandalar
+            </label>
+          </div>
+
+          <div className="shrink-0 p-1.5">
+            <div className="space-y-1">
+              {specialtyDoctors.map((doctorId) => {
+                const checked = selectedDoctorIds.includes(doctorId);
+                const color = doctorColor(doctorId);
+                const profile = globalData.doctorProfiles?.[doctorId] || {};
+                const name =
+                  globalData.systemUsers?.[doctorId]?.displayName ||
+                  profile.name ||
+                  doctorId;
+                const count = allAppointments.filter((entry) => entry.doctorId === doctorId).length;
+                return (
+                  <div
+                    key={doctorId}
+                    className={`flex min-h-8 w-full items-center gap-1.5 rounded-md border px-1.5 py-1 transition ${
+                      checked
+                        ? "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
+                        : "border-transparent bg-slate-50 opacity-60 dark:bg-slate-900"
+                    }`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleDoctor(doctorId)}
+                      className="h-3.5 w-3.5 shrink-0 accent-indigo-600"
+                      aria-label={`${name} ajandasını göster`}
+                    />
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white dark:ring-slate-700"
+                      style={{ backgroundColor: color }}
+                    ></span>
+                    <span className="min-w-0 flex-1 truncate text-[9px] font-black text-slate-700 dark:text-slate-200">
+                      {profile.title || globalData.systemUsers?.[doctorId]?.title || "Dt."} {name}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[8px] font-black text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                      {count}
+                    </span>
+                    <label className="relative h-5 w-5 shrink-0 cursor-pointer rounded-full overflow-hidden ring-1 ring-slate-200 dark:ring-slate-600" title="Hekim rengini değiştir">
+                      <input
+                        type="color"
+                        value={color}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => onChangeDoctorColor?.(doctorId, event.target.value)}
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        aria-label={`${name} takvim rengi`}
+                      />
+                      <span className="block h-full w-full" style={{ backgroundColor: color }}></span>
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="shrink-0 border-t border-slate-200 p-1.5 text-xs dark:border-slate-800">
+            <div className="mb-1 text-[10px] font-black text-slate-700 dark:text-slate-200">
+              <i className="fa-solid fa-sliders mr-1.5 text-indigo-500"></i>
+              Ek Seçenekler
+            </div>
+            <div className="mt-1 space-y-1.5 border-t border-slate-100 pt-1.5 dark:border-slate-800">
+                <div className="text-[9px] font-bold text-slate-500">
+                  Çalışma Saat Aralığı
+                  <div className="mt-1 grid grid-cols-2 gap-1">
+                    <input
+                      type="time"
+                      value={workingStart}
+                      onChange={(event) => {
+                        event.stopPropagation();
+                        setWorkingStart(event.target.value);
+                      }}
+                      onClick={(event) => event.stopPropagation()}
+                      className="h-7 min-w-0 rounded-md border border-slate-200 bg-white px-1 text-[9px] dark:border-slate-700 dark:bg-slate-800"
+                      aria-label="Çalışma başlangıç saati"
+                    />
+                    <input
+                      type="time"
+                      value={workingEnd}
+                      onChange={(event) => {
+                        event.stopPropagation();
+                        setWorkingEnd(event.target.value);
+                      }}
+                      onClick={(event) => event.stopPropagation()}
+                      className="h-7 min-w-0 rounded-md border border-slate-200 bg-white px-1 text-[9px] dark:border-slate-700 dark:bg-slate-800"
+                      aria-label="Çalışma bitiş saati"
+                    />
+                  </div>
+                </div>
+                <label className="block text-[9px] font-bold text-slate-500">
+                  Slot Aralığı
+                  <select
+                    value={slotInterval}
+                    onChange={(event) => setSlotInterval(Number(event.target.value))}
+                    className="mt-1 h-7 w-full rounded-md border border-slate-200 bg-white px-1 text-[9px] dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <option value={15}>15 dakika</option>
+                    <option value={30}>30 dakika</option>
+                    <option value={60}>60 dakika</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-[9px] font-semibold text-slate-600 dark:text-slate-300">
+                  <input type="checkbox" checked={hideEmptySlots} onChange={(event) => setHideEmptySlots(event.target.checked)} className="h-3 w-3 accent-indigo-600" />
+                  Boş saatleri gizle
+                </label>
+                <button type="button" disabled={!canCreateAppointments || !defaultDoctorId} onClick={openBlockModal} className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-left text-[9px] font-bold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300">
+                  <i className="fa-solid fa-ban mr-1.5 text-amber-500"></i>
+                  Blokaj / İzin Ekle
+                </button>
+            </div>
+          </div>
+        </aside>
+
+        <main className="order-2 flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           {viewMode === "calendar" ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              <div className="grid shrink-0 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" style={{ gridTemplateColumns: `48px repeat(${dates.length}, minmax(112px, 1fr))` }}>
-                <div className="sticky left-0 z-20 border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"></div>
-                {dates.map((date) => {
-                  const dateKey = toDateKey(date);
-                  const isToday = dateKey === toDateKey(new Date());
-                  return (
-                    <div
-                      key={dateKey}
-                      className="flex h-10 items-center justify-center gap-1.5 border-r border-slate-200 px-1 dark:border-slate-800"
-                    >
-                      <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
-                        {WEEKDAYS[(date.getDay() + 6) % 7]}
-                      </span>
-                      <span
-                        className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[11px] font-black ${
-                          isToday
-                            ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                            : "text-slate-700 dark:text-slate-200"
-                        }`}
-                      >
-                        {date.getDate()}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
               <div className="min-h-0 flex-1 overflow-auto">
                 <div
-                  className="grid min-w-max"
+                  className="sticky top-0 z-30 grid shrink-0 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                  style={{ gridTemplateColumns: calendarPeriod === "day"
+                    ? `48px repeat(${Math.max(1, dayColumns.length)}, minmax(0, 1fr))`
+                    : `48px repeat(${dates.length}, minmax(0, 1fr))` }}
+                >
+                  <div className="sticky left-0 z-40 border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"></div>
+                  {calendarPeriod === "day"
+                    ? dayColumns.map(({ doctorId }) => (
+                        <div key={doctorId} className="flex h-12 items-center justify-center gap-2 border-r border-slate-200 px-2 dark:border-slate-800">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: doctorColor(doctorId) }}></span>
+                          <div className="min-w-0 text-center">
+                            <div className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200">
+                              {globalData.systemUsers?.[doctorId]?.displayName || globalData.doctorProfiles?.[doctorId]?.name || doctorId}
+                            </div>
+                            <div className="text-[9px] font-bold text-slate-400">
+                              {selectedDate.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "short" })}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    : dates.map((date) => {
+                        const dateKey = toDateKey(date);
+                        const isToday = dateKey === toDateKey(new Date());
+                        return (
+                          <div key={dateKey} className="flex h-12 items-center justify-center gap-2 border-r border-slate-200 px-1 dark:border-slate-800">
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                              {WEEKDAYS[(date.getDay() + 6) % 7]}
+                            </span>
+                            <span className={`flex h-7 min-w-7 items-center justify-center rounded-lg px-1.5 text-[12px] font-black ${
+                              isToday
+                                ? "bg-indigo-600 text-white shadow-sm"
+                                : "bg-white text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700"
+                            }`}>
+                              {date.getDate()}
+                            </span>
+                          </div>
+                        );
+                      })}
+                </div>
+                <div
+                  className="grid w-full min-w-0"
                   style={{
-                    gridTemplateColumns: `48px repeat(${dates.length}, minmax(112px, 1fr))`,
+                    gridTemplateColumns: calendarPeriod === "day"
+                      ? `48px repeat(${Math.max(1, dayColumns.length)}, minmax(0, 1fr))`
+                      : `48px repeat(${dates.length}, minmax(0, 1fr))`,
                   }}
                 >
                   <div
@@ -714,7 +879,9 @@ export default function ClinicAgenda({
                     {hourLabels.map((minute) => (
                       <div
                         key={minute}
-                        className="absolute right-1 top-0 -translate-y-1/2 text-[9px] font-bold text-slate-400"
+                        className={`absolute right-1 text-[9px] font-bold text-slate-500 dark:text-slate-400 ${
+                          minute === startMinute ? "translate-y-0" : "-translate-y-1/2"
+                        }`}
                         style={{ top: timelinePosition(minute) }}
                       >
                         {fromMinutes(minute)}
@@ -722,9 +889,11 @@ export default function ClinicAgenda({
                     ))}
                   </div>
 
-                  {dates.map((date) => {
+                  {dayColumns.map(({ date, doctorId: columnDoctorId }) => {
                     const dateKey = toDateKey(date);
-                    const dayEntries = appointmentEntriesByDay.get(dateKey) || [];
+                    const dayEntries = (appointmentEntriesByDay.get(dateKey) || []).filter(
+                      (entry) => !columnDoctorId || entry.doctorId === columnDoctorId
+                    );
                     const packed = packConcurrentAppointments(dayEntries);
                     const gridLines = `repeating-linear-gradient(to bottom, transparent 0, transparent ${rowHeight - 1}px, rgba(148,163,184,.22) ${rowHeight - 1}px, rgba(148,163,184,.22) ${rowHeight}px)`;
                     const lunchTop = timelinePosition(13 * 60);
@@ -732,7 +901,7 @@ export default function ClinicAgenda({
 
                     return (
                       <div
-                        key={dateKey}
+                        key={columnDoctorId ? `${dateKey}-${columnDoctorId}` : dateKey}
                         data-date={dateKey}
                         className={`relative border-r border-slate-200 dark:border-slate-800 ${
                           toDateKey(new Date()) === dateKey
@@ -743,16 +912,20 @@ export default function ClinicAgenda({
                           height: timelineHeight,
                           backgroundImage: gridLines,
                         }}
-                        onClick={(event) =>
-                          updateDateFromGrid(event, event.currentTarget)
-                        }
+                        onDoubleClick={(event) => {
+                          event.stopPropagation();
+                          if (blockModalOpen) return;
+                          if (event.target !== event.currentTarget) return;
+                          updateDateFromGrid(event, event.currentTarget);
+                        }}
                         onDragOver={(event) => {
                           if (!canEditAppointments) return;
                           event.preventDefault();
                           const targetDoctorId =
-                            visibleDoctors.length === 1
+                            columnDoctorId ||
+                            (visibleDoctors.length === 1
                               ? visibleDoctors[0]
-                              : draggedAptInfo?.docId;
+                              : draggedAptInfo?.docId);
                           if (!targetDoctorId) return;
                           const bounds = event.currentTarget.getBoundingClientRect();
                           const offset = Math.max(
@@ -773,7 +946,12 @@ export default function ClinicAgenda({
                         }}
                         onDragLeave={onDragLeave}
                         onDrop={(event) =>
-                          handleColumnDrop(event, date, event.currentTarget)
+                          handleColumnDrop(
+                            event,
+                            date,
+                            event.currentTarget,
+                            columnDoctorId
+                          )
                         }
                         role="presentation"
                       >
@@ -795,13 +973,8 @@ export default function ClinicAgenda({
                           );
                           const isBlock = isBlockAppointment(entry.appointment);
                           const color = doctorColor(entry.doctorId);
-                          const isSolid =
-                            ["Onaylandı", "Geldi", "İşlemde", "Tamamlandı"].includes(
-                              entry.appointment.status
-                            );
-                          const isCancelled =
-                            entry.appointment.status === "İptal" ||
-                            entry.appointment.status === "Gelmedi";
+                          const cardStatus = normalizeStatus(entry.appointment.status);
+                          const isSolid = isLiveStatus(cardStatus);
                           const laneWidth = 100 / entry.laneCount;
                           const left = isBlock ? 0 : entry.lane * laneWidth;
                           const width = isBlock ? 100 : laneWidth;
@@ -822,17 +995,19 @@ export default function ClinicAgenda({
                               key={`${entry.doctorId}-${entry.key}`}
                               type="button"
                               draggable={!isBlock && canEditAppointments}
-                              onDragStart={(event) =>
-                                !isBlock &&
-                                onDragStart(
-                                  event,
-                                  entry.doctorId,
-                                  entry.date,
-                                  entry.time,
-                                  entry.appointment,
-                                  entry.key
-                                )
-                              }
+                              onDragStart={(event) => {
+                                event.stopPropagation();
+                                if (!isBlock) {
+                                  onDragStart(
+                                    event,
+                                    entry.doctorId,
+                                    entry.date,
+                                    entry.time,
+                                    entry.appointment,
+                                    entry.key
+                                  );
+                                }
+                              }}
                               onDragEnd={onDragEnd}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -840,6 +1015,7 @@ export default function ClinicAgenda({
                               }}
                               onContextMenu={(event) => {
                                 event.preventDefault();
+                                event.stopPropagation();
                                 setSelectedAppointment(entry);
                               }}
                               className={`absolute z-10 flex min-w-0 flex-col overflow-hidden rounded-md border px-1 py-0.5 text-left shadow-sm transition hover:z-20 hover:shadow-md ${
@@ -852,21 +1028,27 @@ export default function ClinicAgenda({
                                 width: `calc(${width}% - 4px)`,
                                 backgroundColor: isSolid
                                   ? color
-                                  : isCancelled
-                                  ? "#fff7f7"
-                                  : "#ffffff",
+                                  : pastelDoctorColor(color),
                                 borderColor: color,
-                                color: isSolid ? "#ffffff" : color,
+                                color: isSolid ? "#ffffff" : "#1e293b",
                               }}
                               title={`${title} · ${entry.time} · ${getDisplayStatus(
                                 entry.appointment.status
                               )}`}
                             >
                               {isBlock ? (
-                                <span className="truncate text-[10px] font-black">
-                                  <i className="fa-solid fa-ban mr-1"></i>
-                                  {title}
-                                </span>
+                                <div className="flex min-w-0 flex-col items-center justify-center">
+                                  <span className="truncate text-[10px] font-black">
+                                    <i className="fa-solid fa-ban mr-1"></i>
+                                    {title}
+                                  </span>
+                                  <span className="truncate text-[8px] font-bold opacity-90">
+                                    {formatTimeRange(entry.time, entry.appointment.duration)}
+                                  </span>
+                                  <span className="text-[8px] font-bold opacity-80">
+                                    {formatHourCount(entry.appointment.duration)}
+                                  </span>
+                                </div>
                               ) : (
                                 <>
                                   <span className="flex min-w-0 items-center gap-1 text-[9px] font-black leading-tight">
@@ -884,13 +1066,14 @@ export default function ClinicAgenda({
                                       ? ` · ${entry.appointment.selectedTeeth.join(", ")}`
                                       : ""}
                                   </span>
-                                  <span className="absolute bottom-0.5 right-1 text-[9px] font-black">
-                                    {isSolid ? (
-                                      <i className="fa-solid fa-check"></i>
-                                    ) : isCancelled ? (
-                                      <i className="fa-solid fa-xmark text-rose-600"></i>
-                                    ) : (
-                                      <i className="fa-regular fa-calendar text-sky-600"></i>
+                                  <span className="absolute bottom-0.5 right-1 flex items-center gap-0.5 text-[9px] font-black">
+                                    <span title={getDisplayStatus(cardStatus)}>
+                                      {getStatusIcon(cardStatus)}
+                                    </span>
+                                    {entry.appointment.cancelFollowUp && (
+                                      <span title="İletişim durumu">
+                                        {getCommunicationIcon(entry.appointment.cancelFollowUp)}
+                                      </span>
                                     )}
                                   </span>
                                 </>
@@ -933,18 +1116,22 @@ export default function ClinicAgenda({
                     .map((entry) => {
                       const color = doctorColor(entry.doctorId);
                       const block = isBlockAppointment(entry.appointment);
-                      const status = entry.appointment.status || "Yeni Kayıt";
+                      const status = normalizeStatus(entry.appointment.status);
                       return (
                         <tr
                           key={`${entry.doctorId}-${entry.key}`}
                           className="border-t border-slate-100 hover:bg-indigo-50/40 dark:border-slate-800 dark:hover:bg-slate-800/60"
+                          onClick={(event) => event.stopPropagation()}
+                          style={{ boxShadow: `inset 3px 0 0 ${color}` }}
                         >
                           <td className="whitespace-nowrap px-2 py-1.5 font-black text-indigo-600 dark:text-indigo-300">
                             {entry.date.toLocaleDateString("tr-TR", {
                               day: "2-digit",
                               month: "2-digit",
                             })}{" "}
-                            · {entry.time}
+                            · {block
+                              ? formatTimeRange(entry.time, entry.appointment.duration)
+                              : entry.time}
                           </td>
                           <td className="px-2 py-1.5">
                             {block ? (
@@ -999,26 +1186,77 @@ export default function ClinicAgenda({
                                 Blokaj
                               </span>
                             ) : (
-                              <select
-                                value={status}
-                                disabled={!canEditAppointments}
-                                onChange={(event) =>
-                                  onChangeStatus(
-                                    event,
-                                    entry.doctorId,
-                                    entry.key,
-                                    entry.appointment,
-                                    event.target.value
-                                  )
-                                }
-                                className="max-w-[130px] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[9px] font-bold dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                              >
-                                {STATUS_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
+                              <div className="flex items-center gap-1">
+                                <select
+                                  value={status}
+                                  disabled={!canEditAppointments}
+                                  onChange={(event) =>
+                                    onChangeStatus(
+                                      event,
+                                      entry.doctorId,
+                                      entry.key,
+                                      entry.appointment,
+                                      event.target.value
+                                    )
+                                  }
+                                  className="max-w-[130px] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-[9px] font-bold dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                                >
+                                  {STATUS_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.icon} {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                {entry.appointment.cancelFollowUp && (
+                                  <span
+                                    title={
+                                      entry.appointment.cancelFollowUp === "phone_unanswered"
+                                        ? "Telefon açmadı"
+                                        : entry.appointment.cancelFollowUp === "noshow"
+                                        ? "Hasta gelmedi"
+                                        : entry.appointment.cancelFollowUp === "rebooked"
+                                        ? "Yeni randevusu verildi"
+                                        : entry.appointment.cancelFollowUp === "information_pending"
+                                        ? "Hastaya bilgi verilecek"
+                                        : "Yeniden aranacak"
+                                    }
+                                    className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-300"
+                                  >
+                                    <i className={`fa-solid ${
+                                      entry.appointment.cancelFollowUp === "phone_unanswered"
+                                        ? "fa-phone-slash"
+                                        : entry.appointment.cancelFollowUp === "noshow"
+                                        ? "fa-user-xmark"
+                                        : entry.appointment.cancelFollowUp === "rebooked"
+                                        ? "fa-calendar-check"
+                                        : "fa-phone-volume"
+                                    } text-[9px]`}></i>
+                                  </span>
+                                )}
+                                <select
+                                  value={entry.appointment.cancelFollowUp || ""}
+                                  disabled={!canEditAppointments}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={(event) =>
+                                    onChangeCommunication(
+                                      event,
+                                      entry.doctorId,
+                                      entry.key,
+                                      entry.appointment,
+                                      event.target.value
+                                    )
+                                  }
+                                  title="İletişim durumu"
+                                  className="h-6 max-w-[34px] rounded-md border border-slate-200 bg-white px-0 text-[10px] dark:border-slate-700 dark:bg-slate-900"
+                                >
+                                  <option value="">—</option>
+                                  {COMMUNICATION_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.icon}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
                             )}
                           </td>
                           <td className="whitespace-nowrap px-2 py-1.5 text-right">
@@ -1058,137 +1296,12 @@ export default function ClinicAgenda({
           )}
         </main>
 
-        <aside className="flex max-h-[34vh] min-h-[180px] w-full shrink-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 lg:max-h-none lg:min-h-0 lg:w-[18%] lg:min-w-[210px]">
-          <div className="shrink-0 border-b border-slate-200 px-2 py-2 dark:border-slate-800">
-            <div className="mb-1.5 flex items-center justify-between">
-              <h2 className="text-[11px] font-black text-slate-800 dark:text-white">
-                Hekim Ajandaları
-              </h2>
-              <span className="text-[9px] font-bold text-slate-400">
-                {visibleDoctors.length}/{specialtyDoctors.length}
-              </span>
-            </div>
-            <label className="block text-[9px] font-bold uppercase text-slate-400">
-              Uzmanlık / Grup
-              <select
-                value={specialtyFilter}
-                onChange={(event) => setSpecialtyFilter(event.target.value)}
-                className="mt-1 h-7 w-full rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold normal-case dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-              >
-                <option value="all">Tüm uzmanlıklar</option>
-                {specialties.map((specialty) => (
-                  <option key={specialty} value={specialty}>
-                    {specialty}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="mt-2 flex cursor-pointer items-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-200">
-              <input
-                type="checkbox"
-                checked={allSpecialtyDoctorsSelected}
-                onChange={toggleAllDoctors}
-                className="h-3.5 w-3.5 accent-indigo-600"
-              />
-              Tüm Ajandalar
-            </label>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-            <div className="space-y-1">
-              {specialtyDoctors.map((doctorId) => {
-                const checked = selectedDoctorIds.includes(doctorId);
-                const color = doctorColor(doctorId);
-                const profile = globalData.doctorProfiles?.[doctorId] || {};
-                const name =
-                  globalData.systemUsers?.[doctorId]?.displayName ||
-                  profile.name ||
-                  doctorId;
-                return (
-                  <button
-                    key={doctorId}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={checked}
-                    onClick={() => toggleDoctor(doctorId)}
-                    className={`flex min-h-8 w-full items-center gap-2 rounded-md px-2 py-1 text-left text-white transition hover:brightness-105 ${
-                      checked ? "opacity-100" : "opacity-45 grayscale"
-                    }`}
-                    style={{ backgroundColor: color }}
-                  >
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border border-white bg-white/10">
-                      {checked && (
-                        <i className="fa-solid fa-check text-[8px] text-white"></i>
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[10px] font-black">
-                      {profile.title || globalData.systemUsers?.[doctorId]?.title || "Dt."}{" "}
-                      {name}
-                    </span>
-                    {profile.availabilityStatus === "leave" && (
-                      <span className="rounded bg-black/15 px-1 py-0.5 text-[8px] font-bold">
-                        İzinli
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-              {specialtyDoctors.length === 0 && (
-                <div className="rounded-md border border-dashed border-slate-200 px-2 py-5 text-center text-[10px] font-semibold text-slate-400 dark:border-slate-700">
-                  Bu grupta hekim bulunmuyor.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="shrink-0 border-t border-slate-200 p-1.5 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={() => setShowExtraOptions((open) => !open)}
-              aria-expanded={showExtraOptions}
-              className="flex w-full items-center gap-1.5 rounded-md px-1 py-1 text-left text-[10px] font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <i className={`fa-solid ${showExtraOptions ? "fa-chevron-down" : "fa-circle-plus"} text-indigo-500`}></i>
-              Ek Seçenekler
-            </button>
-            {showExtraOptions && (
-              <div className="mt-1 space-y-1.5 border-t border-slate-100 pt-1.5 dark:border-slate-800">
-                <label className="flex items-center gap-2 text-[9px] font-semibold text-slate-600 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={hideEmptySlots}
-                    onChange={(event) => setHideEmptySlots(event.target.checked)}
-                    className="h-3 w-3 accent-indigo-600"
-                  />
-                  Boş saatleri gizle
-                </label>
-                <label className="flex items-center gap-2 text-[9px] font-semibold text-slate-600 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={showOutsideHours}
-                    onChange={(event) => setShowOutsideHours(event.target.checked)}
-                    className="h-3 w-3 accent-indigo-600"
-                  />
-                  Mesai dışı saatleri göster
-                </label>
-                <button
-                  type="button"
-                  disabled={!canCreateAppointments || !defaultDoctorId}
-                  onClick={openBlockModal}
-                  className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-left text-[9px] font-bold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
-                >
-                  <i className="fa-solid fa-ban mr-1.5 text-amber-500"></i>
-                  Blokaj / İzin Ekle
-                </button>
-              </div>
-            )}
-          </div>
-        </aside>
       </div>
 
       {selectedDetails && (
         <div
           className="fixed inset-0 z-[360] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm"
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={() => setSelectedAppointment(null)}
         >
           <section
@@ -1244,28 +1357,86 @@ export default function ClinicAgenda({
                 )}
               </div>
               {!selectedAppointmentIsBlock && (
-                <div className="flex flex-wrap gap-1">
-                  {STATUS_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      disabled={!canEditAppointments}
-                      onClick={(event) => {
-                        onChangeStatus(
-                          event,
-                          selectedDetails.doctorId,
-                          selectedDetails.key,
-                          selectedDetails.appointment,
-                          option.value
-                        );
-                        setSelectedAppointment(null);
-                      }}
-                      className="rounded-md border border-slate-200 px-2 py-1 text-[9px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="flex flex-wrap gap-1">
+                    {STATUS_OPTIONS.map((option) => {
+                      const icon =
+                        option.value === "İptal" ? "fa-ban" :
+                        option.value === "Gelmedi" ? "fa-user-xmark" :
+                        option.value === "İşlemde" ? "fa-stethoscope" :
+                        option.value === "Geldi" ? "fa-circle-check" :
+                        option.value === "Onaylandı" ? "fa-calendar-check" :
+                        "fa-clock";
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          disabled={!canEditAppointments}
+                          onClick={(event) => {
+                            onChangeStatus(
+                              event,
+                              selectedDetails.doctorId,
+                              selectedDetails.key,
+                              selectedDetails.appointment,
+                              option.value
+                            );
+                            setSelectedAppointment(null);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-[9px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
+                        >
+                          <i className={`fa-solid ${icon}`}></i>
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-1 border-t border-slate-100 pt-2 dark:border-slate-800">
+                    {COMMUNICATION_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={!canEditAppointments}
+                        onClick={(event) =>
+                          onChangeCommunication?.(
+                            event,
+                            selectedDetails.doctorId,
+                            selectedDetails.key,
+                            selectedDetails.appointment,
+                            option.value
+                          )
+                        }
+                        className={`rounded-md border px-2 py-1.5 text-[9px] font-bold ${
+                          selectedDetails.appointment.cancelFollowUp === option.value
+                            ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                            : "border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-300"
+                        }`}
+                      >
+                        {option.icon} {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {selectedDetails.appointment.cancelFollowUp && (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-bold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+                      <i className={`fa-solid ${
+                        selectedDetails.appointment.cancelFollowUp === "phone_unanswered"
+                          ? "fa-phone-slash"
+                          : selectedDetails.appointment.cancelFollowUp === "noshow"
+                          ? "fa-user-xmark"
+                          : selectedDetails.appointment.cancelFollowUp === "rebooked"
+                          ? "fa-calendar-check"
+                          : "fa-phone-volume"
+                      }`}></i>
+                      <span>
+                        {selectedDetails.appointment.cancelFollowUp === "phone_unanswered" && "Telefon açmadı"}
+                        {selectedDetails.appointment.cancelFollowUp === "noshow" && "Hasta gelmedi"}
+                        {selectedDetails.appointment.cancelFollowUp === "rebooked" && "Yeni randevusu verildi"}
+                        {selectedDetails.appointment.cancelFollowUp === "information_pending" && "Hastaya bilgi verilecek"}
+                        {selectedDetails.appointment.cancelFollowUp === "recall" && "Yeniden aranacak"}
+                        {selectedDetails.appointment.cancelFollowUp === "cancel" && "Randevu iptal edildi"}
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="flex flex-wrap justify-end gap-1.5 border-t border-slate-100 p-2.5 dark:border-slate-800">
@@ -1321,12 +1492,17 @@ export default function ClinicAgenda({
       {blockModalOpen && (
         <div
           className="fixed inset-0 z-[360] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm"
-          onClick={() => setBlockModalOpen(false)}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (event.target === event.currentTarget) setBlockModalOpen(false);
+          }}
         >
           <form
             onSubmit={submitBlock}
             className="w-full max-w-sm space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
             onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="text-sm font-black text-slate-800 dark:text-white">
               Blokaj / İzin Ekle
@@ -1389,7 +1565,10 @@ export default function ClinicAgenda({
               <label className="block text-[9px] font-bold uppercase text-slate-400">
                 Tarih
                 <input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="YYYY-AA-GG"
+                  pattern="\d{4}-\d{2}-\d{2}"
                   required
                   value={blockForm.date}
                   onChange={(event) =>
@@ -1428,6 +1607,13 @@ export default function ClinicAgenda({
                   ))}
                 </select>
               </label>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-indigo-100 bg-indigo-50 px-2 py-1.5 text-[10px] font-black text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-300">
+              <span>
+                <i className="fa-regular fa-clock mr-1.5"></i>
+                {formatTimeRange(blockForm.time, blockForm.duration)}
+              </span>
+              <span>{formatHourCount(blockForm.duration)}</span>
             </div>
             <div className="flex justify-end gap-1.5 pt-1">
               <button

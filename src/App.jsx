@@ -4,6 +4,13 @@ import { getDatabase, ref, set, update, onValue, push, child, get, runTransactio
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, updateEmail, updatePassword, onAuthStateChanged, setPersistence, browserSessionPersistence, connectAuthEmulator } from 'firebase/auth';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import ClinicAgenda from './ClinicAgenda.jsx';
+import DashboardPage from './pages/Dashboard.jsx';
+import AjandaPage from './pages/Ajanda.jsx';
+import HastalarPage from './pages/Hastalar.jsx';
+import HastaDetayModalPage from './pages/HastaDetayModal.jsx';
+import HekimYonetimiPage from './pages/HekimYonetimi.jsx';
+import FinansPage from './pages/Finans.jsx';
+import AyarlarPage from './pages/Ayarlar.jsx';
       const DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 const DOCTOR_COLORS = ["#4f46e5", "#0ea5e9", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6", "#14b8a6", "#64748b", "#a21caf", "#0284c7", "#65a30d", "#e11d48", "#334155", "#c2410c", "#0f766e", "#7c3aed"];
 const DOCTOR_SPECIALTIES = ["Endodonti", "Restoratif", "Protez", "İmplantoloji", "Periodontoloji", "Pedodonti", "Ortodonti", "Cerrahi"];
@@ -1870,6 +1877,7 @@ const sidebarToggleRef = useRef(null);
         const [selectedDate, setSelectedDate] = useState(new Date());
 
         const [draggedAptInfo, setDraggedAptInfo] = useState(null);
+         const dragMoveInFlightRef = useRef(false);
 
         const [dragOverTargetKey, setDragOverTargetKey] = useState(null);
 
@@ -1931,7 +1939,7 @@ const sidebarToggleRef = useRef(null);
         
         // YENİ: Gelişmiş Randevu İptal ve Takip Modalı State'i
         const [cancelAptModal, setCancelAptModal] = useState({ 
-          isOpen: false, aptKey: null, docId: null, aptData: null, reasonNote: "" 
+          isOpen: false, aptKey: null, docId: null, aptData: null, reasonNote: "", confirmDelete: false
         });
         // YENİ EKLENEN: Takvime aktarılacak hastayı tutan React State'i
         const [pendingAptPatient, setPendingAptPatient] = useState(null);
@@ -3225,6 +3233,30 @@ const newStatus = requestedStatus || cycleMap[currentStatus] || "Geldi";
           showNotification(`Durum güncellendi: ${newStatus}`);
         };
 
+        const handleCommunicationChange = (e, docId, aptKey, aptData, communicationStatus) => {
+          e?.stopPropagation();
+          if (!hasPermission("appointments.edit")) {
+            showNotification("İletişim durumunu değiştirme yetkiniz bulunmuyor!", "error");
+            return;
+          }
+          const clinicId = globalData.systemUsers?.[currentUser]?.clinicId;
+          if (!db || !clinicId) return;
+          update(
+            ref(db, `KlinikAnaVeritabani/clinics/${clinicId}/appointments/${docId}/${aptKey}`),
+            { cancelFollowUp: communicationStatus }
+          ).then(() => showNotification("İletişim durumu güncellendi."));
+        };
+
+        const handleDoctorColorChange = async (doctorId, color) => {
+          if (!db || !doctorId || !color) return;
+          const clinicId = globalData.systemUsers?.[currentUser]?.clinicId;
+          if (!clinicId) return;
+          await update(
+            ref(db, `KlinikAnaVeritabani/clinics/${clinicId}/doctorProfiles/${doctorId}`),
+            { calendarColor: color }
+          );
+        };
+
         const getStatusBadge = (status, onToggle = null) => {
           const baseClass =
             "relative px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm whitespace-nowrap transition-all duration-300 select-none";
@@ -3327,6 +3359,7 @@ case "Blokaj":
 
           originalKey
         ) => {
+e.stopPropagation();
           e.dataTransfer.effectAllowed = "move";
 
           e.dataTransfer.setData("text/plain", originalKey);
@@ -3337,6 +3370,7 @@ case "Blokaj":
         };
 
         const handleDragEnd = (e) => {
+  e.stopPropagation();
           e.target.classList.remove("is-dragging");
 
           setDraggedAptInfo(null);
@@ -3361,23 +3395,32 @@ case "Blokaj":
 
         const handleDrop = async (e, targetDocId, targetDateObj, targetTimeSlot) => {
           e.preventDefault();
+e.stopPropagation();
 
           setDragOverTargetKey(null);
 
           if (!draggedAptInfo) return;
+if (dragMoveInFlightRef.current) return;
+
+const moveSnapshot = draggedAptInfo;
+dragMoveInFlightRef.current = true;
+setDraggedAptInfo(null);
 
           const targetDateKey = formatDateKey(targetDateObj);
 
           const targetFullKey = `${targetDateKey}-${targetTimeSlot}`;
 
           if (
-            draggedAptInfo.docId === targetDocId &&
-            draggedAptInfo.originalKey === targetFullKey
-          )
-            return;
+moveSnapshot.docId === targetDocId &&
+moveSnapshot.originalKey === targetFullKey
+        ) {
+  dragMoveInFlightRef.current = false;
+  return;
+}
 
           const clinicId = globalData.systemUsers?.[currentUser]?.clinicId;
           if (!db || !clinicId) {
+  dragMoveInFlightRef.current = false;
             showNotification("Klinik bağlantısı bulunamadı; randevu taşınamadı.", "error");
             return;
           }
@@ -3387,76 +3430,56 @@ case "Blokaj":
           let sourceMissing = false;
 
           try {
-            const result = await runTransaction(
-              ref(db, `KlinikAnaVeritabani/clinics/${clinicId}/appointments`),
-              (currentAppointments) => {
-                conflict = null;
-                targetOccupied = false;
-                sourceMissing = false;
+            const appointmentsRef = ref(db, `KlinikAnaVeritabani/clinics/${clinicId}/appointments`);
+            const snapshot = await get(appointmentsRef);
+            const appointments = snapshot.val() || {};
+            const movingAppointment = appointments[moveSnapshot.docId]?.[moveSnapshot.originalKey];
 
-                const appointments = currentAppointments || {};
-                const movingAppointment =
-                  appointments[draggedAptInfo.docId]?.[draggedAptInfo.originalKey];
-
-                if (!movingAppointment) {
-                  sourceMissing = true;
-                  return;
-                }
-
-                conflict = findAppointmentConflict(
-                  appointments[targetDocId] || {},
-                  targetDateKey,
-                  targetTimeSlot,
-                  movingAppointment.duration || "30",
-                  draggedAptInfo.docId === targetDocId
-                    ? draggedAptInfo.originalKey
-                    : null
-                );
-
-                if (conflict) return;
-
-                if (appointments[targetDocId]?.[targetFullKey]) {
-                  targetOccupied = true;
-                  return;
-                }
-
-                const updatedAppointments = { ...appointments };
-                updatedAppointments[draggedAptInfo.docId] = {
-                  ...appointments[draggedAptInfo.docId],
-                };
-                delete updatedAppointments[draggedAptInfo.docId][
-                  draggedAptInfo.originalKey
-                ];
-                updatedAppointments[targetDocId] = {
-                  ...(appointments[targetDocId] || {}),
-                  [targetFullKey]: movingAppointment,
-                };
-
-                return updatedAppointments;
-              }
-            );
-
-            if (!result.committed) {
-              if (conflict) {
-                showAppointmentConflict(conflict);
-              } else if (targetOccupied) {
-                showNotification("Sürüklediğiniz saat zaten dolu; randevu taşınmadı.", "error");
-              } else if (sourceMissing) {
-                showNotification("Randevu başka bir kullanıcı tarafından değiştirilmiş; taşıma iptal edildi.", "error");
-              } else {
-                showNotification("Randevu taşınamadı; lütfen tekrar deneyin.", "error");
-              }
+            if (!movingAppointment) {
+              showNotification("Randevu başka bir kullanıcı tarafından değiştirilmiş; taşıma iptal edildi.", "error");
               return;
             }
 
-            const movedAppointment =
-              result.snapshot.val()?.[targetDocId]?.[targetFullKey];
+            conflict = findAppointmentConflict(
+              appointments[targetDocId] || {},
+              targetDateKey,
+              targetTimeSlot,
+              movingAppointment.duration || "30",
+              moveSnapshot.docId === targetDocId ? moveSnapshot.originalKey : null
+            );
+            if (conflict) {
+              showAppointmentConflict(conflict);
+              return;
+            }
+
+            if (appointments[targetDocId]?.[targetFullKey]) {
+              showNotification("Sürüklediğiniz saat zaten dolu; randevu taşınmadı.", "error");
+              return;
+            }
+
+            const movedAppointment = {
+              ...movingAppointment,
+              date: targetDateKey,
+              time: targetTimeSlot,
+              doctorId: targetDocId,
+            };
+            await update(
+              ref(db, `KlinikAnaVeritabani/clinics/${clinicId}/appointments/${moveSnapshot.docId}/${moveSnapshot.originalKey}`),
+              {
+                date: targetDateKey,
+                dateKey: targetDateKey,
+                time: targetTimeSlot,
+                doctorId: targetDocId,
+              }
+            );
             showNotification(
-              `${movedAppointment?.patientName || draggedAptInfo.aptData.patientName} başarıyla yeni hekime/saatine taşındı.`
+              `${movedAppointment.patientName || moveSnapshot.aptData.patientName} başarıyla yeni hekime/saatine taşındı.`
             );
           } catch (error) {
             console.error("Randevu taşıma hatası:", error);
             showNotification("Randevu taşınırken veritabanı hatası oluştu.", "error");
+          } finally {
+            dragMoveInFlightRef.current = false;
           }
         };
 
@@ -3935,7 +3958,18 @@ case "Blokaj":
 
           const key = `${formatDateKey(dateObj)}-${slot}`;
 
-          const existingData = globalData.appointments?.[doctorId]?.[key];
+          const directData = globalData.appointments?.[doctorId]?.[key];
+          const movedMatch =
+            !directData
+              ? Object.entries(globalData.appointments || {}).flatMap(([docId, docAppointments]) =>
+                  Object.entries(docAppointments || {}).map(([aptKey, apt]) => ({ docId, aptKey, apt }))
+                ).find(({ docId, apt }) =>
+              String(apt?.date || apt?.dateKey || "") === formatDateKey(dateObj) &&
+              String(apt?.time || "") === slot &&
+              (apt?.doctorId ? apt.doctorId === doctorId : docId === doctorId)
+            )
+              : null;
+          const existingData = directData || movedMatch?.apt;
 
           let patientAnamnesis = "";
           let patientPlans = []; // YENİ: Hastanın planlarını çekmek için hafıza açtık
@@ -3959,6 +3993,8 @@ case "Blokaj":
 
             setFormData({
               ...existingData,
+               _firebaseKey: directData ? key : movedMatch?.aptKey,
+               _firebaseDoctorId: directData ? doctorId : movedMatch?.docId || doctorId,
               selectedTeeth: existingData.selectedTeeth || [],
               anamnesis: patientAnamnesis,
               selectedTreatments: existingData.selectedTreatments || [],
@@ -4069,9 +4105,11 @@ case "Blokaj":
 
           if (!formData.patientName) return;
 
-          const key = `${formatDateKey(activeSlotDate)}-${selectedSlot}`;
-          const isEditingExistingAppointment =
-            !!globalData.appointments?.[activeSlotDoctor]?.[key];
+          const targetKey = `${formatDateKey(activeSlotDate)}-${selectedSlot}`;
+          const key = formData._firebaseKey || targetKey;
+         const isEditingExistingAppointment =
+           !!formData._firebaseKey ||
+           !!globalData.appointments?.[activeSlotDoctor]?.[targetKey];
 
           // GEÇMİŞ TARİH UYARISI MOTORU
           if (settings?.randevu?.gecmisTarihUyarisi !== false) {
@@ -4197,6 +4235,14 @@ case "Blokaj":
           let transactionResult;
 
           try {
+            const saveDoctorId = formData._firebaseDoctorId || activeSlotDoctor;
+            const savedData = {
+              ...finalData,
+              date: formatDateKey(activeSlotDate),
+              dateKey: formatDateKey(activeSlotDate),
+              time: selectedSlot,
+              doctorId: activeSlotDoctor,
+            };
             transactionResult = await runTransaction(
               ref(db, `KlinikAnaVeritabani/clinics/${clinicId}/appointments`),
               (currentAppointments) => {
@@ -4215,7 +4261,10 @@ case "Blokaj":
 
                 if (conflict) return;
 
-                const existingAtKey = appointments[activeSlotDoctor]?.[key];
+                const existingAtKey =
+                  isEditingExistingAppointment && formData._firebaseKey
+                    ? appointments[saveDoctorId]?.[key]
+                    : appointments[activeSlotDoctor]?.[key];
                 if (isEditingExistingAppointment && !existingAtKey) {
                   editedAppointmentMissing = true;
                   return;
@@ -4225,11 +4274,20 @@ case "Blokaj":
                   return;
                 }
 
+                if (isEditingExistingAppointment && formData._firebaseKey) {
+                  return {
+                    ...appointments,
+                    [saveDoctorId]: {
+                      ...(appointments[saveDoctorId] || {}),
+                      [key]: savedData,
+                    },
+                  };
+                }
                 return {
                   ...appointments,
                   [activeSlotDoctor]: {
                     ...(appointments[activeSlotDoctor] || {}),
-                    [key]: finalData,
+                    [key]: savedData,
                   },
                 };
               }
@@ -4277,7 +4335,7 @@ case "Blokaj":
           if (!aptToDelete) return;
           
           // Modalı aç, düzenleme ekranını kapat
-          setCancelAptModal({ isOpen: true, aptKey: key, docId: activeSlotDoctor, aptData: aptToDelete, reasonNote: "" });
+          setCancelAptModal({ isOpen: true, aptKey: key, docId: activeSlotDoctor, aptData: aptToDelete, reasonNote: "", confirmDelete: false });
           setIsModalOpen(false); 
         };
 
@@ -4316,6 +4374,7 @@ case "Blokaj":
             if (actionType === "recall") { newStatus = "İptal"; followUpStatus = "recall"; notifMsg = "Hasta 'Yeniden Aranacaklar' listesine alındı."; }
             if (actionType === "inform") { newStatus = "İptal"; followUpStatus = "recall"; notifMsg = "Hasta bilgilendirme takibine alındı."; }
             if (actionType === "rebooked") { newStatus = "İptal"; followUpStatus = "resolved"; notifMsg = "Randevusu yeniden oluşturulan hasta takibi tamamlandı."; }
+            if (actionType === "phone_unanswered") { newStatus = "İptal"; followUpStatus = "recall"; notifMsg = "Telefon açmadı olarak işaretlendi; yeniden aranacaklar listesine alındı."; }
 
             // Randevuyu silme, durumunu güncelle
             updatedDocApts[aptKey] = {
@@ -10448,6 +10507,9 @@ if (!apt || isAgendaBlock(apt)) return;
                    blockType: block.blockType,
                    title: block.title.trim(),
                    duration: String(duration),
+                     date: dateKey,
+                     time: block.time,
+                     doctorId: block.doctorId,
                    status: "Blokaj",
                    createdBy: currentUser,
                    createdAt: Date.now(),
@@ -10568,6 +10630,8 @@ if (!apt || isAgendaBlock(apt)) return;
            onDragLeave={handleDragLeave}
            onDrop={handleDrop}
            onChangeStatus={handleStatusCycle}
+           onChangeCommunication={handleCommunicationChange}
+           onChangeDoctorColor={handleDoctorColorChange}
            onOpenPatient={openAgendaPatient}
            onCreateBlock={createAgendaBlock}
            onDeleteBlock={deleteAgendaBlock}
@@ -10577,7 +10641,7 @@ if (!apt || isAgendaBlock(apt)) return;
        );
 
        const SidebarItem = ({ icon, label, id }) => (
-         <div className="relative group">
+         <div className="relative group my-0.5">
            {activeTab === id && (
              <span className="absolute inset-y-1 left-0 w-1 rounded-r-full bg-indigo-600" />
            )}
@@ -10588,14 +10652,14 @@ if (!apt || isAgendaBlock(apt)) return;
                setActiveTab(id);
                if (window.innerWidth < 640) setIsSidebarOpen(false);
              }}
-             className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors ${
+             className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-all duration-200 ${
                activeTab === id
-                 ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-bold"
-                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium"
+                 ? "bg-indigo-600 text-white dark:bg-indigo-600 dark:text-white font-bold shadow-md shadow-indigo-500/20"
+                 : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800 font-semibold"
              } ${isSidebarOpen ? "" : "justify-center px-1"}`}
            >
              <i className={`fa-solid ${icon} w-4 shrink-0 text-center text-[13px] ${
-               activeTab === id ? "text-indigo-600 dark:text-indigo-300" : "text-slate-400 group-hover:text-indigo-500"
+              activeTab === id ? "text-white" : "text-slate-400 group-hover:text-indigo-500"
              }`} />
              <span className={`min-w-0 text-[11px] leading-tight ${isSidebarOpen ? "" : "hidden"}`}>{label}</span>
            </button>
@@ -10665,7 +10729,7 @@ if (!apt || isAgendaBlock(apt)) return;
                 style={{ top: contextMenu.y, left: contextMenu.x }}
                 onContextMenu={(e) => e.preventDefault()} // Menü üzerinde tekrar sağ tıklanmasını engelle
               >
-                {contextMenu.type === "patient" && (
+            {contextMenu.type === "patient" && (
                   <div className="flex flex-col">
                     <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-700/50 font-black text-indigo-600 dark:text-indigo-400 text-[11px] uppercase tracking-wider truncate">
                       {contextMenu.data.name}
@@ -10818,7 +10882,7 @@ if (!apt || isAgendaBlock(apt)) return;
             </div>
 
             {confirmModal.isOpen && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[99998] p-2">
+              <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[1000000] p-2">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop border border-slate-200 dark:border-slate-700">
                   <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700 bg-[#0f172a] text-white flex justify-between items-center">
                     <h3 className="font-black text-[13px] uppercase tracking-wider">
@@ -10883,9 +10947,9 @@ if (!apt || isAgendaBlock(apt)) return;
             {/* YENİ: GELİŞMİŞ RANDEVU İPTAL VE HAVUZ MODALI */}
             {cancelAptModal.isOpen && (
               <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[99999] p-3 animate-fadeIn">
-                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-pop border border-slate-200 dark:border-slate-700 flex flex-col">
+                <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-pop border border-slate-200 dark:border-slate-700 flex flex-col max-h-[92vh]">
                   
-                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80 flex justify-between items-center">
+                  <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/80 flex justify-between items-center shrink-0">
                     <h3 className="font-black text-[14px] text-slate-800 dark:text-white flex items-center gap-2">
                       <i className="fa-solid fa-list-check text-indigo-500"></i> Randevu İşlem Seçimi
                     </h3>
@@ -10894,10 +10958,15 @@ if (!apt || isAgendaBlock(apt)) return;
                     </button>
                   </div>
 
-                  <div className="p-4 space-y-3">
-                    <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 p-2.5 rounded-xl flex justify-between items-center">
-                      <div className="font-bold text-[12px] text-indigo-900 dark:text-indigo-300">{cancelAptModal.aptData?.patientName}</div>
-                      <div className="text-[10px] font-black bg-white dark:bg-slate-800 px-2 py-1 rounded text-indigo-500">{cancelAptModal.aptData?.time || cancelAptModal.aptKey?.split('-')[3]}</div>
+                  <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar">
+                    <div className="bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/30 border border-indigo-100 dark:border-indigo-800 p-3 rounded-xl flex justify-between items-center">
+                      <div>
+                        <div className="text-[9px] font-black uppercase tracking-wider text-indigo-400">Hastanın randevu işlemi</div>
+                        <div className="font-black text-[13px] text-indigo-950 dark:text-indigo-200">{cancelAptModal.aptData?.patientName}</div>
+                      </div>
+                      <div className="text-[11px] font-black bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg text-indigo-600 shadow-sm">
+                        <i className="fa-regular fa-clock mr-1"></i>{cancelAptModal.aptData?.time || cancelAptModal.aptKey?.split('-')[3]}
+                      </div>
                     </div>
 
                     <div>
@@ -10912,8 +10981,8 @@ if (!apt || isAgendaBlock(apt)) return;
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2 pt-2">
-                      <button onClick={() => processCancelAppointment("rebooked")} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition text-left group">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <button onClick={() => processCancelAppointment("rebooked")} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition text-left group">
                         <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-200"><i className="fa-solid fa-calendar-check"></i></div>
                         <div>
                           <div className="font-bold text-[13px] text-emerald-700 dark:text-emerald-400">Yeni Randevusu Verildi</div>
@@ -10921,7 +10990,7 @@ if (!apt || isAgendaBlock(apt)) return;
                         </div>
                       </button>
 
-                      <button onClick={() => processCancelAppointment("inform")} className="flex items-center gap-3 p-3 rounded-xl border border-blue-200 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition text-left group">
+                      <button onClick={() => processCancelAppointment("inform")} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-blue-200 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition text-left group">
                         <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-200"><i className="fa-solid fa-comment-dots"></i></div>
                         <div>
                           <div className="font-bold text-[13px] text-blue-700 dark:text-blue-400">Hastaya Bilgi Verilecek</div>
@@ -10929,7 +10998,15 @@ if (!apt || isAgendaBlock(apt)) return;
                         </div>
                       </button>
 
-                      <button onClick={() => processCancelAppointment("cancel")} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 transition text-left group">
+                      <button onClick={() => processCancelAppointment("phone_unanswered")} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-violet-200 dark:border-violet-900/50 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition text-left group">
+                        <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/50 text-violet-600 flex items-center justify-center shrink-0"><i className="fa-solid fa-phone-slash"></i></div>
+                        <div>
+                          <div className="font-bold text-[12px] text-violet-700 dark:text-violet-400">Telefon Açmadı</div>
+                          <div className="text-[9px] text-violet-600/70">Yeniden arama takibine al.</div>
+                        </div>
+                      </button>
+
+                      <button onClick={() => processCancelAppointment("cancel")} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 transition text-left group">
                         <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center shrink-0 group-hover:bg-slate-200"><i className="fa-solid fa-ban"></i></div>
                         <div>
                           <div className="font-bold text-[13px] text-slate-800 dark:text-white">Randevuyu İptal Et</div>
@@ -10937,7 +11014,7 @@ if (!apt || isAgendaBlock(apt)) return;
                         </div>
                       </button>
 
-                      <button onClick={() => processCancelAppointment("noshow")} className="flex items-center gap-3 p-3 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition text-left group">
+                      <button onClick={() => processCancelAppointment("noshow")} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition text-left group">
                         <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/50 text-rose-500 flex items-center justify-center shrink-0 group-hover:bg-rose-200"><i className="fa-solid fa-user-xmark"></i></div>
                         <div>
                           <div className="font-bold text-[13px] text-rose-700 dark:text-rose-400">Hasta Gelmedi (No-Show)</div>
@@ -10954,43 +11031,53 @@ if (!apt || isAgendaBlock(apt)) return;
                       </button>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 dark:border-slate-700 mt-2">
-                       <button onClick={() => showConfirm("Randevuyu veritabanından kalıcı olarak silmek istediğinize emin misiniz?", () => processCancelAppointment("delete"))} className="w-full py-2 text-[11px] font-bold text-slate-400 hover:text-rose-600 transition underline decoration-dotted underline-offset-2">
-                          İşlemi Kalıcı Olarak Sil (Önerilmez)
-                       </button>
+                    <div className="z-[9999] border-t border-slate-100 pt-2 dark:border-slate-700">
+                       {cancelAptModal.confirmDelete ? (
+                         <div className="flex items-center justify-between gap-2 rounded-lg border border-rose-300 bg-rose-50 p-2 dark:border-rose-800 dark:bg-rose-950/40">
+                           <span className="text-[10px] font-black text-rose-700 dark:text-rose-300">Kalıcı olarak silinsin mi?</span>
+                           <div className="flex gap-1.5">
+                             <button type="button" onClick={() => setCancelAptModal((current) => ({ ...current, confirmDelete: false }))} className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">Vazgeç</button>
+                             <button type="button" onClick={() => processCancelAppointment("delete")} className="rounded-md bg-rose-600 px-2 py-1 text-[10px] font-black text-white">Evet, Sil</button>
+                           </div>
+                         </div>
+                       ) : (
+                         <button type="button" onClick={() => setCancelAptModal((current) => ({ ...current, confirmDelete: true }))} className="w-full py-2 text-[11px] font-black text-slate-500 hover:text-rose-600 transition rounded-lg border border-slate-200 dark:border-slate-700">
+                           İşlemi Kalıcı Olarak Sil (Önerilmez)
+                         </button>
+                       )}
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            <aside
-id="app-sidebar"
-              ref={sidebarRef}
-             className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full sm:relative sm:h-auto ${
-               isSidebarOpen ? "w-56 sm:w-[168px]" : "w-[68px] hidden sm:flex"
+            <aside
+ id="app-sidebar"
+ ref={sidebarRef}
+className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full sm:relative sm:h-auto ${
+               isSidebarOpen ? "w-56 sm:w-[168px]" : "w-12"
              } no-print`}
-            >
-              <div
-               className={`h-14 flex items-center px-3 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-2 overflow-hidden bg-white dark:bg-slate-900 cursor-pointer ${isSidebarOpen ? "" : "justify-center"}`}
-                onClick={() => {
-                  setActiveTab("home");
-if (window.innerWidth < 640) setIsSidebarOpen(false);
-                }}
-              >
-               <div className="w-8 h-8 shrink-0 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm shadow-sm">
-                  <i className="fa-solid fa-tooth"></i>
-                </div>
+            >
+ <button
+   type="button"
+   aria-label={isSidebarOpen ? "Sol menüyü daralt" : "Sol menüyü aç"}
+   aria-expanded={isSidebarOpen}
+   className={`h-11 flex items-center px-2 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-2 overflow-hidden bg-gradient-to-r from-indigo-600 to-violet-600 text-white cursor-pointer ${isSidebarOpen ? "" : "justify-center"}`}
+   onClick={() => setIsSidebarOpen((open) => !open)}
+ >
+   <span className="w-6 h-6 shrink-0 rounded-md bg-white/15 ring-1 ring-white/25 text-white flex items-center justify-center text-xs shadow-lg shadow-indigo-950/20">
+     <i className="fa-solid fa-tooth"></i>
+   </span>
 
   <div className={`min-w-0 ${isSidebarOpen ? "" : "hidden"}`}>
-    <span className="block truncate text-[13px] font-black tracking-tight text-slate-800 dark:text-white">
+    <span className="block truncate text-left text-[13px] font-black tracking-tight text-white">
       {settings.klinik.ad || "Klinik Randevu"}
     </span>
-    <span className="block text-[9px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+    <span className="block text-left text-[9px] font-bold uppercase tracking-wider text-indigo-100">
       Yönetim Paneli
     </span>
   </div>
-              </div>
+              </button>
 
 <nav aria-label="Ana menü" className="flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto">
   {isSidebarOpen && <div className="px-2 pt-1 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Genel</div>}
@@ -11105,7 +11192,7 @@ if (window.innerWidth < 640) setIsSidebarOpen(false);
               )}
 
               <header
-                className={`h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 lg:px-4 z-30 shrink-0 shadow-sm w-full absolute top-0 left-0 right-0 header-transition no-print ${
+                className={`h-11 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 lg:px-4 z-30 shrink-0 shadow-sm w-full absolute top-0 left-0 right-0 header-transition no-print ${
                   activeTab === "doctors" && !isHeaderVisible
                     ? "header-hidden"
                     : ""
@@ -11115,22 +11202,9 @@ if (window.innerWidth < 640) setIsSidebarOpen(false);
                 }}
                 onMouseEnter={() => setIsHeaderVisible(true)}
               >
-                {/* MOBİL İÇİN MENÜ AÇMA BUTONU */}
-                <button
-                  type="button"
-ref={sidebarToggleRef}
-                  aria-label={isSidebarOpen ? "Menüyü kapat" : "Menüyü aç"}
-                  aria-expanded={isSidebarOpen}
-aria-controls="app-sidebar"
-                  onClick={() => setIsSidebarOpen((open) => !open)}
-className="w-9 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center hover:bg-indigo-100 transition mr-2 shrink-0"
-                >
-                  <i className={`fa-solid ${isSidebarOpen ? "fa-xmark" : "fa-bars"} text-base`}></i>
-                </button>
-
                 {/* ARAMA ÇUBUĞU */}
                 <div className="relative flex-1 max-w-sm mr-3" ref={searchRef}>
-                  <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-2 w-full focus-within:border-indigo-400 focus-within:ring-2 transition-all shadow-inner group relative">
+        <div className="flex h-8 items-center justify-between bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 w-full focus-within:border-indigo-400 focus-within:ring-2 transition-all shadow-inner group relative">
                     <div className="flex items-center flex-1 min-w-0">
                       <i className="fa-solid fa-magnifying-glass text-indigo-400 text-[13px] shrink-0"></i>
                       <input
@@ -11396,9 +11470,9 @@ className={`flex-1 min-h-0 ${
     : "overflow-x-hidden overflow-y-auto p-1.5 sm:p-2 lg:p-2.5"
 } bg-slate-100/30 dark:bg-[#0f172a] relative w-full flex flex-col transition-all duration-300 ${
                   activeTab !== "doctors"
-                    ? "mt-16"
+                  ? "mt-11"
                     : isHeaderVisible
-                    ? "mt-16"
+          ? "mt-11"
                     : "mt-0"
                 } ${
                   isSplitMode && isPatientModalOpen
@@ -11406,23 +11480,39 @@ className={`flex-1 min-h-0 ${
                     : ""
                 }`}
               >
-                {activeTab === "home" && renderHome()}
+                {activeTab === "home" && (
+                  <DashboardPage>{renderHome()}</DashboardPage>
+                )}
 
-               {activeTab === "calendar" && renderCalendarView()}
+               {activeTab === "calendar" && (
+                 <AjandaPage>{renderCalendarView()}</AjandaPage>
+               )}
 
-               {activeTab === "list" && renderGridList()}
+               {activeTab === "list" && (
+                 <AjandaPage>{renderGridList()}</AjandaPage>
+               )}
 
-                {activeTab === "patients" && renderPatients()}
+                {activeTab === "patients" && (
+                  <HastalarPage>{renderPatients()}</HastalarPage>
+                )}
 
                 {activeTab === "pricing" && renderPricing()}
 
-                {activeTab === "doctors" && renderDoctors()}
+                {activeTab === "doctors" && (
+                  <HekimYonetimiPage>{renderDoctors()}</HekimYonetimiPage>
+                )}
 
-                {activeTab === "finance" && renderFinance()}
+                {activeTab === "finance" && (
+                  <FinansPage>{renderFinance()}</FinansPage>
+                )}
 
-                {activeTab === "settings" && renderSettings()}
+                {activeTab === "settings" && (
+                  <AyarlarPage>{renderSettings()}</AyarlarPage>
+                )}
 
-                {activeTab === "users" && renderUsers()}
+                {activeTab === "users" && (
+                  <AyarlarPage>{renderUsers()}</AyarlarPage>
+                )}
               </div>
             </main>
 
@@ -11734,11 +11824,11 @@ className={`flex-1 min-h-0 ${
 
             {isModalOpen && (
               <div
-                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 sm:p-2 transition-opacity"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[500] sm:p-2 transition-opacity"
                 onClick={() => setIsModalOpen(false)} // YENİ: Dışarı tıklayınca kapanır
               >
                 <div
-                  className="bg-white dark:bg-slate-800 rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-pop flex flex-col max-h-[90vh]"
+          className="bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl shadow-2xl w-full max-w-[820px] overflow-hidden animate-pop flex flex-col max-h-[86vh]"
                   onClick={(e) => e.stopPropagation()} // YENİ: İçeri tıklayınca kapanmasını engeller
                 >
                   {/* YENİ: Sadece mobilde görünen tutamaç (Drag Handle) */}
@@ -11772,6 +11862,32 @@ className={`flex-1 min-h-0 ${
 
                   {aptModalMode === "view" ? (
                     <div className="p-3 space-y-2 overflow-y-auto bg-slate-50 dark:bg-slate-900/50">
+                     <div className="rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800">
+                       <div className="mb-1 text-[9px] font-black uppercase tracking-wider text-slate-400">Randevu Durumu</div>
+                       <div className="flex flex-wrap gap-1">
+                         {[
+                           ["Yeni Kayıt","🆕 Yeni Randevu"],["Onaylandı","✅ Onaylandı"],["Bekliyor","🏥 Geldi"],["İşlemde","🦷 İşlemde"],["Geldi","✔️ Tamamlandı"],["İptal","❌ İptal"],["Gelmedi","🚫 Gelmedi"]
+                         ].map(([value,label]) => (
+                           <button key={value} type="button" onClick={(event) => {
+                             event.stopPropagation();
+                             setFormData({...formData,status:value});
+                             handleStatusCycle(event, activeSlotDoctor, `${formatDateKey(activeSlotDate)}-${selectedSlot}`, formData, value);
+                           }} className={`rounded-md border px-2 py-1 text-[9px] font-bold ${formData.status === value ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}>{label}</button>
+                         ))}
+                       </div>
+                       <div className="mb-1 mt-2 text-[9px] font-black uppercase tracking-wider text-slate-400">Hasta İletişim / Takip</div>
+                       <div className="flex flex-wrap gap-1">
+                         {[
+                           ["information_pending","📢 Hastaya Bilgi Verilecek"],["phone_unanswered","📵 Telefon Açılmadı"],["informed","📞 Bilgilendirildi"]
+                         ].map(([value,label]) => (
+                           <button key={value} type="button" onClick={(event) => {
+                             event.stopPropagation();
+                             setFormData({...formData,cancelFollowUp:value});
+                             handleCommunicationChange(event, activeSlotDoctor, `${formatDateKey(activeSlotDate)}-${selectedSlot}`, formData, value);
+                           }} className={`rounded-md border px-2 py-1 text-[9px] font-bold ${formData.cancelFollowUp === value ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}>{label}</button>
+                         ))}
+                       </div>
+                     </div>
                       {formData.anamnesis && (
                         <div className="bg-rose-100 text-rose-700 p-2.5 rounded-xl border shadow-sm flex gap-2 items-start dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800">
                           <i className="fa-solid fa-triangle-exclamation text-base mt-0.5"></i>
@@ -11891,6 +12007,36 @@ className={`flex-1 min-h-0 ${
                       onSubmit={handleSaveAppointment}
                       className="p-3 space-y-2 overflow-y-auto bg-white dark:bg-slate-800"
                     >
+                     <div className="space-y-1.5 rounded-xl border border-slate-200 p-2 dark:border-slate-700">
+                       <div className="text-[9px] font-black uppercase tracking-wider text-slate-400">Randevu Durumu</div>
+                       <div className="flex flex-wrap gap-1">
+                         {[
+                    ["Yeni Kayıt","🆕 Yeni Randevu"],["Onaylandı","✅ Onaylandı"],["Bekliyor","🏥 Geldi"],["İşlemde","🦷 İşlemde"],["Geldi","✔️ Tamamlandı"],["İptal","❌ İptal"],["Gelmedi","🚫 Gelmedi"]
+                         ].map(([value,label]) => (
+                    <button key={value} type="button" onClick={(event) => {
+                      event.stopPropagation();
+                      setFormData({...formData,status:value});
+                      if (aptModalMode === "view" || globalData.appointments?.[activeSlotDoctor]?.[`${formatDateKey(activeSlotDate)}-${selectedSlot}`]) {
+                        handleStatusCycle(event, activeSlotDoctor, `${formatDateKey(activeSlotDate)}-${selectedSlot}`, formData, value);
+                      }
+                    }} className={`rounded-md border px-2 py-1 text-[9px] font-bold ${formData.status === value ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}>{label}</button>
+                         ))}
+                       </div>
+                       <div className="text-[9px] font-black uppercase tracking-wider text-slate-400 pt-1">İletişim / Bilgilendirme</div>
+                       <div className="flex flex-wrap gap-1">
+                         {[
+                           ["information_pending","📢 Bilgi verilecek"],["phone_unanswered","📵 Telefon açılmadı"],["informed","📞 Bilgilendirildi"]
+                         ].map(([value,label]) => (
+                    <button key={value} type="button" onClick={(event) => {
+                      event.stopPropagation();
+                      setFormData({...formData,cancelFollowUp:value});
+                      if (aptModalMode === "view" || globalData.appointments?.[activeSlotDoctor]?.[`${formatDateKey(activeSlotDate)}-${selectedSlot}`]) {
+                        handleCommunicationChange(event, activeSlotDoctor, `${formatDateKey(activeSlotDate)}-${selectedSlot}`, formData, value);
+                      }
+                    }} className={`rounded-md border px-2 py-1 text-[9px] font-bold ${formData.cancelFollowUp === value ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}>{label}</button>
+                         ))}
+                       </div>
+                     </div>
                       {/* YENİ: Geçmiş Tarih Uyarısı */}
                       {activeSlotDate &&
                         new Date(
@@ -12329,7 +12475,8 @@ className={`flex-1 min-h-0 ${
               </div>
             )}
 
-            {isPatientModalOpen &&
+          <HastaDetayModalPage open={isPatientModalOpen && !!patientForm}>
+          {isPatientModalOpen &&
               patientForm &&
               (() => {
                 const { past, future } = getPatientAppointmentsList(
@@ -12348,7 +12495,7 @@ className={`flex-1 min-h-0 ${
                   <div
                     className={
                       isSplitMode
-                        ? `fixed top-16 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full lg:w-[380px] xl:w-[450px] ${
+                ? `fixed top-11 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full lg:w-[380px] xl:w-[450px] ${
                             isSidebarOpen
                               ? "left-0 lg:left-[224px]"
                               : "left-0 lg:left-[68px]"
@@ -14339,6 +14486,7 @@ className={`flex-1 min-h-0 ${
                   </div>
                 );
               })()}
+           </HastaDetayModalPage>
             {avatarModalInfo.isOpen && (
   <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[150] p-2 animate-fadeIn">
     <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-sm overflow-hidden border border-slate-100 dark:border-slate-800 flex flex-col animate-pop">
