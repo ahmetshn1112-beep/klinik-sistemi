@@ -26,7 +26,7 @@ const DOCTOR_PAYOUT_MODELS = [
 const createDefaultDoctorSchedule = () => Object.fromEntries(
   DAYS.map((day, index) => [
     day,
-    { active: index < 5, start: "09:00", end: "17:00", breakStart: "12:30", breakEnd: "13:30" },
+    { active: index < 5, start: "09:00", end: "17:00" },
   ])
 );
 const timeToMinutes = (time) => {
@@ -49,11 +49,6 @@ const getDoctorScheduleStatus = (profile, date, time, duration = 15) => {
   }
   if (slotStart < shiftStart || slotEnd > shiftEnd) return { available: false, reason: "Mesai dışı" };
 
-  const breakStart = timeToMinutes(daySchedule.breakStart);
-  const breakEnd = timeToMinutes(daySchedule.breakEnd);
-  if (breakStart !== null && breakEnd !== null && slotStart < breakEnd && slotEnd > breakStart) {
-    return { available: false, reason: "Mola" };
-  }
   return { available: true, reason: "" };
 };
 
@@ -1062,7 +1057,7 @@ const firebaseConfig = {
                           </div>
 
                           {detailTab === "genel" && (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 shadow-sm flex flex-col h-full">
                                   <label className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase mb-2 flex items-center gap-1">
@@ -2056,6 +2051,7 @@ const sidebarToggleRef = useRef(null);
         const [patientModalTab, setPatientModalTab] = useState("info");
 
         const [activePlanTreatment, setActivePlanTreatment] = useState("");
+const [activePlanCategory, setActivePlanCategory] = useState("");
         const [selectedTeethMulti, setSelectedTeethMulti] = useState([]); // YENİ: App içerisine taşındı
 
         const [editingTxId, setEditingTxId] = useState(null);
@@ -4595,24 +4591,24 @@ moveSnapshot.originalKey === targetFullKey
 
         if (!currentUser)
           return (
-            <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans">
+            <div className="h-screen min-h-0 bg-slate-50 dark:bg-[#0f172a] flex flex-col items-center justify-center p-3 relative overflow-hidden font-sans">
               {/* HAREKETLİ AURORA ARKA PLAN (Premium Işık Efekti) */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-40 dark:opacity-30 pointer-events-none animate-slow-spin">
-                <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-indigo-400 rounded-full blur-[100px] mix-blend-multiply"></div>
-                <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-400 rounded-full blur-[100px] mix-blend-multiply"></div>
-                <div className="absolute top-1/4 right-1/4 w-[300px] h-[300px] bg-emerald-400 rounded-full blur-[100px] mix-blend-multiply"></div>
+              <div className="absolute inset-0 opacity-55 dark:opacity-25 pointer-events-none">
+                <div className="absolute -left-24 -top-32 w-[420px] h-[420px] bg-indigo-300 rounded-full blur-[110px] mix-blend-multiply"></div>
+                <div className="absolute -right-28 bottom-[-180px] w-[520px] h-[520px] bg-violet-300 rounded-full blur-[120px] mix-blend-multiply"></div>
+                <div className="absolute right-[18%] top-[12%] w-[260px] h-[260px] bg-sky-200 rounded-full blur-[100px] mix-blend-multiply"></div>
               </div>
 
               {/* BUZLU CAM (GLASSMORPHISM) KART */}
-              <div className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] border border-white/50 dark:border-white/10 w-full max-w-sm p-8 animate-pop relative z-10 flex flex-col items-center">
+              <div className="bg-white/80 dark:bg-slate-900/70 backdrop-blur-2xl rounded-2xl shadow-[0_24px_60px_-24px_rgba(30,41,59,0.35)] border border-white/70 dark:border-white/10 w-full max-w-[380px] p-5 sm:p-6 animate-pop relative z-10 flex flex-col items-center">
                 
                 {/* 3D Görünümlü Yüzen İkon */}
-                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-[0_10px_20px_rgba(99,102,241,0.4)] transform hover:scale-110 hover:-translate-y-1 transition-all duration-300">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-500 text-white rounded-xl flex items-center justify-center text-xl mb-4 shadow-[0_10px_24px_-8px_rgba(99,102,241,0.55)] ring-4 ring-white/60 dark:ring-white/5 transition-all duration-300">
                   <i className="fa-solid fa-tooth"></i>
                 </div>
 
-                <div className="text-center mb-8 w-full">
-                  <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-500 dark:from-white dark:to-slate-300 tracking-tight mb-1">
+                <div className="text-center mb-5 w-full">
+                  <h1 className="text-xl leading-tight font-black text-slate-800 dark:text-white tracking-tight mb-1">
                     Klinik Sistemi
                   </h1>
                   <p className="text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-widest">
@@ -4632,7 +4628,7 @@ moveSnapshot.originalKey === targetFullKey
 
                 {/* GİRİŞ FORMU */}
                 {authMode === "login" && (
-                  <form onSubmit={handleAuthSubmit} className="space-y-4 w-full">
+                  <form onSubmit={handleAuthSubmit} className="space-y-3 w-full">
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <i className="fa-regular fa-user text-slate-400 group-focus-within:text-indigo-500 transition-colors"></i>
@@ -4644,7 +4640,7 @@ moveSnapshot.originalKey === targetFullKey
                         onChange={(e) => setAuthForm({ ...authForm, username: e.target.value })}
                         onFocus={() => setShowSavedUsers(true)}
                         onBlur={() => setTimeout(() => setShowSavedUsers(false), 200)} 
-                        className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400 shadow-sm"
+                        className="h-11 w-full pl-11 pr-4 py-2 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400 shadow-sm"
                         placeholder="Kullanıcı Adınız"
                         autoComplete="off"
                       />
@@ -4691,10 +4687,10 @@ moveSnapshot.originalKey === targetFullKey
                         required
                         value={authForm.password}
                         onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-                        className="w-full pl-11 pr-10 py-3 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-sm font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400 shadow-sm"
+                        className="h-11 w-full pl-11 pr-10 py-2 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all placeholder-slate-400 shadow-sm"
                         placeholder="Şifreniz"
                       />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-slate-400 hover:text-indigo-500 transition-colors">
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
                         <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
                       </button>
                     </div>
@@ -4705,11 +4701,11 @@ moveSnapshot.originalKey === targetFullKey
                       </button>
                     </div>
 
-                    <button type="submit" className="w-full mt-6 py-3.5 bg-slate-900 dark:bg-indigo-600 text-white font-black rounded-2xl shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_10px_20px_-5px_rgba(79,70,229,0.5)] hover:bg-slate-800 dark:hover:bg-indigo-500 hover:-translate-y-1 transition-all flex justify-center items-center gap-2">
+                    <button type="submit" className="w-full h-11 mt-3 bg-slate-900 dark:bg-indigo-600 text-white text-xs font-black rounded-xl shadow-[0_10px_20px_-10px_rgba(15,23,42,0.75)] hover:shadow-[0_12px_24px_-8px_rgba(79,70,229,0.55)] hover:bg-slate-800 dark:hover:bg-indigo-500 transition-all flex justify-center items-center gap-2">
                       Sisteme Giriş Yap <i className="fa-solid fa-arrow-right"></i>
                     </button>
 
-                    <div className="text-center mt-6 pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
+                    <div className="text-center mt-4 pt-3 border-t border-slate-200/70 dark:border-slate-700/50">
                       <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold mr-1">
                         Yeni klinik mi açtınız?
                       </span>
@@ -5012,7 +5008,7 @@ return (
                 <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 shadow-sm">
                   <h2 className="text-sm font-black text-slate-800 dark:text-white">En çok yapılan işlemler</h2>
                   <p className="mb-2 text-[10px] text-slate-500 dark:text-slate-400">Tamamlanan tedavilere göre</p>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {rankedTreatments.length ? rankedTreatments.map((treatment, index) => (
                       <div key={treatment.name}>
                         <div className="mb-1 flex items-center justify-between gap-2 text-[10px]">
@@ -5540,21 +5536,21 @@ if (!apt || isAgendaBlock(apt)) return;
           }
 
           return (
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-full flex flex-col animate-pop w-full">
-              <div className="p-2 border-b border-slate-200 dark:border-slate-700 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-1.5 bg-slate-50 dark:bg-slate-900 rounded-t-2xl shrink-0">
+           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 h-full min-h-0 flex flex-col animate-pop w-full">
+            <div className="p-1.5 border-b border-slate-200 dark:border-slate-700 flex flex-row justify-between items-center gap-1.5 bg-slate-50 dark:bg-slate-900 rounded-t-lg shrink-0">
                 <div className="flex items-center gap-1.5">
-                  <h2 className="text-base font-black text-slate-800 dark:text-white flex items-center gap-1">
+                <h2 className="text-sm leading-tight font-black text-slate-800 dark:text-white flex items-center gap-1">
                     <i className="fa-solid fa-hospital-user text-indigo-500"></i>{" "}
                     Hasta Veritabanı
                   </h2>
 
-                  <div className="bg-indigo-100 text-indigo-700 font-bold px-2.5 py-0.5 rounded-full text-[11px] shadow-sm">
+                <div className="bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full text-[10px] leading-tight shadow-sm">
                     Toplam: {patientsList.length}
                   </div>
                 </div>
 
                 <div className="flex gap-1 w-full xl:w-auto flex-wrap">
-                  <div className="relative flex-1 min-w-[160px]">
+                  <div className="relative flex-1 min-w-[140px]">
                     <i className="fa-solid fa-search absolute left-2.5 top-2 text-slate-400 text-[11px]"></i>
 
                     <input
@@ -5562,7 +5558,7 @@ if (!apt || isAgendaBlock(apt)) return;
                       placeholder="İsim, TC, Tel ara..."
                       value={patientLocalSearch}
                       onChange={(e) => setPatientLocalSearch(e.target.value)}
-                      className="w-full pl-7 pr-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
+                    className="h-8 w-full pl-7 pr-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 shadow-sm dark:text-white"
                     />
                   </div>
 
@@ -5586,16 +5582,16 @@ if (!apt || isAgendaBlock(apt)) return;
 
                       setIsPatientModalOpen(true);
                     }}
-                    className="bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-1.5 rounded-xl text-[13px] font-bold shadow-md hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
+                  className="h-8 bg-slate-900 dark:bg-indigo-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-800 dark:hover:bg-indigo-700 transition"
                   >
                     <i className="fa-solid fa-plus mr-1"></i> Yeni
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-x-auto overflow-y-auto w-full">
-                <table className="w-full text-left text-[13px] text-slate-600 dark:text-slate-300 min-w-[700px] border-separate border-spacing-y-1.5">
-                  <thead className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider bg-transparent sticky top-0 z-10 backdrop-blur-md">
+            <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto w-full">
+              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300 min-w-[620px] border-separate border-spacing-y-0.5">
+                <thead className="text-[9px] leading-tight text-slate-400 dark:text-slate-500 uppercase font-black tracking-wide bg-transparent sticky top-0 z-10 backdrop-blur-md">
                     <tr>
                       <th 
                         className="px-2.5 py-1.5 font-semibold w-28 cursor-pointer hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors select-none group"
@@ -5635,7 +5631,7 @@ if (!apt || isAgendaBlock(apt)) return;
                       return (
                         <tr
                           key={p.id}
-                          className="stagger-item bg-white dark:bg-slate-800/80 shadow-sm border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-[0_8px_30px_-12px_rgba(99,102,241,0.4)] hover:-translate-y-1 hover:scale-[1.01] transition-all duration-300 cursor-pointer group rounded-xl overflow-hidden relative z-0 hover:z-10"
+                          className="stagger-item bg-white dark:bg-slate-800/80 shadow-sm border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors duration-150 cursor-pointer group rounded-lg overflow-hidden relative z-0 hover:z-10"
                           onClick={() => {
                             setPatientForm(p);
                             setPatientModalTab("info");
@@ -5645,12 +5641,12 @@ if (!apt || isAgendaBlock(apt)) return;
                             handleContextMenu(e, "patient", p)
                           }
                         >
-                          <td className="px-2.5 py-1.5 font-bold text-slate-500 dark:text-slate-400 text-[11px]">
+                          <td className="px-2 py-1 font-bold text-slate-500 dark:text-slate-400 text-[10px]">
                             #{p.patientCode || "Kayıtsız"}
                           </td>
-                          <td className="px-2.5 py-1.5 font-black text-slate-800 dark:text-slate-100">
+                          <td className="px-2 py-1 font-black text-slate-800 dark:text-slate-100">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-800/50 group-hover:bg-indigo-500 group-hover:text-white group-hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] group-hover:-translate-y-1 transition-all duration-300">
+                              <div className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-800/50 transition-colors">
                                 <i className="fa-regular fa-user group-hover:scale-110 transition-transform duration-300"></i>
                               </div>
 
@@ -5690,7 +5686,7 @@ if (!apt || isAgendaBlock(apt)) return;
                             </div>
                           </td>
 
-                          <td className="px-2.5 py-1.5 font-medium">
+                        <td className="px-2 py-1 font-medium">
                             <div className="text-slate-700 dark:text-slate-300 font-bold">
                               {p.tc || "TC Yok"}
                             </div>
@@ -5701,7 +5697,7 @@ if (!apt || isAgendaBlock(apt)) return;
                             </div>
                           </td>
 
-                          <td className="px-2.5 py-1.5">
+                        <td className="px-2 py-1">
                             {p.anamnesis ? (
                               <span className="bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded text-[10px] font-black uppercase">
                                 <i className="fa-solid fa-triangle-exclamation mr-1"></i>{" "}
@@ -5712,7 +5708,7 @@ if (!apt || isAgendaBlock(apt)) return;
                             )}
                           </td>
 
-                          <td className="px-2.5 py-1.5 text-right font-black">
+                        <td className="px-2 py-1 text-right font-black">
                             <button
                               type="button"
                               title="Hasta bakiyesini ve hesap hareketlerini aç"
@@ -5734,7 +5730,7 @@ if (!apt || isAgendaBlock(apt)) return;
                             </button>
                           </td>
 
-                          <td className="px-2.5 py-1.5 text-right pr-4">
+                        <td className="px-2 py-1 text-right pr-2">
                             {/* YENİ: Modern Hızlı Eylem Grubu */}
                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 translate-x-3 group-hover:translate-x-0 transition-all duration-300">
                               {/* Hızlı WhatsApp/Ara Butonu */}
@@ -5903,36 +5899,36 @@ return matchesSearch &&
 ]).filter(([, category]) => category.items.length > 0);
 
           return (
-            <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 pb-8 flex flex-col p-3 sm:p-4 animate-pop w-full h-full overflow-y-auto">
-              <div className="flex justify-between items-center mb-3 p-4 rounded-2xl bg-gradient-to-r from-slate-950 via-indigo-950 to-indigo-800 text-white shadow-lg shrink-0">
+            <div className="bg-slate-50 dark:bg-slate-900/40 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col p-2 animate-pop w-full h-full min-h-0 overflow-y-auto">
+            <div className="flex justify-between items-center mb-2 p-2 rounded-lg bg-gradient-to-r from-slate-950 via-indigo-950 to-indigo-800 text-white shadow-lg shrink-0">
 <div>
-<h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+<h2 className="text-sm font-black text-white flex items-center gap-1.5 leading-tight">
   <i className="fa-solid fa-tags text-pink-300"></i> İşlem Ücretlendirmeleri
 </h2>
-<p className="mt-1 text-[10px] font-semibold text-indigo-100/80">{allPricingItems.length} işlem · {pricedCount} fiyat tanımlı · {missingCount} fiyat bekliyor</p>
+<p className="mt-0.5 text-[10px] leading-tight font-semibold text-indigo-100/80">{allPricingItems.length} işlem · {pricedCount} fiyat tanımlı · {missingCount} fiyat bekliyor</p>
 </div>
 <div className="flex items-center gap-1.5">
 {hasPermission("treatments.manage") && (
-  <button type="button" onClick={() => setIsAddTreatmentModalOpen(true)} className="rounded-xl bg-white px-3 py-2 text-[10px] font-black text-indigo-800 shadow hover:bg-indigo-50">
+  <button type="button" onClick={() => setIsAddTreatmentModalOpen(true)} className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-black text-indigo-800 shadow hover:bg-indigo-50">
     <i className="fa-solid fa-plus mr-1"></i> Yeni İşlem
   </button>
 )}
 {hasPermission("treatments.manage") && (
-  <button type="submit" form="pricing-catalog-form" className="rounded-xl bg-indigo-500 px-3 py-2 text-[10px] font-black text-white shadow hover:bg-indigo-400">
+  <button type="submit" form="pricing-catalog-form" className="rounded-lg bg-indigo-500 px-2.5 py-1 text-[10px] font-black text-white shadow hover:bg-indigo-400">
     <i className="fa-solid fa-floppy-disk mr-1"></i> Kaydet
   </button>
 )}
 </div>
               </div>
 
-              <p className="text-[12px] text-slate-600 dark:text-slate-300 mb-3 font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl">
+            <p className="text-[11px] leading-tight text-slate-600 dark:text-slate-300 mb-2 font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-1.5 rounded-lg">
                 {hasPermission("treatments.manage") 
                   ? "Klinikte uyguladığınız işlemlere ait standart tutarları aşağıdan güncelleyebilirsiniz. Yeni eklenen işlemleri veya '0' olarak görünenleri doldurup kaydettiğinizde tüm sistemde anında geçerli olacaktır."
                   : "Kliniğinizde uygulanan işlemlerin standart ücret kataloğu aşağıdadır. (Sadece Görüntüleme Modu)"}
               </p>
 
-<div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800">
-<input type="search" value={pricingSearch} onChange={(e) => setPricingSearch(e.target.value)} placeholder="İşlem adı ara..." className="min-w-[180px] flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
+<div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800">
+<input type="search" value={pricingSearch} onChange={(e) => setPricingSearch(e.target.value)} placeholder="İşlem adı ara..." className="h-8 min-w-[180px] flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white" />
 <div className="flex gap-1">
   {[["all", `Tümü (${allPricingItems.length})`], ["missing", `Fiyat bekleyen (${missingCount})`], ["priced", `Fiyatlı (${pricedCount})`]].map(([filter, label]) => (
     <button key={filter} type="button" onClick={() => setPricingFilter(filter)} className={`rounded-lg px-2 py-1.5 text-[10px] font-bold ${pricingFilter === filter ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}>{label}</button>
@@ -5940,17 +5936,17 @@ return matchesSearch &&
 </div>
 </div>
 
-<form id="pricing-catalog-form" onSubmit={handleSavePricing} className="space-y-3">
+<form id="pricing-catalog-form" onSubmit={handleSavePricing} className="space-y-2">
 {visiblePricingCategories.map(([catName, data]) => (
-                  <div key={catName} className="bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <h3 className="font-black text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-2.5 mb-3 text-sm flex items-center gap-2">
+                <div key={catName} className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <h3 className="font-black text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700 pb-1 mb-2 text-xs leading-tight flex items-center gap-1.5">
                       <i className={`fa-solid ${data.icon} ${data.color}`}></i> {catName}
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-2">
                       {data.items.map((tx) => (
-                        <div key={tx} className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex items-center gap-3 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-700 hover:shadow-md transition-all group relative">
+                      <div key={tx} className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 p-2 rounded-lg flex items-center gap-2 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-700 transition-all group relative">
                           <div className="flex-1">
-                            <label className="font-bold text-slate-700 dark:text-slate-200 text-[12px] leading-snug block mb-1.5">
+                          <label className="font-bold text-slate-700 dark:text-slate-200 text-[11px] leading-tight block mb-1">
                               {tx}
                             </label>
                             <div className="relative">
@@ -5966,7 +5962,7 @@ min="0"
                                 onChange={(e) =>
                                   setPricingEditValues({ ...pricingEditValues, [tx]: e.target.value })
                                 }
-                                className={`w-full text-right pr-3 pl-7 py-2 rounded-lg border border-slate-200 dark:border-slate-600 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 outline-none font-black text-[13px] text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900 transition-all ${!hasPermission("treatments.manage") ? "opacity-80 cursor-not-allowed" : ""}`}
+                      className={`h-8 w-full text-right pr-2.5 pl-7 py-1 rounded-lg border border-slate-200 dark:border-slate-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/15 outline-none font-black text-xs text-indigo-700 dark:text-indigo-400 bg-slate-50 dark:bg-slate-900 transition-all ${!hasPermission("treatments.manage") ? "opacity-80 cursor-not-allowed" : ""}`}
                                 placeholder="0"
                               />
                             </div>
@@ -6046,14 +6042,10 @@ const schedule = doctorEditForm.workingSchedule?.[day];
 if (!schedule?.active) return false;
 const start = timeToMinutes(schedule.start);
 const end = timeToMinutes(schedule.end);
-const breakStart = schedule.breakStart ? timeToMinutes(schedule.breakStart) : null;
-const breakEnd = schedule.breakEnd ? timeToMinutes(schedule.breakEnd) : null;
-return start === null || end === null || start >= end ||
-  ((breakStart === null) !== (breakEnd === null)) ||
-  (breakStart !== null && (breakEnd <= breakStart || breakStart < start || breakEnd > end));
+return start === null || end === null || start >= end;
 });
 if (invalidSchedule) {
-showNotification(`${invalidSchedule} çalışma vardiyası veya mola saatlerini kontrol edin.`, "error");
+showNotification(`${invalidSchedule} çalışma vardiyası saatlerini kontrol edin.`, "error");
 return;
 }
             const isDuplicateName = allDoctors.some((docId) => {
@@ -6573,12 +6565,9 @@ const dayKey = DAYS[today.getDay() === 0 ? 6 : today.getDay() - 1];
 const schedule = profile.workingSchedule?.[dayKey];
 const start = timeToMinutes(schedule?.start || settings?.calisma?.baslama || "09:00") || 540;
 const end = timeToMinutes(schedule?.end || settings?.calisma?.bitis || "17:00") || 1020;
-const breakStart = timeToMinutes(schedule?.breakStart);
-const breakEnd = timeToMinutes(schedule?.breakEnd);
-const breakLength = schedule?.active && breakStart !== null && breakEnd !== null ? Math.max(0, breakEnd - breakStart) : 0;
 const availableMinutes = schedule && !schedule.active || profile.availabilityStatus === "leave"
   ? 0
-  : Math.max(0, end - start - breakLength);
+  : Math.max(0, end - start);
 const appointments = globalData.appointments?.[docId] || {};
 const todays = Object.entries(appointments).filter(([key, appointment]) =>
   key.startsWith(`${dateKey}-`) && appointment?.status !== "İptal" && appointment?.status !== "Gelmedi"
@@ -7564,7 +7553,7 @@ className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 text-[12p
   </div>
 )}
 <div className="rounded-xl border border-slate-200 dark:border-slate-700">
-  <div className="border-b border-slate-100 px-3 py-2 text-[11px] font-black text-slate-700 dark:border-slate-700 dark:text-slate-200">Haftalık Çalışma Vardiyası & Mola Planı</div>
+  <div className="border-b border-slate-100 px-3 py-2 text-[11px] font-black text-slate-700 dark:border-slate-700 dark:text-slate-200">Haftalık Çalışma Vardiyası</div>
   <div className="grid gap-1 p-2 md:grid-cols-2">
 {DAYS.map((day) => {
 const schedule = doctorEditForm.workingSchedule?.[day] || createDefaultDoctorSchedule()[day];
@@ -7583,9 +7572,6 @@ return (
 </label>
 <input aria-label={`${day} başlangıç saati`} type="time" value={schedule.start || "09:00"} disabled={!schedule.active} onChange={(e) => updateSchedule("start", e.target.value)} className="w-full rounded-md border border-slate-200 bg-white px-1 py-1 text-[10px] dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
 <input aria-label={`${day} bitiş saati`} type="time" value={schedule.end || "17:00"} disabled={!schedule.active} onChange={(e) => updateSchedule("end", e.target.value)} className="w-full rounded-md border border-slate-200 bg-white px-1 py-1 text-[10px] dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-<span className="col-start-2 text-[9px] font-semibold text-slate-400">Mola</span>
-<input aria-label={`${day} mola başlangıcı`} type="time" value={schedule.breakStart || ""} disabled={!schedule.active} onChange={(e) => updateSchedule("breakStart", e.target.value)} className="w-full rounded-md border border-slate-200 bg-white px-1 py-1 text-[10px] dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
-<input aria-label={`${day} mola bitişi`} type="time" value={schedule.breakEnd || ""} disabled={!schedule.active} onChange={(e) => updateSchedule("breakEnd", e.target.value)} className="w-full rounded-md border border-slate-200 bg-white px-1 py-1 text-[10px] dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
 </div>
 );
 })}
@@ -8223,26 +8209,26 @@ const renderSettings = () => {
           return (
             <div className="flex flex-col h-full animate-pop w-full relative">
               {/* HEADER BÖLÜMÜ */}
-              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 shrink-0 mb-2 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-2 shrink-0 mb-1 flex flex-col md:flex-row gap-2 justify-between items-start md:items-center">
                 <div>
-                  <h2 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                <h2 className="text-sm leading-tight font-black text-slate-800 dark:text-white flex items-center gap-1.5">
                     <i className="fa-solid fa-gear text-slate-500"></i> Klinik Ayarları
                   </h2>
-                  <p className="text-[11px] sm:text-[13px] text-slate-500 mt-1 font-medium max-w-xl">
+                <p className="text-[11px] leading-tight text-slate-500 mt-0.5 font-medium max-w-xl">
                     Klinik sisteminizin çalışma biçimini, randevu kurallarını, tedavi seçeneklerini, bildirimleri ve diğer operasyonel ayarları yönetin.
                   </p>
                 </div>
                 {/* AKILLI VE SPESİFİK ARAMA ÇUBUĞU */}
                 <div className="w-full md:w-auto flex flex-col items-end gap-2 relative">
                   <div className="relative w-full md:w-64 group z-50">
-                    <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-[13px] group-focus-within:text-indigo-500 transition-colors z-10"></i>
+                  <i className="fa-solid fa-search absolute left-2.5 top-2 text-slate-400 text-xs group-focus-within:text-indigo-500 transition-colors z-10"></i>
                     
                     <input 
                       type="text" 
                       placeholder="Ayarlarda ara (Örn: TDB, Şifre, Logo...)" 
                       value={settingsSearch} 
                       onChange={(e) => setSettingsSearch(e.target.value)} 
-                      className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[13px] font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 shadow-inner dark:text-white transition-all relative z-10" 
+            className="h-8 w-full pl-7 pr-7 py-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/10 shadow-inner dark:text-white transition-all relative z-10" 
                     />
                     
                     {settingsSearch && (
@@ -10641,7 +10627,7 @@ if (!apt || isAgendaBlock(apt)) return;
        );
 
        const SidebarItem = ({ icon, label, id }) => (
-         <div className="relative group my-0.5">
+         <div className="relative group my-px">
            {activeTab === id && (
              <span className="absolute inset-y-1 left-0 w-1 rounded-r-full bg-indigo-600" />
            )}
@@ -10652,9 +10638,10 @@ if (!apt || isAgendaBlock(apt)) return;
                setActiveTab(id);
                if (window.innerWidth < 640) setIsSidebarOpen(false);
              }}
-             className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-all duration-200 ${
+               title={!isSidebarOpen ? label : undefined}
+               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all duration-150 ${
                activeTab === id
-                 ? "bg-indigo-600 text-white dark:bg-indigo-600 dark:text-white font-bold shadow-md shadow-indigo-500/20"
+                   ? "bg-indigo-600 text-white dark:bg-indigo-600 dark:text-white font-bold shadow-sm shadow-indigo-500/20"
                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800 font-semibold"
              } ${isSidebarOpen ? "" : "justify-center px-1"}`}
            >
@@ -11055,14 +11042,14 @@ if (!apt || isAgendaBlock(apt)) return;
  id="app-sidebar"
  ref={sidebarRef}
 className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20 flex flex-col shadow-[4px_0_15px_-3px_rgba(0,0,0,0.05)] absolute h-full sm:relative sm:h-auto ${
-               isSidebarOpen ? "w-56 sm:w-[168px]" : "w-12"
+               isSidebarOpen ? "w-56 sm:w-[160px]" : "w-12"
              } no-print`}
             >
  <button
    type="button"
    aria-label={isSidebarOpen ? "Sol menüyü daralt" : "Sol menüyü aç"}
    aria-expanded={isSidebarOpen}
-   className={`h-11 flex items-center px-2 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-2 overflow-hidden bg-gradient-to-r from-indigo-600 to-violet-600 text-white cursor-pointer ${isSidebarOpen ? "" : "justify-center"}`}
+   className={`h-10 flex items-center px-2 border-b border-slate-100 dark:border-slate-800 shrink-0 gap-2 overflow-hidden bg-gradient-to-r from-indigo-600 to-violet-600 text-white cursor-pointer ${isSidebarOpen ? "" : "justify-center"}`}
    onClick={() => setIsSidebarOpen((open) => !open)}
  >
    <span className="w-6 h-6 shrink-0 rounded-md bg-white/15 ring-1 ring-white/25 text-white flex items-center justify-center text-xs shadow-lg shadow-indigo-950/20">
@@ -11079,11 +11066,11 @@ className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-
   </div>
               </button>
 
-<nav aria-label="Ana menü" className="flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto">
-  {isSidebarOpen && <div className="px-2 pt-1 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Genel</div>}
+<nav aria-label="Ana menü" className="flex-1 px-1.5 py-1.5 flex flex-col gap-0.5 overflow-y-auto">
+  {isSidebarOpen && <div className="px-2 pt-0.5 pb-1 text-[9px] leading-tight font-black uppercase tracking-[0.12em] text-slate-400">Genel</div>}
   <SidebarItem icon="fa-house" label="Ana Sayfa" id="home" />
 
-  {isSidebarOpen && <div className="px-2 pt-3 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Klinik</div>}
+  {isSidebarOpen && <div className="px-2 pt-2 pb-0.5 text-[9px] leading-tight font-black uppercase tracking-[0.12em] text-slate-400">Klinik</div>}
   {hasPermission("patients.view") && (
     <SidebarItem icon="fa-hospital-user" label="Hasta Yönetimi" id="patients" />
   )}
@@ -11095,7 +11082,7 @@ className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-
     <SidebarItem icon="fa-user-doctor" label="Hekim Yönetimi" id="doctors" />
   )}
 
-  {isSidebarOpen && <div className="px-2 pt-3 pb-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Yönetim</div>}
+  {isSidebarOpen && <div className="px-2 pt-2 pb-0.5 text-[9px] leading-tight font-black uppercase tracking-[0.12em] text-slate-400">Yönetim</div>}
   {hasPermission("finance.view") && (
     <SidebarItem icon="fa-wallet" label="Ödeme ve Finans" id="finance" />
   )}
@@ -11192,7 +11179,7 @@ className={`sidebar-transition bg-white dark:bg-slate-900 border-r border-slate-
               )}
 
               <header
-                className={`h-11 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 lg:px-4 z-30 shrink-0 shadow-sm w-full absolute top-0 left-0 right-0 header-transition no-print ${
+              className={`h-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-2.5 lg:px-4 z-30 shrink-0 shadow-sm w-full absolute top-0 left-0 right-0 header-transition no-print ${
                   activeTab === "doctors" && !isHeaderVisible
                     ? "header-hidden"
                     : ""
@@ -11470,9 +11457,9 @@ className={`flex-1 min-h-0 ${
     : "overflow-x-hidden overflow-y-auto p-1.5 sm:p-2 lg:p-2.5"
 } bg-slate-100/30 dark:bg-[#0f172a] relative w-full flex flex-col transition-all duration-300 ${
                   activeTab !== "doctors"
-                  ? "mt-11"
+                ? "mt-10"
                     : isHeaderVisible
-          ? "mt-11"
+        ? "mt-10"
                     : "mt-0"
                 } ${
                   isSplitMode && isPatientModalOpen
@@ -12492,13 +12479,14 @@ className={`flex-1 min-h-0 ${
                 const txTypes = Object.keys(DEFAULT_PRICING);
 
                 return (
-                  <div
-                    className={
+<div
+          id="patient-detail-modal"
+          className={
                       isSplitMode
-                ? `fixed top-11 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full lg:w-[380px] xl:w-[450px] ${
+              ? `fixed top-10 bottom-0 z-[45] bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-[10px_0_30px_rgba(0,0,0,0.15)] flex justify-center transition-all duration-300 w-full lg:w-[360px] xl:w-[400px] ${
                             isSidebarOpen
-                              ? "left-0 lg:left-[224px]"
-                              : "left-0 lg:left-[68px]"
+                    ? "left-0 lg:left-[160px]"
+                    : "left-0 lg:left-[48px]"
                           }`
                         : "fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-50 transition-all duration-300"
                     }
@@ -12507,11 +12495,11 @@ className={`flex-1 min-h-0 ${
                       className={
                         isSplitMode
                           ? "w-full h-full flex flex-col bg-white dark:bg-slate-800 overflow-hidden relative"
-                          : "bg-white dark:bg-slate-800 w-full h-full max-w-none max-h-none overflow-hidden flex flex-col animate-pop relative"
+                : "bg-white dark:bg-slate-800 w-full h-[calc(100%-1rem)] max-w-[1180px] max-h-[calc(100vh-1rem)] rounded-xl overflow-hidden flex flex-col animate-pop relative"
                       }
                     >
-                      <div className="px-3 py-2 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0 no-print">
-                        <h3 className="font-black text-[13px] sm:text-base flex items-center gap-1.5 truncate pr-1.5">
+            <div className="px-2 py-1.5 border-b border-slate-700 flex justify-between items-center bg-[#0f172a] text-white shrink-0 no-print">
+                       <h3 className="font-black text-xs sm:text-sm leading-tight flex items-center gap-1 truncate pr-1.5">
                           <i className="fa-regular fa-folder-open text-indigo-400 shrink-0"></i>{" "}
                           <span className="text-slate-400 text-[11px] hidden sm:inline">#{patientForm.patientCode || "YENİ"}</span>
                           <span className="truncate">{patientForm.name}</span>
@@ -12546,12 +12534,12 @@ className={`flex-1 min-h-0 ${
                       </div>
 
                       {/* YENİ: iOS Stili Segmented Control Sekmeler */}
-                      <div className="px-2.5 py-2 bg-white dark:bg-slate-800 border-b dark:border-slate-700 shrink-0 no-print">
-                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl gap-0.5 overflow-x-auto custom-scrollbar shadow-inner">
+              <div className="px-1.5 py-1 bg-white dark:bg-slate-800 border-b dark:border-slate-700 shrink-0 no-print">
+                <div className="flex bg-slate-100 dark:bg-slate-900 p-0.5 rounded-lg gap-0.5 overflow-x-auto custom-scrollbar shadow-inner">
                           <button
                             onClick={() => setPatientModalTab("info")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
+                     isSplitMode ? "min-w-[92px] py-1 px-1 text-[10px]" : "min-w-[110px] py-1.5 px-2 text-xs"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "info"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
@@ -12564,7 +12552,7 @@ className={`flex-1 min-h-0 ${
                           <button
                             onClick={() => setPatientModalTab("finance")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
+                     isSplitMode ? "min-w-[92px] py-1 px-1 text-[10px]" : "min-w-[110px] py-1.5 px-2 text-xs"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "finance"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
@@ -12577,7 +12565,7 @@ className={`flex-1 min-h-0 ${
                           <button
                             onClick={() => setPatientModalTab("plan")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
+                     isSplitMode ? "min-w-[92px] py-1 px-1 text-[10px]" : "min-w-[110px] py-1.5 px-2 text-xs"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "plan"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
@@ -12590,7 +12578,7 @@ className={`flex-1 min-h-0 ${
                           <button
                             onClick={() => setPatientModalTab("history")}
                             className={`flex-1 ${
-                              isSplitMode ? "min-w-[100px] py-1.5 px-1.5 text-[10px]" : "min-w-[130px] py-2 px-2.5 text-[13px]"
+                     isSplitMode ? "min-w-[92px] py-1 px-1 text-[10px]" : "min-w-[110px] py-1.5 px-2 text-xs"
                             } font-bold rounded-lg whitespace-nowrap transition-all duration-300 ${
                               patientModalTab === "history"
                                 ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
@@ -12604,7 +12592,7 @@ className={`flex-1 min-h-0 ${
 
                       {patientModalTab === "info" && (
                         <div
-                          className={`flex-1 overflow-y-auto p-2 flex flex-col gap-2 bg-slate-50/50 dark:bg-slate-900/50 custom-scrollbar ${
+                          className={`flex-1 min-h-0 overflow-y-auto p-1.5 flex flex-col gap-1.5 bg-slate-50/50 dark:bg-slate-900/50 custom-scrollbar ${
                             isSplitMode ? "" : "lg:flex-row"
                           }`}
                         >
@@ -12625,12 +12613,12 @@ className={`flex-1 min-h-0 ${
                               </div>
                             )}
 
-                            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-                              <h4 className="font-black text-slate-800 mb-1.5 border-b border-slate-100 pb-1.5 text-[11px] uppercase tracking-wider dark:text-white dark:border-slate-700">
+                            <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+                              <h4 className="font-black text-slate-800 mb-1 border-b border-slate-100 pb-1 text-[10px] leading-tight uppercase tracking-wider dark:text-white dark:border-slate-700">
                                 Kimlik & İletişim
                               </h4>
 
-                              <form className="space-y-1.5">
+                              <form className="space-y-1">
                                 <div
                                   className={`grid gap-1.5 ${
                                     isSplitMode ? "grid-cols-1" : "grid-cols-2"
@@ -13216,11 +13204,11 @@ className={`flex-1 min-h-0 ${
                         const currentBalance = totalTreatment - totalPaid;
 
                         return (
-                        <div className="flex-1 overflow-y-auto p-2 bg-slate-50/50 flex flex-col gap-2 dark:bg-slate-900/50 relative custom-scrollbar">
+                        <div className="flex-1 min-h-0 overflow-y-auto p-1.5 bg-slate-50/50 flex flex-col gap-1.5 dark:bg-slate-900/50 relative custom-scrollbar">
                           
                           {/* ÜST ÖZET KARTLARI (KÜÇÜLTÜLDÜ) */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
-                             <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-1 shrink-0">
+                             <div className="bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Toplam Tedavi</div>
                                <div className="text-[13px] font-black text-slate-800 dark:text-white flex items-center gap-1">
                                  {totalOriginalBilled > totalTreatment && (
@@ -13229,15 +13217,15 @@ className={`flex-1 min-h-0 ${
                                  {totalTreatment.toLocaleString("tr-TR")} ₺
                                </div>
                              </div>
-                             <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
+                             <div className="bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
                                <div className="text-[9px] font-black text-amber-500 uppercase tracking-wider mb-0.5">Uygulanan İndirim</div>
                                <div className="text-[13px] font-black text-amber-600 dark:text-amber-400">{totalDiscount.toLocaleString("tr-TR")} ₺</div>
                              </div>
-                             <div className="bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
+                             <div className="bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center">
                                <div className="text-[9px] font-black text-emerald-500 uppercase tracking-wider mb-0.5">Toplam Tahsilat</div>
                                <div className="text-[13px] font-black text-emerald-600 dark:text-emerald-400">{totalPaid.toLocaleString("tr-TR")} ₺</div>
                              </div>
-                             <div className={`p-2 rounded-xl border shadow-sm flex flex-col justify-center ${currentBalance > 0 ? "bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800" : "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"}`}>
+                             <div className={`p-1.5 rounded-lg border shadow-sm flex flex-col justify-center ${currentBalance > 0 ? "bg-rose-50 border-rose-200 dark:bg-rose-900/20 dark:border-rose-800" : "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800"}`}>
                                <div className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${currentBalance > 0 ? "text-rose-500" : "text-emerald-500"}`}>{currentBalance > 0 ? "Ödenecek Kalan Bakiye" : "Borç Bulunmuyor"}</div>
                                <div className={`text-[14px] font-black ${currentBalance > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>{currentBalance.toLocaleString("tr-TR")} ₺</div>
                              </div>
@@ -13261,11 +13249,11 @@ className={`flex-1 min-h-0 ${
                           )}
 
                           {/* ANA KAPSAYICI */}
-                          <div className="flex flex-col lg:flex-row gap-2 flex-1 min-h-[300px] overflow-hidden">
+                          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-1.5 flex-1 min-h-0 overflow-hidden">
                             
                             {/* HESAP HAREKETLERİ TABLOSU */}
-                            <div className="flex-[3] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden">
-                              <div className="p-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
+                            <div className="min-h-0 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden">
+                              <div className="p-1.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center shrink-0">
                                 <h4 className="font-black text-[11px] uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                                   <i className="fa-solid fa-file-invoice-dollar text-indigo-500"></i> Hesap Hareketleri
                                 </h4>
@@ -13327,17 +13315,17 @@ className={`flex-1 min-h-0 ${
                             </div>
 
                             {/* SAĞ PANEL: HIZLI AKSİYONLAR */}
-                            <div className="flex-[1] flex flex-col gap-2 min-w-[220px] overflow-y-auto custom-scrollbar">
+                            <div className="min-h-0 flex flex-col gap-1.5 overflow-y-auto custom-scrollbar">
                               
                               {/* TAHSİLAT FORMU */}
-                              <form onSubmit={handleAddPayment} className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
-                                <h4 className="font-black text-[11px] text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1 border-b border-emerald-100 dark:border-emerald-800/50 pb-1.5">
+                              <form onSubmit={handleAddPayment} className="bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                                <h4 className="font-black text-[10px] leading-tight text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-1 border-b border-emerald-100 dark:border-emerald-800/50 pb-1">
                                   <i className="fa-solid fa-cash-register"></i> Yeni Tahsilat
                                 </h4>
                                 <div className="space-y-2">
                                   <div>
                                     <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Tutar (₺)</label>
-                                    <input type="number" required placeholder="0.00" value={paymentInput} onChange={(e) => setPaymentInput(e.target.value)} className="w-full p-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[13px] font-black text-emerald-600 dark:text-emerald-400 outline-none focus:border-emerald-500 shadow-inner" />
+                                    <input type="number" required placeholder="0.00" value={paymentInput} onChange={(e) => setPaymentInput(e.target.value)} className="h-8 w-full px-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-black text-emerald-600 dark:text-emerald-400 outline-none focus:border-emerald-500 shadow-inner" />
                                     {currentBalance > 0 && (
                                       <div className="text-right mt-1">
                                         <button type="button" onClick={() => setPaymentInput(currentBalance)} className="text-[9px] bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-800 font-bold hover:bg-emerald-100 transition shadow-sm">
@@ -13350,7 +13338,7 @@ className={`flex-1 min-h-0 ${
                                     <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Ödeme Yöntemi</label>
                                     <div className="grid grid-cols-2 gap-1">
                                       {["Nakit", "Kredi Kartı", "Havale", "Diğer"].map((method) => (
-                                        <button type="button" key={method} onClick={() => setPaymentMethod(method)} className={`py-1 text-[10px] font-bold rounded-md border transition-all ${paymentMethod === method ? "bg-emerald-600 text-white border-emerald-700 shadow-sm" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
+                                        <button type="button" key={method} onClick={() => setPaymentMethod(method)} className={`h-7 text-[9px] font-bold rounded-md border transition-all ${paymentMethod === method ? "bg-emerald-600 text-white border-emerald-700 shadow-sm" : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"}`}>
                                           {method}
                                         </button>
                                       ))}
@@ -13364,14 +13352,14 @@ className={`flex-1 min-h-0 ${
 
                               {/* İNDİRİM FORMU */}
                               {hasPermission("finance.discount") && (
-                                <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
-                                  <h4 className="font-black text-[11px] text-amber-600 dark:text-amber-500 uppercase tracking-wider mb-2 flex items-center gap-1 border-b border-amber-100 dark:border-amber-800/50 pb-1.5">
+                                <div className="bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm shrink-0">
+                                  <h4 className="font-black text-[10px] leading-tight text-amber-600 dark:text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1 border-b border-amber-100 dark:border-amber-800/50 pb-1">
                                     <i className="fa-solid fa-percent"></i> İndirim Uygula
                                   </h4>
                                   <div className="space-y-2">
                                     <div className="relative">
                                       <i className="fa-solid fa-percent absolute left-2.5 top-1.5 text-slate-400 text-[11px]"></i>
-                                      <input type="number" min="0" max="100" placeholder="Oran (Örn: 15)" value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} className="w-full pl-7 pr-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-[12px] font-black text-amber-600 dark:text-amber-500 outline-none focus:border-amber-500 shadow-inner" />
+                                      <input type="number" min="0" max="100" placeholder="Oran (Örn: 15)" value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} className="h-8 w-full pl-7 pr-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-black text-amber-600 dark:text-amber-500 outline-none focus:border-amber-500 shadow-inner" />
                                     </div>
                                     
                                     {discountPercent > 0 && discountPercent <= 100 && (
@@ -13661,83 +13649,268 @@ className={`flex-1 min-h-0 ${
                                   </button>
                                 </div>
 
-                                                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2 p-1">
-                                  {Object.entries(DYNAMIC_PRICING_CATEGORIES || {}).map(([catName, data]) => (
-                                    <div key={catName} className="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-2.5 border border-slate-200 dark:border-slate-700 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
-                                      <h4 className={`text-[11px] font-black uppercase tracking-wider mb-2 flex items-center gap-1.5 ${data.color}`}>
-                                        <i className={`fa-solid ${data.icon}`}></i> {catName}
-                                      </h4>
-                                                                            <div className="flex flex-col gap-1.5 flex-1">
-                                        {data.items.map((tx) => {
-                                          // YENİ: ZIRHLI PATRON FİYAT OKUYUCU (Asistanın ekranına kliniğin güncel fiyatlarını basar)
-                                          const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
-                                          const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
-                                          const safePricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
-                                          
-                                          const txPrice = safePricing[tx] !== undefined ? parseFloat(safePricing[tx]) : 0;
-                                          const isSelected = activePlanTreatment === tx;
-                                          
-                                          return (
-                                            <button
-                                              key={tx}
-                                              type="button"
-                                              onClick={(e) => { 
-                                                e.preventDefault(); 
+                                <div className="grid grid-cols-[minmax(220px,0.8fr)_minmax(260px,1.2fr)] gap-1.5 p-1">
+                                  {(() => {
+                                    const planCategories = Object.entries(DYNAMIC_PRICING_CATEGORIES || {});
+                                    const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                                    const basePricing =
+                                      typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"]
+                                        ? globalData.pricingDb
+                                        : DEFAULT_PRICING;
+                                    const safePricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+                                    const selectedPrice = activePlanTreatment
+                                      ? parseFloat(safePricing[activePlanTreatment]) || 0
+                                      : 0;
+                                    const recentPlans = (patientForm.plannedTreatments || [])
+                                      .slice()
+                                      .sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0))
+                                      .slice(0, 4);
+                                    return (
+                                      <>
+                                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900">
+                                          <label className="block text-[9px] font-black uppercase text-slate-400">
+                                            İşlem türü
+                                            <select
+                                              value={activePlanTreatment}
+                                              onChange={(event) => {
+                                                const tx = event.target.value;
+                                                if (!tx) {
+                                                  setActivePlanTreatment("");
+                                                  return;
+                                                }
                                                 if (selectedTeethMulti.length > 0) {
-                                                    let ownerId = currentUser;
-                                                    const myProfile = globalData.userProfiles?.[currentUser];
-                                                    if (myProfile?.clinicId) {
-                                                       const patron = Object.entries(globalData.userProfiles || {}).find(([k, v]) => v.clinicId === myProfile.clinicId && v.role === "clinic_owner");
-                                                       if (patron) ownerId = patron[0];
-                                                    } else if (myProfile?.role === "assistant" || myProfile?.role === "doctor") {
-                                                       ownerId = myProfile.createdBy || currentUser;
+                                                  const txPrice = parseFloat(safePricing[tx]) || 0;
+                                                  const newTreatments = [];
+                                                  selectedTeethMulti.forEach((toothNo) => {
+                                                    let actualTreatment = tx;
+                                                    if (tx === "Diş Çekimi" && ["18", "28", "38", "48"].includes(toothNo)) {
+                                                      actualTreatment = "Gömülü ve 20lik Diş Çekimi";
                                                     }
-                                                    const basePricing = typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"] ? globalData.pricingDb : DEFAULT_PRICING;
-                                                    const userPricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
-                                                    
-                                                    const newTreatments = [];
-                                                    selectedTeethMulti.forEach(toothNo => {
-                                                        let actualPlanTreatment = tx;
-                                                        if (tx === "Diş Çekimi" && ["18", "28", "38", "48"].includes(toothNo)) {
-                                                            actualPlanTreatment = "Gömülü ve 20lik Diş Çekimi";
-                                                        }
-                                                        const exists = patientForm.plannedTreatments?.some(t => t.tooth === toothNo && t.treatment === actualPlanTreatment);
-                                                        if (!exists) {
-                                                            const txPrice = userPricing[actualPlanTreatment] !== undefined ? parseFloat(userPricing[actualPlanTreatment]) : 0;
-                                                            newTreatments.push({
-                                                                id: Date.now() + Math.random().toString(),
-                                                                tooth: toothNo,
-                                                                treatment: actualPlanTreatment,
-                                                                date: Date.now(),
-                                                                price: txPrice,
-                                                            });
-                                                        }
-                                                    });
-                                                    
-                                                    if (newTreatments.length > 0) {
-                                                        setPatientForm(prev => ({
-                                                            ...prev,
-                                                            plannedTreatments: [...(prev.plannedTreatments || []), ...newTreatments]
-                                                        }));
-                                                        showNotification(`${selectedTeethMulti.length} dişe ${tx} başarıyla uygulandı.`);
+                                                    const exists = patientForm.plannedTreatments?.some(
+                                                      (item) => item.tooth === toothNo && item.treatment === actualTreatment
+                                                    );
+                                                    if (!exists) {
+                                                      newTreatments.push({
+                                                        id: Date.now() + Math.random().toString(),
+                                                        tooth: toothNo,
+                                                        treatment: actualTreatment,
+                                                        date: Date.now(),
+                                                        price: parseFloat(safePricing[actualTreatment]) || txPrice,
+                                                      });
                                                     }
-                                                    setSelectedTeethMulti([]); // Seçimi temizle
+                                                  });
+                                                  if (newTreatments.length > 0) {
+                                                    setPatientForm((prev) => ({
+                                                      ...prev,
+                                                      plannedTreatments: [...(prev.plannedTreatments || []), ...newTreatments],
+                                                    }));
+                                                    showNotification(`${selectedTeethMulti.length} dişe ${tx} uygulandı.`);
+                                                  }
+                                                  setSelectedTeethMulti([]);
+                                                  setActivePlanTreatment("");
                                                 } else {
-                                                    setActivePlanTreatment(tx); 
+                                                  setActivePlanTreatment(tx);
                                                 }
                                               }}
-                                                                                            className={`text-left px-2.5 py-2 rounded-lg text-[11px] font-bold transition-all flex justify-between items-center gap-2 w-full ${
-                                                isSelected ? "bg-indigo-600 text-white border-indigo-700 shadow-md transform scale-[1.02]" : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-indigo-300 border border-slate-200 dark:border-slate-700"
+                                              className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                            >
+                                              <option value="">İşlem seçin...</option>
+                                              {planCategories.map(([catName, data]) => (
+                                                <optgroup key={catName} label={catName}>
+                                                  {data.items.map((tx) => (
+                                                    <option key={tx} value={tx}>
+                                                      {tx} — {parseFloat(safePricing[tx]) || 0} ₺
+                                                    </option>
+                                                  ))}
+                                                </optgroup>
+                                              ))}
+                                            </select>
+                                          </label>
+                                          {activePlanTreatment && (
+                                            <div className="mt-1.5 flex items-center justify-between rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                                              <span className="truncate pr-2 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+                                                {selectedTeethMulti.length
+                                                  ? `${selectedTeethMulti.length} diş seçili`
+                                                  : "Diş seçimi bekleniyor"}
+                                              </span>
+                                              <span className="shrink-0 text-[13px] font-black text-emerald-600 dark:text-emerald-400">
+                                                {selectedPrice.toLocaleString("tr-TR")} ₺
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="min-h-[76px] rounded-lg border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-800">
+                                          <div className="mb-1 text-[8px] font-black uppercase text-slate-400">Son planlanan işlemler</div>
+                                          {recentPlans.length > 0 ? (
+                                            <div className="grid grid-cols-2 gap-1">
+                                              {recentPlans.map((tx) => (
+                                                <div key={tx.id} className="rounded-md border border-slate-100 bg-slate-50 px-1.5 py-1 dark:border-slate-700 dark:bg-slate-900">
+                                                  <div className="flex items-center justify-between gap-1">
+                                                    <span className="truncate text-[9px] font-black text-slate-700 dark:text-slate-200">{tx.treatment}</span>
+                                                    <span className="shrink-0 text-[9px] font-black text-emerald-600">{parseFloat(tx.price || 0).toLocaleString("tr-TR")} ₺</span>
+                                                  </div>
+                                                  <div className="mt-0.5 text-[8px] font-bold text-slate-400">
+                                                    Diş {tx.tooth || "-"} · {tx.isCompleted ? "Tamamlandı" : "Planlandı"}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <div className="py-4 text-center text-[9px] font-bold text-slate-400">Planlanmış işlem bulunmuyor</div>
+                                          )}
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+
+                                <div className="hidden grid grid-cols-[150px_minmax(230px,1fr)_minmax(210px,0.8fr)] gap-1.5 p-1 max-h-[330px] overflow-hidden">
+                                  {(() => {
+                                    const planCategories = Object.entries(DYNAMIC_PRICING_CATEGORIES || {});
+                                    const selectedCategoryName =
+                                      planCategories.find(([name]) => name === activePlanCategory)?.[0] ||
+                                      planCategories[0]?.[0] ||
+                                      "";
+                                    const selectedCategory =
+                                      planCategories.find(([name]) => name === selectedCategoryName)?.[1];
+                                    const ownerId = typeof getClinicOwnerId === "function" ? getClinicOwnerId() : currentUser;
+                                    const basePricing =
+                                      typeof globalData.pricingDb === "object" && globalData.pricingDb["Genel Muayene"]
+                                        ? globalData.pricingDb
+                                        : DEFAULT_PRICING;
+                                    const safePricing = { ...basePricing, ...(globalData.pricingDb?.[ownerId] || {}) };
+                                    const selectedPrice = activePlanTreatment
+                                      ? parseFloat(safePricing[activePlanTreatment]) || 0
+                                      : 0;
+                                    const recentPlans = (patientForm.plannedTreatments || [])
+                                      .slice()
+                                      .sort((a, b) => (Number(b.date) || 0) - (Number(a.date) || 0))
+                                      .slice(0, 5);
+                                    return (
+                                      <>
+                                        <div className="min-h-0 overflow-y-auto rounded-lg bg-slate-950 p-1.5 custom-scrollbar">
+                                          {planCategories.map(([catName, data]) => (
+                                            <button
+                                              key={catName}
+                                              type="button"
+                                              onClick={() => setActivePlanCategory(catName)}
+                                              className={`mb-1 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[10px] font-black leading-tight transition ${
+                                                selectedCategoryName === catName
+                                                  ? "bg-indigo-600 text-white"
+                                                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
                                               }`}
                                             >
-                                                                                            <span className="min-w-0 pr-1.5 leading-snug whitespace-normal break-words">{tx}</span>
-                                                                                            <span className={`shrink-0 whitespace-nowrap ${isSelected ? "text-indigo-200" : "text-emerald-600 dark:text-emerald-400"}`}>{txPrice} ₺</span>
+                                              <i className={`fa-solid ${data.icon} w-3 text-center ${selectedCategoryName === catName ? "text-white" : data.color}`}></i>
+                                              <span>{catName}</span>
                                             </button>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  ))}
+                                          ))}
+                                        </div>
+                                        <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-1.5 custom-scrollbar dark:border-slate-700 dark:bg-slate-900">
+                                          <div className="mb-1 flex items-center justify-between px-1">
+                                            <h4 className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200">
+                                              {selectedCategoryName}
+                                            </h4>
+                                            <span className="text-[9px] font-bold text-slate-400">{selectedCategory?.items?.length || 0} işlem</span>
+                                          </div>
+                                          {(selectedCategory?.items || []).map((tx) => {
+                                            const txPrice = parseFloat(safePricing[tx]) || 0;
+                                            const isSelected = activePlanTreatment === tx;
+                                            return (
+                                              <button
+                                                key={tx}
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.preventDefault();
+                                                  if (selectedTeethMulti.length > 0) {
+                                                    const newTreatments = [];
+                                                    selectedTeethMulti.forEach((toothNo) => {
+                                                      let actualPlanTreatment = tx;
+                                                      if (tx === "Diş Çekimi" && ["18", "28", "38", "48"].includes(toothNo)) {
+                                                        actualPlanTreatment = "Gömülü ve 20lik Diş Çekimi";
+                                                      }
+                                                      const exists = patientForm.plannedTreatments?.some(
+                                                        (t) => t.tooth === toothNo && t.treatment === actualPlanTreatment
+                                                      );
+                                                      if (!exists) {
+                                                        newTreatments.push({
+                                                          id: Date.now() + Math.random().toString(),
+                                                          tooth: toothNo,
+                                                          treatment: actualPlanTreatment,
+                                                          date: Date.now(),
+                                                          price: txPrice,
+                                                        });
+                                                      }
+                                                    });
+                                                    if (newTreatments.length > 0) {
+                                                      setPatientForm((prev) => ({
+                                                        ...prev,
+                                                        plannedTreatments: [...(prev.plannedTreatments || []), ...newTreatments],
+                                                      }));
+                                                      showNotification(`${selectedTeethMulti.length} dişe ${tx} başarıyla uygulandı.`);
+                                                    }
+                                                    setSelectedTeethMulti([]);
+                                                  } else {
+                                                    setActivePlanTreatment(tx);
+                                                  }
+                                                }}
+                                                className={`mb-1 flex min-h-8 w-full items-center justify-between rounded-md border px-2 py-1 text-left text-[10px] font-bold transition ${
+                                                  isSelected
+                                                    ? "border-indigo-600 bg-indigo-600 text-white"
+                                                    : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                                                }`}
+                                              >
+                                                <span className="truncate pr-2">{tx}</span>
+                                                <span className={isSelected ? "text-white" : "text-emerald-600 dark:text-emerald-400"}>{txPrice.toLocaleString("tr-TR")} ₺</span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                        <div className="min-h-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 custom-scrollbar dark:border-slate-700 dark:bg-slate-800">
+                                          <div className="mb-1.5 border-b border-slate-100 pb-1.5 dark:border-slate-700">
+                                            <div className="text-[8px] font-black uppercase text-slate-400">Seçili işlem</div>
+                                            <div className="mt-0.5 truncate text-[11px] font-black text-slate-800 dark:text-white">
+                                              {activePlanTreatment || "İşlem seçilmedi"}
+                                            </div>
+                                            {activePlanTreatment && (
+                                              <div className="mt-1 flex items-end justify-between">
+                                                <span className="text-[9px] font-bold text-slate-400">
+                                                  {selectedTeethMulti.length
+                                                    ? `${selectedTeethMulti.length} diş seçili`
+                                                    : "Diş seçimi bekleniyor"}
+                                                </span>
+                                                <span className="text-[13px] font-black text-emerald-600 dark:text-emerald-400">
+                                                  {selectedPrice.toLocaleString("tr-TR")} ₺
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="text-[8px] font-black uppercase text-slate-400">İşlem geçmişi / plan</div>
+                                          <div className="mt-1 space-y-1">
+                                            {recentPlans.length > 0 ? recentPlans.map((tx) => (
+                                              <div key={tx.id} className="rounded-md border border-slate-100 bg-slate-50 px-1.5 py-1 dark:border-slate-700 dark:bg-slate-900">
+                                                <div className="flex justify-between gap-2">
+                                                  <span className="truncate text-[9px] font-black text-slate-700 dark:text-slate-200">{tx.treatment}</span>
+                                                  <span className="shrink-0 text-[9px] font-black text-emerald-600">{parseFloat(tx.price || 0).toLocaleString("tr-TR")} ₺</span>
+                                                </div>
+                                                <div className="mt-0.5 flex justify-between text-[8px] font-bold text-slate-400">
+                                                  <span>Diş: {tx.tooth || "-"}</span>
+                                                  <span>{globalData.systemUsers?.[tx.docId || tx.completedBy]?.displayName || globalData.doctorProfiles?.[tx.docId || tx.completedBy]?.name || currentUserProfile?.name || "Hekim"}</span>
+                                                </div>
+                                                <div className="mt-0.5 flex justify-between text-[8px] font-bold text-slate-400">
+                                                  <span>{tx.date ? new Date(tx.date).toLocaleDateString("tr-TR") : "Tarih yok"}</span>
+                                                  <span className={tx.isCompleted ? "text-emerald-500" : "text-indigo-500"}>
+                                                    {tx.isCompleted ? "Tamamlandı" : "Planlandı"}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            )) : (
+                                              <div className="py-4 text-center text-[9px] font-bold text-slate-400">Kayıtlı işlem bulunmuyor</div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
 

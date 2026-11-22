@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const WEEKDAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 
@@ -33,6 +33,27 @@ const getStatusIcon = (status) =>
 
 const getCommunicationIcon = (value) =>
   COMMUNICATION_OPTIONS.find((option) => option.value === value)?.icon || "";
+
+const getStatusIconClass = (status) => {
+  if (status === "Yeni Kayıt") return "fa-circle-plus";
+  if (status === "Onaylandı") return "fa-circle-check";
+  if (status === "Bekliyor") return "fa-clock";
+  if (status === "İşlemde") return "fa-tooth";
+  if (status === "Geldi" || status === "Tamamlandı") return "fa-check";
+  if (status === "İptal") return "fa-xmark";
+  if (status === "Gelmedi") return "fa-user-xmark";
+  return "fa-circle";
+};
+
+const getStatusBadgeClass = (status) => {
+  if (status === "Onaylandı") return "bg-sky-500 text-white";
+  if (status === "Bekliyor") return "bg-amber-400 text-slate-950";
+  if (status === "İşlemde") return "bg-violet-500 text-white";
+  if (status === "Geldi" || status === "Tamamlandı") return "bg-emerald-500 text-white";
+  if (status === "İptal") return "bg-rose-500 text-white";
+  if (status === "Gelmedi") return "bg-slate-600 text-white";
+  return "bg-indigo-100 text-indigo-700";
+};
 
 const normalizeStatus = (status) => {
   const known = STATUS_OPTIONS.some((option) => option.value === status);
@@ -217,6 +238,21 @@ export default function ClinicAgenda({
   const [search, setSearch] = useState("");
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [datePickerMonth, setDatePickerMonth] = useState(() => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+  const [blockDatePickerOpen, setBlockDatePickerOpen] = useState(false);
+  const [blockDatePickerMonth, setBlockDatePickerMonth] = useState(() => new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+  useEffect(() => {
+    if (!datePickerOpen && !blockDatePickerOpen) return undefined;
+    const closePickers = (event) => {
+      if (!event.target.closest("[data-agenda-date-picker]")) {
+        setDatePickerOpen(false);
+        setBlockDatePickerOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closePickers);
+    return () => document.removeEventListener("pointerdown", closePickers);
+  }, [datePickerOpen, blockDatePickerOpen]);
   const [blockForm, setBlockForm] = useState({
     title: "Toplantı",
     blockType: "meeting",
@@ -375,9 +411,9 @@ export default function ClinicAgenda({
     return occupied.length ? occupied : allSegments;
   }, [allAppointments, endMinute, hideEmptySlots, slotInterval, startMinute]);
 
-  const baseRowHeight = 42;
+  const baseRowHeight = 40;
   const rowHeight =
-    slotInterval === 60 ? baseRowHeight : slotInterval === 30 ? 21 : 10.5;
+    slotInterval === 60 ? baseRowHeight : slotInterval === 30 ? 26 : 13;
   const timelineHeight = Math.max(rowHeight, segments.length * rowHeight);
   const timelinePosition = (minute) => {
     let position = 0;
@@ -481,6 +517,8 @@ export default function ClinicAgenda({
       doctorId: defaultDoctorId,
       date: toDateKey(selectedDate),
     }));
+    setBlockDatePickerOpen(false);
+    setBlockDatePickerMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     setBlockModalOpen(true);
   };
 
@@ -506,16 +544,7 @@ export default function ClinicAgenda({
   const dayColumns = useMemo(
     () =>
       calendarPeriod === "day"
-        ? visibleDoctors
-            .filter((doctorId) =>
-              getDoctorScheduleStatus(
-                globalData.doctorProfiles?.[doctorId],
-                dates[0],
-                `${startMinute / 60}:00`,
-                slotInterval
-              ).available
-            )
-            .map((doctorId) => ({ date: dates[0], doctorId }))
+        ? visibleDoctors.map((doctorId) => ({ date: dates[0], doctorId }))
         : dates.map((date) => ({ date, doctorId: null })),
     [
       calendarPeriod,
@@ -545,6 +574,21 @@ export default function ClinicAgenda({
     : "";
   const selectedPatientName = selectedDetails?.appointment?.patientName;
 
+  const formatDisplayDate = (date) =>
+    date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+  const getMonthDateCells = (month) => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1);
+    const mondayOffset = (first.getDay() + 6) % 7;
+    const start = new Date(first);
+    start.setDate(first.getDate() - mondayOffset);
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return date;
+    });
+  };
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
       <header className="relative z-20 flex h-9 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-2 dark:border-slate-800 dark:bg-slate-900">
@@ -572,17 +616,70 @@ export default function ClinicAgenda({
           >
             <i className="fa-solid fa-chevron-right text-[10px]"></i>
           </button>
-          <input
-            type="text"
-            inputMode="numeric"
-            placeholder="YYYY-AA-GG"
-            value={toDateKey(selectedDate)}
-            onChange={(event) => {
-              if (event.target.value) setSelectedDate(fromDateInput(event.target.value));
-            }}
-            aria-label="Tarih aralığı başlangıç tarihi"
-            className="h-7 min-w-[132px] rounded-md border border-slate-200 bg-white px-1.5 text-[10px] font-black text-slate-700 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-          />
+          <div className="relative" data-agenda-date-picker>
+            <button
+              type="button"
+              onClick={() => {
+                setDatePickerMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+                setDatePickerOpen((open) => !open);
+              }}
+              aria-label="Tarih aralığı başlangıç tarihi"
+              className="h-7 min-w-[132px] rounded-md border border-slate-200 bg-white px-2 text-[10px] font-black text-slate-700 outline-none hover:border-indigo-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            >
+              <i className="fa-regular fa-calendar mr-1 text-slate-400"></i>
+              {formatDisplayDate(selectedDate)}
+            </button>
+            {datePickerOpen && (
+              <div
+                className="fixed left-2 top-10 z-[500] w-[260px] rounded-xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <button type="button" onClick={() => setDatePickerMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i className="fa-solid fa-chevron-left text-[9px]"></i>
+                  </button>
+                  <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">
+                    {datePickerMonth.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}
+                  </span>
+                  <button type="button" onClick={() => setDatePickerMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i className="fa-solid fa-chevron-right text-[9px]"></i>
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"].map((day) => (
+                    <div key={day} className="py-1 text-center text-[8px] font-black uppercase text-slate-400">{day}</div>
+                  ))}
+                  {getMonthDateCells(datePickerMonth).map((date) => {
+                    const isCurrentMonth = date.getMonth() === datePickerMonth.getMonth();
+                    const isSelected = toDateKey(date) === toDateKey(selectedDate);
+                    const isToday = toDateKey(date) === toDateKey(new Date());
+                    return (
+                      <button
+                        key={toDateKey(date)}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(date);
+                          setDatePickerOpen(false);
+                        }}
+                        className={`h-8 rounded-md text-[10px] font-bold transition ${
+                          isSelected
+                            ? "bg-indigo-600 text-white"
+                            : isToday
+                            ? "border border-indigo-300 text-indigo-600 dark:text-indigo-300"
+                            : isCurrentMonth
+                            ? "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                            : "text-slate-300 hover:bg-slate-50 dark:text-slate-600"
+                        }`}
+                      >
+                        {date.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button type="button" onClick={() => setDatePickerOpen(false)} className="mt-1 h-7 w-full rounded-md text-[9px] font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Kapat</button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex min-w-0 flex-1 items-center gap-1.5 xl:justify-center">
@@ -833,8 +930,8 @@ export default function ClinicAgenda({
                   <div className="sticky left-0 z-40 border-r border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"></div>
                   {calendarPeriod === "day"
                     ? dayColumns.map(({ doctorId }) => (
-                        <div key={doctorId} className="flex h-12 items-center justify-center gap-2 border-r border-slate-200 px-2 dark:border-slate-800">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: doctorColor(doctorId) }}></span>
+                        <div key={doctorId} className="flex h-10 items-center justify-center gap-2 border-r border-slate-200 px-2 dark:border-slate-800">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white dark:ring-slate-700" style={{ backgroundColor: doctorColor(doctorId) }}></span>
                           <div className="min-w-0 text-center">
                             <div className="truncate text-[10px] font-black text-slate-700 dark:text-slate-200">
                               {globalData.systemUsers?.[doctorId]?.displayName || globalData.doctorProfiles?.[doctorId]?.name || doctorId}
@@ -849,7 +946,7 @@ export default function ClinicAgenda({
                         const dateKey = toDateKey(date);
                         const isToday = dateKey === toDateKey(new Date());
                         return (
-                          <div key={dateKey} className="flex h-12 items-center justify-center gap-2 border-r border-slate-200 px-1 dark:border-slate-800">
+                          <div key={dateKey} className="flex h-10 items-center justify-center gap-2 border-r border-slate-200 px-1 dark:border-slate-800">
                             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
                               {WEEKDAYS[(date.getDay() + 6) % 7]}
                             </span>
@@ -896,9 +993,6 @@ export default function ClinicAgenda({
                     );
                     const packed = packConcurrentAppointments(dayEntries);
                     const gridLines = `repeating-linear-gradient(to bottom, transparent 0, transparent ${rowHeight - 1}px, rgba(148,163,184,.22) ${rowHeight - 1}px, rgba(148,163,184,.22) ${rowHeight}px)`;
-                    const lunchTop = timelinePosition(13 * 60);
-                    const lunchHeight = timelineDuration(13 * 60, 14 * 60);
-
                     return (
                       <div
                         key={columnDoctorId ? `${dateKey}-${columnDoctorId}` : dateKey}
@@ -955,13 +1049,6 @@ export default function ClinicAgenda({
                         }
                         role="presentation"
                       >
-                        {lunchHeight > 0 && (
-                          <div
-                            className="pointer-events-none absolute left-0 right-0 z-0 border-y border-amber-100/70 bg-amber-50/55 dark:border-amber-900/20 dark:bg-amber-900/10"
-                            style={{ top: lunchTop, height: lunchHeight }}
-                            title="Öğle arası"
-                          />
-                        )}
                         {packed.map((entry) => {
                           const appointmentStart = toMinutes(entry.time);
                           const appointmentEnd =
@@ -1066,13 +1153,25 @@ export default function ClinicAgenda({
                                       ? ` · ${entry.appointment.selectedTeeth.join(", ")}`
                                       : ""}
                                   </span>
-                                  <span className="absolute bottom-0.5 right-1 flex items-center gap-0.5 text-[9px] font-black">
-                                    <span title={getDisplayStatus(cardStatus)}>
-                                      {getStatusIcon(cardStatus)}
+                                  <span className="absolute bottom-1 right-1 flex items-center gap-0.5">
+                                    <span
+                                      title={getDisplayStatus(cardStatus)}
+                                      className={`flex h-[15px] min-w-[15px] items-center justify-center rounded-full px-0.5 text-[7px] shadow-sm ${getStatusBadgeClass(cardStatus)}`}
+                                    >
+                                      <i className={`fa-solid ${getStatusIconClass(cardStatus)}`}></i>
                                     </span>
                                     {entry.appointment.cancelFollowUp && (
-                                      <span title="İletişim durumu">
-                                        {getCommunicationIcon(entry.appointment.cancelFollowUp)}
+                                      <span
+                                        title="İletişim durumu"
+                                        className="flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-white/95 px-0.5 text-[8px] text-slate-700 shadow-sm"
+                                      >
+                                        {entry.appointment.cancelFollowUp === "phone_unanswered" ? (
+                                          <i className="fa-solid fa-phone-slash"></i>
+                                        ) : entry.appointment.cancelFollowUp === "informed" ? (
+                                          <i className="fa-solid fa-phone-volume"></i>
+                                        ) : (
+                                          <i className="fa-solid fa-bullhorn"></i>
+                                        )}
                                       </span>
                                     )}
                                   </span>
@@ -1081,11 +1180,6 @@ export default function ClinicAgenda({
                             </button>
                           );
                         })}
-                        {dayEntries.length === 0 && (
-                          <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center text-[9px] font-semibold text-slate-300 dark:text-slate-700">
-                            Boş saat
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -1380,7 +1474,17 @@ export default function ClinicAgenda({
                               selectedDetails.appointment,
                               option.value
                             );
-                            setSelectedAppointment(null);
+                            setSelectedAppointment((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    appointment: {
+                                      ...current.appointment,
+                                      status: option.value,
+                                    },
+                                  }
+                                : current
+                            );
                           }}
                           className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-[9px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-40 dark:border-slate-700 dark:text-slate-300"
                         >
@@ -1396,15 +1500,26 @@ export default function ClinicAgenda({
                         key={option.value}
                         type="button"
                         disabled={!canEditAppointments}
-                        onClick={(event) =>
+                        onClick={(event) => {
                           onChangeCommunication?.(
                             event,
                             selectedDetails.doctorId,
                             selectedDetails.key,
                             selectedDetails.appointment,
                             option.value
-                          )
-                        }
+                          );
+                          setSelectedAppointment((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  appointment: {
+                                    ...current.appointment,
+                                    cancelFollowUp: option.value,
+                                  },
+                                }
+                              : current
+                          );
+                        }}
                         className={`rounded-md border px-2 py-1.5 text-[9px] font-bold ${
                           selectedDetails.appointment.cancelFollowUp === option.value
                             ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
@@ -1414,6 +1529,14 @@ export default function ClinicAgenda({
                         {option.icon} {option.label}
                       </button>
                     ))}
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[10px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-full ${getStatusBadgeClass(normalizeStatus(selectedDetails.appointment.status))}`}>
+                      <i className={`fa-solid ${getStatusIconClass(normalizeStatus(selectedDetails.appointment.status))}`}></i>
+                    </span>
+                    <span>
+                      Son durum: {getDisplayStatus(normalizeStatus(selectedDetails.appointment.status))}
+                    </span>
                   </div>
                   {selectedDetails.appointment.cancelFollowUp && (
                     <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-bold text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
@@ -1433,6 +1556,7 @@ export default function ClinicAgenda({
                         {selectedDetails.appointment.cancelFollowUp === "information_pending" && "Hastaya bilgi verilecek"}
                         {selectedDetails.appointment.cancelFollowUp === "recall" && "Yeniden aranacak"}
                         {selectedDetails.appointment.cancelFollowUp === "cancel" && "Randevu iptal edildi"}
+                        {selectedDetails.appointment.cancelFollowUp === "informed" && "Bilgilendirildi / teyit alındı"}
                       </span>
                     </div>
                   )}
@@ -1492,6 +1616,10 @@ export default function ClinicAgenda({
       {blockModalOpen && (
         <div
           className="fixed inset-0 z-[360] flex items-center justify-center bg-slate-950/50 p-3 backdrop-blur-sm"
+          role="presentation"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setBlockModalOpen(false);
+          }}
           onMouseDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -1500,11 +1628,14 @@ export default function ClinicAgenda({
         >
           <form
             onSubmit={submitBlock}
-            className="w-full max-w-sm space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+            className="w-full max-w-[420px] space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="text-sm font-black text-slate-800 dark:text-white">
+            <div className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/30">
+                <i className="fa-solid fa-ban text-[11px]"></i>
+              </span>
               Blokaj / İzin Ekle
             </div>
             <label className="block text-[9px] font-bold uppercase text-slate-400">
@@ -1522,6 +1653,7 @@ export default function ClinicAgenda({
                         : blockType === "congress"
                         ? "Kongre"
                         : "Toplantı",
+                    duration: blockType === "leave" ? "480" : blockForm.duration,
                   });
                 }}
                 className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[11px] font-bold dark:border-slate-700 dark:bg-slate-800 dark:text-white"
@@ -1564,18 +1696,68 @@ export default function ClinicAgenda({
               </label>
               <label className="block text-[9px] font-bold uppercase text-slate-400">
                 Tarih
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="YYYY-AA-GG"
-                  pattern="\d{4}-\d{2}-\d{2}"
-                  required
-                  value={blockForm.date}
-                  onChange={(event) =>
-                    setBlockForm({ ...blockForm, date: event.target.value })
-                  }
-                  className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                />
+                <div className="relative" data-agenda-date-picker>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBlockDatePickerMonth(blockForm.date ? new Date(blockForm.date.slice(0, 4), Number(blockForm.date.slice(5, 7)) - 1, 1) : new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+                      setBlockDatePickerOpen((open) => !open);
+                    }}
+                    className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-left text-[10px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  >
+                    <i className="fa-regular fa-calendar mr-1.5 text-slate-400"></i>
+                    {/^\d{4}-\d{2}-\d{2}$/.test(blockForm.date)
+                      ? formatDisplayDate(fromDateInput(blockForm.date))
+                      : "Tarih seçin"}
+                  </button>
+                  {blockDatePickerOpen && (
+                    <div
+                      className="absolute left-0 top-[38px] z-[600] w-[260px] rounded-xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+                      onMouseDown={(event) => event.stopPropagation()}
+                    >
+                      <div className="mb-1 flex items-center justify-between">
+                        <button type="button" onClick={() => setBlockDatePickerMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                          <i className="fa-solid fa-chevron-left text-[9px]"></i>
+                        </button>
+                        <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">
+                          {blockDatePickerMonth.toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}
+                        </span>
+                        <button type="button" onClick={() => setBlockDatePickerMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">
+                          <i className="fa-solid fa-chevron-right text-[9px]"></i>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-0.5">
+                        {["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"].map((day) => (
+                          <div key={day} className="py-1 text-center text-[8px] font-black uppercase text-slate-400">{day}</div>
+                        ))}
+                        {getMonthDateCells(blockDatePickerMonth).map((date) => {
+                          const isCurrentMonth = date.getMonth() === blockDatePickerMonth.getMonth();
+                          const isSelected = toDateKey(date) === blockForm.date;
+                          return (
+                            <button
+                              key={toDateKey(date)}
+                              type="button"
+                              onClick={() => {
+                                setBlockForm({ ...blockForm, date: toDateKey(date) });
+                                setBlockDatePickerOpen(false);
+                              }}
+                              className={`h-8 rounded-md text-[10px] font-bold ${
+                                isSelected
+                                  ? "bg-indigo-600 text-white"
+                                  : isCurrentMonth
+                                  ? "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                  : "text-slate-300 hover:bg-slate-50 dark:text-slate-600"
+                              }`}
+                            >
+                              {date.getDate()}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button type="button" onClick={() => setBlockDatePickerOpen(false)} className="mt-1 h-7 w-full rounded-md text-[9px] font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Kapat</button>
+                    </div>
+                  )}
+                </div>
               </label>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -1600,9 +1782,9 @@ export default function ClinicAgenda({
                   }
                   className="mt-1 h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 >
-                  {[30, 60, 90, 120, 180, 240].map((duration) => (
+                  {[30, 60, 90, 120, 180, 240, 480].map((duration) => (
                     <option key={duration} value={duration}>
-                      {duration} dakika
+                      {duration === 480 ? "480 dakika / Tam gün" : `${duration} dakika`}
                     </option>
                   ))}
                 </select>
